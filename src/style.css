@@ -9,3 +9,5 @@
 .foreign-panel{border:1px solid #dfeae7;border-radius:8px;background:#f6faf9;padding:14px;margin:12px 0}.foreign-panel h3{font-size:13px;color:#41665e}.foreign-panel small{font-weight:400;font-size:10px;margin-left:7px}.foreign-panel .detail-metrics{margin:12px 0;padding:0;border:0}.foreign-panel p{font-size:10px;color:#758a85}
 
 .instrument-meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:12px;margin:12px 0;color:#78869b}.instrument-meta strong{color:#20324d;margin-left:5px}.instrument-meta small{font-size:10px;width:100%}
+
+.flow-section{margin-top:20px}.flow-section>h3{font-size:14px;color:#20324d}.flow-section>h3 small{display:block;font-size:11px;font-weight:400;color:#78869b;margin-top:5px}.foreign-flow-section{border-top:1px solid var(--border);padding-top:20px}.foreign-flow-section>p{font-size:11px;color:#78869b;margin-bottom:12px}
