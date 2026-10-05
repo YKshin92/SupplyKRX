@@ -6,5 +6,6 @@ root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root))
 from collector.core import publish
 calendar=json.loads((root/'data/live/calendar.json').read_text(encoding='utf-8'))
-manifest=publish(root/'data/live',root/'public/data/live','live',calendar)
-print(f"Local preview: {manifest['stock_count']} stocks, {manifest['row_count']} rows. Do not deploy without data permission.")
+manifests=publish(root/'data/live',root/'public/data/live','live',calendar)
+for investor,manifest in manifests.items():
+    print(f"{investor}: {manifest['stock_count']} stocks, {manifest['row_count']} rows. Local only.")

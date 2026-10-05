@@ -27,10 +27,10 @@ def main():
     if args.command=='demo': print(generate(args.root)); return
     root=args.root/'data/live'
     if args.command=='collect':
-        from .pykrx_provider import collect
+        from .pykrx_provider import collect, INVESTORS
         existing=load_rows(root)
         start=args.start
-        if existing and not start:
+        if existing and not start and set(INVESTORS).issubset({r['investor'] for r in existing}):
             known=sorted({r['date'] for r in existing})
             start=known[max(0,len(known)-3)] # recheck three sessions + catch up
         rows,calendar=collect(args.end,args.days,start,args.codes.split(',') if args.codes else None)

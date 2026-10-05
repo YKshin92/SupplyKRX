@@ -1,4 +1,4 @@
-name: Collect pension flow
+name: Collect pension and foreign flow
 on:
   schedule:
     # Provisional slots, KST 18:17 and 20:17. Confirm source publication timing.

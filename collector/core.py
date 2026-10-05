@@ -10,8 +10,8 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-FIELDS = ['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality']
-NUMBERS = ['buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover']
+FIELDS = ['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low']
+NUMBERS = ['open','high','low','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover']
 
 def validate(raw: dict) -> dict:
     r = {k: raw.get(k, '') for k in FIELDS}
@@ -20,7 +20,7 @@ def validate(raw: dict) -> dict:
     date.fromisoformat(str(r['date']))
     if not re.fullmatch(r'[0-9A-Z]{6}', str(r['code'])):
         raise ValueError('종목코드는 앞자리 0을 포함한 6자리 영숫자 문자열이어야 합니다.')
-    if r['market'] not in ('KOSPI','KOSDAQ') or r['investor'] != '연기금 등':
+    if r['market'] not in ('KOSPI','KOSDAQ') or r['investor'] not in ('연기금 등','외국인'):
         raise ValueError('시장 또는 투자자 분류가 올바르지 않습니다.')
     if not all(r[k] for k in ['name','scope','source','collected_at','finality']):
         raise ValueError('종목명·출처·거래 범위·수집 시각·확정 상태가 필요합니다.')
@@ -40,7 +40,7 @@ def validate(raw: dict) -> dict:
             if k != 'change_pct' and not n.is_integer():
                 raise ValueError(f'{k}: 원/주 단위 정수여야 합니다.')
             r[k] = n if k == 'change_pct' else int(n)
-    for k in ['buy','sell','buy_volume','sell_volume','close','volume','turnover']:
+    for k in ['open','high','low','buy','sell','buy_volume','sell_volume','close','volume','turnover']:
         if r[k] is not None and r[k] < 0:
             raise ValueError(f'{k}: 음수는 허용되지 않습니다.')
     for buy, sell, net in [('buy','sell','net'), ('buy_volume','sell_volume','net_volume')]:
@@ -50,6 +50,11 @@ def validate(raw: dict) -> dict:
                 r[net] = expected
             elif r[net] != expected:
                 raise ValueError(f'{r["code"]}: {net} 불일치')
+    if r['volume'] == 0 and all(r[k] == 0 for k in ['open','high','low']):
+        for k in ['open','high','low']: r[k] = None
+    if all(r[k] is not None for k in ['open','high','low','close']):
+        if r['low'] > min(r['open'],r['close']) or r['high'] < max(r['open'],r['close']) or r['high'] < r['low']:
+            raise ValueError('OHLC 가격 범위 불일치')
     return r
 
 def key(r):
@@ -58,7 +63,7 @@ def key(r):
 def read_csv(path: Path) -> list[dict]:
     with path.open(encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
-        if not set(FIELDS).issubset(reader.fieldnames or []):
+        if not (set(FIELDS)-{'open','high','low'}).issubset(reader.fieldnames or []):
             raise ValueError('표준 CSV 헤더가 필요합니다: ' + ','.join(FIELDS))
         return [validate(r) for r in reader]
 
@@ -66,7 +71,7 @@ def csv_text(rows):
     out = io.StringIO(newline='')
     w = csv.DictWriter(out, fieldnames=FIELDS, lineterminator='\n')
     w.writeheader()
-    w.writerows({k: r[k] for k in FIELDS} for r in rows)
+    w.writerows({k: r.get(k) for k in FIELDS} for r in rows)
     return out.getvalue()
 
 def atomic_text(path: Path, text: str):
@@ -107,6 +112,8 @@ def load_rows(root: Path):
     return [r for p in sorted((root/'daily').glob('*.csv')) for r in read_csv(p)]
 
 def metrics(rows: list[dict], sessions: list[str], as_of: str):
+    if len({r['investor'] for r in rows}) > 1:
+        raise ValueError('투자자별로 나누어 계산해야 합니다.')
     index = {r['date']: r for r in rows}
     dates = [d for d in sessions if d <= as_of][-20:]
     latest = index.get(as_of)
@@ -127,13 +134,14 @@ def metrics(rows: list[dict], sessions: list[str], as_of: str):
         censored = True
     eligible = [index.get(d, {}).get('turnover') for d in dates]
     sum20 = total(20)
+    buy_only20 = sum20 is not None and any(index[d]['net'] > 0 for d in dates) and all(index[d]['net'] >= 0 for d in dates)
     denominator = sum(eligible) if eligible and all(v is not None for v in eligible) else None
     ratio = sum20 / denominator * 100 if sum20 is not None and denominator and denominator > 0 else None
     def traded(r):
         if not r: return None
         if r['buy'] is not None and r['sell'] is not None: return r['buy'] > 0 or r['sell'] > 0
         return True if r['net'] is not None and r['net'] != 0 else None
-    return dict(sum5=total(5), sum20=sum20, streak=streak, streak_censored=censored,
+    return dict(sum5=total(5), sum20=sum20, buy_only20=buy_only20, streak=streak, streak_censored=censored,
                 ratio20=ratio, active=traded(latest), active20=any(traded(index.get(d)) is True for d in dates),
                 full_activity=bool(latest and latest['buy'] is not None and latest['sell'] is not None),
                 days=sum(index.get(d,{}).get('net') is not None for d in dates),
@@ -154,6 +162,20 @@ def validate_calendar(calendar: dict):
 
 def publish(root: Path, target: Path, mode: str, calendar: dict):
     rows = load_rows(root)
+    sessions = validate_calendar(calendar)
+    if len({r['scope'] for r in rows}) > 1 or any(r['date'] not in sessions for r in rows):
+        raise ValueError('거래 범위 또는 거래일이 일치하지 않습니다.')
+    if mode == 'live' and any(r['finality'] == 'demo' for r in rows):
+        raise ValueError('운영 데이터에 데모가 포함되어 있습니다.')
+    results = {}
+    for investor, suffix in [('외국인','foreign'),('연기금 등','')]:
+        selected = [r for r in rows if r['investor'] == investor]
+        if selected:
+            results[investor] = publish_investor(selected,target/suffix,mode,calendar,investor)
+    if not results: raise ValueError('게시할 데이터가 없습니다.')
+    return results
+
+def publish_investor(rows, target, mode, calendar, investor):
     if not rows: raise ValueError('게시할 데이터가 없습니다.')
     if mode not in ('demo','live'): raise ValueError('잘못된 모드')
     if mode == 'live' and any(r['finality'] == 'demo' for r in rows):
@@ -177,6 +199,7 @@ def publish(root: Path, target: Path, mode: str, calendar: dict):
         period = [r for r in history if r['date'] in display_dates]
         pricing = next((r for r in reversed(history) if r['close'] is not None), None)
         summary.append(dict(code=code, name=last['name'],market=last['market'],
+            **calendar.get('instruments',{}).get(code,{}),
             buy=latest['buy'] if latest else None, sell=latest['sell'] if latest else None, net=latest['net'] if latest else None,
             close=pricing['close'] if pricing else None, price_date=pricing['date'] if pricing else None,
             change_pct=pricing['change_pct'] if pricing else None,
@@ -187,7 +210,7 @@ def publish(root: Path, target: Path, mode: str, calendar: dict):
     summary.sort(key=lambda s: (s['net'] is not None, s['net'] or 0), reverse=True)
     save_json(base/'summary.json', summary)
     save_json(base/'instruments.json', [{k:s[k] for k in ['code','name','market']} for s in summary])
-    manifest = dict(schema_version=1, mode=mode, as_of=as_of, sessions=sessions,
+    manifest = dict(schema_version=1, investor=investor, mode=mode, as_of=as_of, sessions=sessions,
         calendar_checked_through=calendar['checked_through'],calendar_source=calendar['source'],
         generated_at=datetime.now(timezone.utc).isoformat(),
         collected_at=max(r['collected_at'] for r in rows),

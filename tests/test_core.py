@@ -18,6 +18,35 @@ def row(day='2026-09-01',net=10,**kwargs):
     return r
 
 class CoreTests(unittest.TestCase):
+    def test_buy_only_twenty_days(self):
+        dates=[f'2026-09-{i:02}' for i in range(1,21)]
+        rows=[row(d,0) for d in dates]
+        self.assertFalse(metrics(rows,dates,dates[-1])['buy_only20'])
+        rows[0]=row(dates[0],10)
+        self.assertTrue(metrics(rows,dates,dates[-1])['buy_only20'])
+        rows[1]=row(dates[1],-1)
+        self.assertFalse(metrics(rows,dates,dates[-1])['buy_only20'])
+        rows[1]=row(dates[1],0)
+        self.assertFalse(metrics(rows[:-1],dates,dates[-1])['buy_only20'])
+    def test_ohlc_bounds_and_legacy_csv(self):
+        self.assertIsNone(validate(row())['open'])
+        halted=validate(row(open=0,high=0,low=0,volume=0))
+        self.assertIsNone(halted['open']);self.assertEqual(halted['close'],70000)
+        self.assertEqual(validate(row(open=69000,high=71000,low=68000))['high'],71000)
+        with self.assertRaises(ValueError):validate(row(open=69000,high=68000,low=67000))
+    def test_investors_remain_separate(self):
+        with TemporaryDirectory() as t:
+            root=Path(t)/'raw'; target=Path(t)/'web'
+            upsert(root,[row(),row(net=-30,investor='외국인')])
+            upsert(root,[row(net=-40,investor='외국인')])
+            self.assertEqual(len(load_rows(root)),2)
+            result=publish(root,target,'live',dict(sessions=['2026-09-01'],checked_through='2026-09-01',source='test'))
+            for investor,folder,net in [('연기금 등',target,10),('외국인',target/'foreign',-40)]:
+                manifest=json.loads((folder/'manifest.json').read_text(encoding='utf-8'))
+                summary=json.loads((folder/manifest['generation']/'summary.json').read_text(encoding='utf-8'))
+                self.assertEqual(manifest['investor'],investor)
+                self.assertEqual(summary[0]['net'],net)
+            with self.assertRaises(ValueError): metrics(load_rows(root),['2026-09-01'],'2026-09-01')
     def test_code_and_identity(self):
         self.assertEqual(validate(row())['code'],'005930')
         self.assertEqual(validate(row(code='0001A0'))['code'],'0001A0')

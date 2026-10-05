@@ -20,8 +20,14 @@ def generate(project: Path):
             buy = max(0,sell+net)
             if j==11 and i==19: buy=sell=900000000 # real activity, net zero
             close=round(price*(1+.0015*i+math.sin(i*.4+j)*.035)/100)*100
-            rows.append(dict(date=day,code=code,name=name,market=market,investor='연기금 등',scope='DEMO',buy=buy,sell=sell,net=buy-sell,buy_volume=None,sell_volume=None,net_volume=None,close=close,change_pct=round((close/previous-1)*100,2),volume=1000000+j*12300,turnover=round(close*(1000000+j*12300)),source='합성 데모 · 실제 매매 아님',collected_at='2026-09-25T20:17:00+09:00',finality='demo'))
+            rows.append(dict(date=day,code=code,name=name,market=market,investor='연기금 등',scope='DEMO',buy=buy,sell=sell,net=buy-sell,buy_volume=None,sell_volume=None,net_volume=None,open=previous,high=max(previous,close)+500,low=min(previous,close)-500,close=close,change_pct=round((close/previous-1)*100,2),volume=1000000+j*12300,turnover=round(close*(1000000+j*12300)),source='합성 데모 · 실제 매매 아님',collected_at='2026-09-25T20:17:00+09:00',finality='demo'))
             previous=close
+    foreign=[]
+    for r in rows:
+        f={**r,'investor':'외국인','buy':r['sell']*2,'sell':r['buy']}
+        f['net']=f['buy']-f['sell']
+        foreign.append(f)
+    rows+=foreign
     root=project/'data/demo'
     calendar=dict(sessions=sessions,checked_through=sessions[-1],source='합성 데모 거래일 · 실제 휴장일 미반영')
     upsert(root,rows)
