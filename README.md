@@ -147,3 +147,16 @@ npm run build
 ### 시가총액·업종
 
 종목 상세에서 최신 수급일 기준 시가총액과 KRX 업종 분류를 표시합니다. 산업 테마나 자체 추정 섹터가 아닙니다. 시가총액은 원본을 원 단위로 보관하고 화면에서 조원/억원으로 표시합니다. `calendar.json`의 `instruments`에 기준일·출처와 함께 저장합니다. 수집 과정에서 두 시장의 업종분류현황을 함께 갱신합니다. 거래량 0이며 시가·고가·저가가 모두 0인 날에는 종가를 유지하되 일봉은 만들지 않습니다.
+
+## 권장 구성: 별도 비공개 데이터 저장소
+
+공개 코드는 `YKshin92/SupplyKRX`, 데이터 저장소는 별도 **Private** 저장소를 사용합니다. 예약 작업은 비공개 저장소 안에서 실행하며 그 저장소의 기본 `GITHUB_TOKEN`으로만 데이터를 저장합니다. 공개 저장소에 비공개 저장소 쓰기 토큰을 넣을 필요가 없습니다.
+
+1. `SupplyKRX-data`라는 비공개 저장소를 README와 함께 생성합니다.
+2. `templates/private-data-workflow.yml`을 비공개 저장소의 `.github/workflows/collect.yml`로 복사합니다.
+3. 비공개 저장소 Actions Secrets에 `KRX_ID`, `KRX_PW`를 등록합니다.
+4. 최초 로컬 자료 `data/live/`를 비공개 저장소에 넣습니다. 넣지 않으면 첫 실행에서 최근 20거래일을 수집합니다.
+5. Actions Variable `COLLECTION_ENABLED=true`를 설정하고 `Daily pension and foreign data`를 수동 실행하여 성공 여부를 확인합니다.
+6. 이후 한국 시간 평일 18:17, 20:17에 두 투자자·전체 보통주·OHLC·시가총액·업종을 갱신합니다. 주말/휴장일 신규 거래 자료는 만들지 않습니다.
+
+로컬 화면 갱신: 비공개 저장소를 인증된 Git으로 clone/pull한 뒤 공개 코드 폴더에서 `python scripts/prepare-local.py --root <비공개저장소경로>`를 실행하고 다시 빌드합니다. 공개 홈페이지에 개인 데이터를 노출하지 않으며 로컬 화면이 자동으로 원격 저장소를 읽지는 않습니다.
