@@ -72,23 +72,17 @@ date,code,name,market,investor,scope,buy,sell,net,buy_volume,sell_volume,net_vol
 - 거래일 달력이 없으면 일별 값은 표시하되 5·20일 합계, 연속 순매수는 계산하지 않습니다.
 - CLI 적재: `python -m collector.cli import --csv file.csv --calendar calendar.json`
 
-## GitHub Actions 설정
+## GitHub Actions 운영
 
-저장소 **Settings → Secrets and variables → Actions**:
+실제 수집은 별도 비공개 저장소 [YKshin92/SupplyKRX-data](https://github.com/YKshin92/SupplyKRX-data)의 **Daily pension and foreign data** 작업에서 실행합니다. 이 공개 코드 저장소에는 실제 원자료를 저장하지 않습니다.
 
-| 종류 | 이름 | 설명 |
-|---|---|---|
-| Secret | `KRX_ID` | KRX 로그인 ID |
-| Secret | `KRX_PW` | KRX 비밀번호 |
-| Secret | `VERCEL_DEPLOY_HOOK` | 선택 사항. Vercel의 main 브랜치 Deploy Hook |
-| Variable | `COLLECTION_ENABLED` | 수집 활성화 시 `true` |
-| Variable | `DATA_PUBLISH_ALLOWED` | 실제 데이터 재배포 권한 확인 후에만 `true` |
-
-수집 일정은 잠정적으로 한국 시간 평일 18:17 / 20:17입니다. 공급자의 확정 시점을 보장하는 설정이 아니며 최초 운영 때 확인해야 합니다. 예약은 지연·누락될 수 있으므로 수동 실행과 최근일 재수집을 함께 제공합니다.
-
-**현재 공개 저장소에서는 실제 원자료를 자동 커밋하지 않도록 기본 비활성화되어 있습니다.** 최초 요청의 ‘공개 가능 여부 불명확한 원자료는 게시하지 않기’를 따릅니다. 비공개 저장소로 운영하거나 별도 데이터 이용 권한을 먼저 확인하세요. 비공개 저장소라고 Vercel 사이트까지 비공개가 되는 것은 아닙니다.
-
-수집 활성화 후 **Actions → Collect pension flow → Run workflow**에서 먼저 5개 종목을 시험하세요. 날짜 입력은 셸 환경변수와 배열로 전달하며 셸 명령으로 평가하지 않습니다. 검증 실패 시 기존 파일을 커밋하지 않습니다. `GITHUB_TOKEN` 데이터 커밋의 후속 실행 제한을 고려해, 공개 게시가 허용된 경우 선택적 Deploy Hook으로 Vercel 갱신을 연결합니다.
+- 비공개 저장소 Actions Secrets: `KRX_ID`, `KRX_PW`.
+- 활성화 변수: `COLLECTION_ENABLED=true`. 중지하려면 `false`로 변경합니다.
+- 일정: 한국 시간 평일 18:17 / 20:17. GitHub 예약 실행은 지연될 수 있습니다.
+- 저장: 비공개 저장소 `data/live/daily/YYYY-MM-DD.csv` 및 `data/live/calendar.json`.
+- 수동 복구: Actions → Daily pension and foreign data → Run workflow → 필요한 `start`, `end` 날짜 입력.
+- 최근 3거래일을 다시 확인하고 새 거래일을 추가합니다. 검증 실패 시 기존 데이터 커밋을 유지합니다.
+- 공개 저장소의 이전 수집 워크플로는 비활성화 상태로 유지합니다. Vercel 배포는 현재 사용하지 않습니다.
 
 ## Vercel 배포
 
@@ -136,7 +130,7 @@ npm run build
 - 가격 차트는 시가·고가·저가·종가 일봉입니다. CSV의 선택 필드 `open,high,low`가 없으면 봉을 추정하지 않습니다. 마우스를 올리면 OHLC 및 거래량이 보입니다.
 - 외국인 웹 자료는 `public/data/live/foreign`에 별도로 생성됩니다. 기존 연기금 자료만 있는 저장소의 첫 수집은 외국인 20일분도 채웁니다.
 - 예약 실행 시 종목 제한 없이 두 분류를 함께 수집합니다. 최근 3거래일 정정 확인은 계속 유지합니다. 수동 실행의 `codes`는 표본 검사 전용입니다.
-- GitHub 예약 수집 일정은 한국 시간 평일 18:17, 20:17입니다. **현재 활성화된 스케줄러는 아닙니다.** 기존 공개 저장소의 원자료 게시 제한과 Secrets 설정은 그대로 적용됩니다.
+- GitHub 예약 수집 일정은 한국 시간 평일 18:17, 20:17입니다. 실제 예약 실행은 위 비공개 데이터 저장소에서 활성화합니다. 공개 저장소의 원자료 게시 제한은 그대로 유지합니다.
 
 로컬에서 새 자료를 반영하려면 `python scripts/prepare-local.py` 후 빌드합니다. 공개 저장소에는 실제 자료를 포함하지 않습니다.
 
@@ -160,3 +154,4 @@ npm run build
 6. 이후 한국 시간 평일 18:17, 20:17에 두 투자자·전체 보통주·OHLC·시가총액·업종을 갱신합니다. 주말/휴장일 신규 거래 자료는 만들지 않습니다.
 
 로컬 화면 갱신: 비공개 저장소를 인증된 Git으로 clone/pull한 뒤 공개 코드 폴더에서 `python scripts/prepare-local.py --root <비공개저장소경로>`를 실행하고 다시 빌드합니다. 공개 홈페이지에 개인 데이터를 노출하지 않으며 로컬 화면이 자동으로 원격 저장소를 읽지는 않습니다.
+
