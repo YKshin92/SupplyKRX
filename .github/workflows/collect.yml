@@ -1,0 +1,87 @@
+name: Collect pension flow
+on:
+  schedule:
+    # Provisional slots, KST 18:17 and 20:17. Confirm source publication timing.
+    - cron: '17 9,11 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'Optional start date YYYY-MM-DD (at most 65 calendar days)'
+        type: string
+      end:
+        description: 'Optional end date YYYY-MM-DD; defaults to today in Seoul'
+        type: string
+      codes:
+        description: 'Optional comma-separated probe tickers; blank = all common stocks'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: pension-data-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  collect:
+    # Disabled until credentials and a durable, permitted storage destination are configured.
+    if: vars.COLLECTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Validate collection permission and persistence
+        env:
+          REPO_PRIVATE: ${{ github.event.repository.private }}
+          DATA_PUBLISH_ALLOWED: ${{ vars.DATA_PUBLISH_ALLOWED }}
+        run: |
+          if [ "$REPO_PRIVATE" != "true" ] && [ "$DATA_PUBLISH_ALLOWED" != "true" ]; then
+            echo 'Public repository: permission to redistribute live data has not been established.'
+            exit 1
+          fi
+      - name: Collect and validate
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          START_DATE: ${{ inputs.start }}
+          END_DATE: ${{ inputs.end }}
+          PROBE_CODES: ${{ inputs.codes }}
+        run: |
+          args=(collect --end "${END_DATE:-$(TZ=Asia/Seoul date +%F)}")
+          if [ -n "$START_DATE" ]; then args+=(--start "$START_DATE"); fi
+          if [ -n "$PROBE_CODES" ]; then args+=(--codes "$PROBE_CODES"); fi
+          python -m collector.cli "${args[@]}"
+      - run: python -m unittest discover -s tests -v
+      - name: Generate public data only when permitted
+        if: vars.DATA_PUBLISH_ALLOWED == 'true'
+        env:
+          DATA_PUBLISH_ALLOWED: 'true'
+        run: python -m collector.cli publish
+      - name: Persist verified data to the repository
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DATA_PUBLISH_ALLOWED: ${{ vars.DATA_PUBLISH_ALLOWED }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f data/live
+          if [ "$DATA_PUBLISH_ALLOWED" = "true" ]; then git add -f public/data/live; fi
+          if ! git diff --cached --quiet; then
+            git commit -m 'data: update validated pension flow [skip ci]'
+            git push origin "HEAD:$DEFAULT_BRANCH"
+          fi
+      - name: Trigger Vercel after data is durable
+        if: vars.DATA_PUBLISH_ALLOWED == 'true'
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$VERCEL_DEPLOY_HOOK" ]; then
+            curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK" > /dev/null
+          fi
