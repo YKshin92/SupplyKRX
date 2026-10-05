@@ -7,6 +7,9 @@ export type Dataset={manifest:Manifest;stocks:Stock[];base:string;foreignLocal?:
 export const fields=['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low','flow_status'];
 const numbers=['open','high','low','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover'];
 export const money=(n:number|null|undefined,digits=1)=>n==null?'—':new Intl.NumberFormat('ko-KR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n/1e8);
+export const amountUnit=(n:number|null|undefined)=>Math.abs(n??0)>=1e12?'조원':'억원';
+export const amountNumber=(n:number|null|undefined,digits=2)=>n==null?'—':new Intl.NumberFormat('ko-KR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n/(Math.abs(n)>=1e12?1e12:1e8));
+export const amountLabel=(n:number|null|undefined)=>n==null?'—':amountNumber(n)+amountUnit(n);
 export const integer=(n:number|null|undefined)=>n==null?'—':new Intl.NumberFormat('ko-KR').format(n);
 export const sign=(n:number|null|undefined)=>n==null?'':n>0?'positive':n<0?'negative':'neutral';
 export function seoulDate(now=new Date()){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
