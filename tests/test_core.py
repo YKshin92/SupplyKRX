@@ -10,7 +10,7 @@ def TemporaryDirectory():
     target=Path('work/test-runs')/uuid4().hex
     target.mkdir(parents=True)
     yield str(target)
-from collector.core import validate,upsert,load_rows,metrics,publish
+from collector.core import validate,upsert,load_rows,metrics,publish,fill_legacy_absent_flows,FLOW_FIELDS
 
 def row(day='2026-09-01',net=10,**kwargs):
     r=dict(date=day,code='005930',name='삼성전자',market='KOSPI',investor='연기금 등',scope='KRX',buy=100+(net or 0),sell=100,net=net,buy_volume=None,sell_volume=None,net_volume=None,close=70000,change_pct=0,volume=10,turnover=1000,source='unit-test',collected_at='2026-09-01T20:00:00+09:00',finality='unknown')
@@ -18,6 +18,23 @@ def row(day='2026-09-01',net=10,**kwargs):
     return r
 
 class CoreTests(unittest.TestCase):
+    def test_absent_flow_policy_preserves_unknowns(self):
+        missing=row(source='KRX via pykrx',**{k:None for k in FLOW_FIELDS})
+        filled=validate(fill_legacy_absent_flows([missing])[0])
+        self.assertEqual(filled['net'],0)
+        self.assertEqual(filled['flow_status'],'absent_zero')
+        self.assertEqual(filled['close'],70000)
+        for patch in [dict(source='import'),dict(flow_status='unknown'),dict(buy=10)]:
+            original={**missing,**patch}
+            self.assertEqual(fill_legacy_absent_flows([original])[0],original)
+        with self.assertRaises(ValueError):validate(row(flow_status='absent_zero'))
+        dates=[f'2026-09-{i:02}' for i in range(1,21)]
+        rows=[{**filled,'date':d} for d in dates]
+        rows[-1]=row(dates[-1],10)
+        result=metrics(rows,dates,dates[-1])
+        self.assertEqual(result['sum20'],10)
+        self.assertEqual(result['zero_filled_days'],19)
+        self.assertTrue(result['buy_only20'])
     def test_buy_only_twenty_days(self):
         dates=[f'2026-09-{i:02}' for i in range(1,21)]
         rows=[row(d,0) for d in dates]

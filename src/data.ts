@@ -1,10 +1,10 @@
 import Papa from 'papaparse';
 
-export type Row = {open?:number|null;high?:number|null;low?:number|null;date:string;code:string;name:string;market:string;investor:string;scope:string;buy:number|null;sell:number|null;net:number|null;buy_volume:number|null;sell_volume:number|null;net_volume:number|null;close:number|null;change_pct:number|null;volume:number|null;turnover:number|null;source:string;collected_at:string;finality:string};
-export type Stock = {market_cap?:number|null;sector?:string|null;metadata_date?:string;metadata_source?:string;code:string;name:string;market:string;buy:number|null;sell:number|null;net:number|null;close:number|null;price_date:string|null;change_pct:number|null;sum5:number|null;sum20:number|null;streak:number|null;streak_censored:boolean;buy_only20?:boolean;ratio20:number|null;active:boolean|null;active20:boolean;full_activity:boolean;days:number;spark:(number|null)[];source:string;finality:string};
+export type Row = {flow_status?:string;open?:number|null;high?:number|null;low?:number|null;date:string;code:string;name:string;market:string;investor:string;scope:string;buy:number|null;sell:number|null;net:number|null;buy_volume:number|null;sell_volume:number|null;net_volume:number|null;close:number|null;change_pct:number|null;volume:number|null;turnover:number|null;source:string;collected_at:string;finality:string};
+export type Stock = {zero_filled_days?:number;market_cap?:number|null;sector?:string|null;metadata_date?:string;metadata_source?:string;code:string;name:string;market:string;buy:number|null;sell:number|null;net:number|null;close:number|null;price_date:string|null;change_pct:number|null;sum5:number|null;sum20:number|null;streak:number|null;streak_censored:boolean;buy_only20?:boolean;ratio20:number|null;active:boolean|null;active20:boolean;full_activity:boolean;days:number;spark:(number|null)[];source:string;finality:string};
 export type Manifest={schema_version:number;investor?:string;mode:string;as_of:string;sessions:string[];calendar_checked_through:string;calendar_source:string;generated_at:string;collected_at:string;price_as_of:string|null;source:string[];scope:string;row_count:number;stock_count:number;days:number;missing_latest:number;partial20:number;generation:string;price_kind:string;status:string};
 export type Dataset={manifest:Manifest;stocks:Stock[];base:string;foreignLocal?:Record<string,Row[]>;local?:Record<string,Row[]>};
-export const fields=['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low'];
+export const fields=['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low','flow_status'];
 const numbers=['open','high','low','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover'];
 export const money=(n:number|null|undefined,digits=1)=>n==null?'—':new Intl.NumberFormat('ko-KR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n/1e8);
 export const integer=(n:number|null|undefined)=>n==null?'—':new Intl.NumberFormat('ko-KR').format(n);
@@ -28,7 +28,7 @@ function validDate(d:string){return /^\d{4}-\d{2}-\d{2}$/.test(d)&&!Number.isNaN
 export function parseCsv(text:string):Row[]{
  const parsed=Papa.parse<Record<string,string>>(text.replace(/^\uFEFF/,''),{header:true,skipEmptyLines:'greedy'});
  if(parsed.errors.length)throw new Error('CSV 구분자 또는 따옴표 형식을 확인하세요.');
- if(!fields.filter(k=>!['open','high','low'].includes(k)).every(k=>parsed.meta.fields?.includes(k)))throw new Error('표준 CSV 헤더가 필요합니다. CSV 양식을 다운로드하세요.');
+ if(!fields.filter(k=>!['open','high','low','flow_status'].includes(k)).every(k=>parsed.meta.fields?.includes(k)))throw new Error('표준 CSV 헤더가 필요합니다. CSV 양식을 다운로드하세요.');
  const seen=new Set<string>();
  return parsed.data.map((raw,i)=>{
   const r:Record<string,string|number|null>={...raw};
@@ -41,6 +41,8 @@ export function parseCsv(text:string):Row[]{
   for(const [b,s,n] of [['buy','sell','net'],['buy_volume','sell_volume','net_volume']])if(r[b]!==null&&r[s]!==null){const expected=Number(r[b])-Number(r[s]);if(r[n]!==null&&r[n]!==expected)throw new Error(`${i+2}행: ${n} 불일치`);r[n]=expected;}
   if(r.volume===0&&['open','high','low'].every(k=>r[k]===0)){r.open=null;r.high=null;r.low=null;}
   if(['open','high','low','close'].every(k=>r[k]!=null)&&(Number(r.low)>Math.min(Number(r.open),Number(r.close))||Number(r.high)<Math.max(Number(r.open),Number(r.close))||Number(r.high)<Number(r.low)))throw new Error('OHLC 가격 범위 불일치');
+  if(!['','reported','absent_zero','unknown'].includes(raw.flow_status??''))throw new Error('잘못된 수급 상태');
+  if(raw.flow_status==='absent_zero'&&['buy','sell','net','buy_volume','sell_volume','net_volume'].some(k=>r[k]!==0))throw new Error('응답 미포함 0 처리값 불일치');
   const key=[r.date,r.code,r.investor,r.scope].join('|');if(seen.has(key))throw new Error('CSV에 중복된 거래일·종목이 있습니다.');seen.add(key);
   return r as Row;
  });
@@ -54,7 +56,7 @@ export function summarize(rows:Row[],sessions:string[],asOf:string,verified=true
  const active=(r:Row|undefined):boolean|null=>!r?null:r.buy!=null&&r.sell!=null?r.buy>0||r.sell>0:r.net!=null&&r.net!==0?true:null;
  const turnovers=dates.map(d=>index.get(d)?.turnover);const denominator=turnovers.every(v=>v!=null)?turnovers.reduce<number>((a,b)=>a+b!,0):null;
  const price=[...rows].reverse().find(r=>r.close!==null);const sum20=total(20);
- return {code:last.code,name:last.name,market:last.market,buy:latest?.buy??null,sell:latest?.sell??null,net:latest?.net??null,close:price?.close??null,price_date:price?.date??null,change_pct:price?.change_pct??null,sum5:total(5),sum20,buy_only20:sum20!==null&&dates.some(d=>index.get(d)!.net!>0)&&dates.every(d=>index.get(d)!.net!>=0),streak,streak_censored:censored,ratio20:sum20!==null&&denominator&&denominator>0?sum20/denominator*100:null,active:active(latest),active20:dates.some(d=>active(index.get(d))===true),full_activity:latest?.buy!=null&&latest?.sell!=null,days:dates.filter(d=>index.get(d)?.net!=null).length,spark:dates.map(d=>index.get(d)?.net??null),source:last.source,finality:latest?.finality??'unknown'};
+ return {code:last.code,name:last.name,market:last.market,buy:latest?.buy??null,sell:latest?.sell??null,net:latest?.net??null,close:price?.close??null,price_date:price?.date??null,change_pct:price?.change_pct??null,sum5:total(5),sum20,zero_filled_days:dates.filter(d=>index.get(d)?.flow_status==='absent_zero').length,buy_only20:sum20!==null&&dates.some(d=>index.get(d)!.net!>0)&&dates.every(d=>index.get(d)!.net!>=0),streak,streak_censored:censored,ratio20:sum20!==null&&denominator&&denominator>0?sum20/denominator*100:null,active:active(latest),active20:dates.some(d=>active(index.get(d))===true),full_activity:latest?.buy!=null&&latest?.sell!=null,days:dates.filter(d=>index.get(d)?.net!=null).length,spark:dates.map(d=>index.get(d)?.net??null),source:last.source,finality:latest?.finality??'unknown'};
 }
 export function importedDataset(rows:Row[],calendar?:{sessions:string[];checked_through:string;source:string},investor='연기금 등'):Dataset{
  const foreignLocal:Record<string,Row[]>={};

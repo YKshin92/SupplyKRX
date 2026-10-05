@@ -10,7 +10,15 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-FIELDS = ['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low']
+FIELDS = ['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low','flow_status']
+FLOW_FIELDS = ['buy','sell','net','buy_volume','sell_volume','net_volume']
+
+def fill_legacy_absent_flows(rows):
+    """Migrate this collector's historical absent rows; never arbitrary imports."""
+    return [{**r,**{k:0 for k in FLOW_FIELDS},'flow_status':'absent_zero'}
+            if r.get('source')=='KRX via pykrx' and r.get('scope')=='KRX'
+            and not r.get('flow_status') and all(r.get(k) is None for k in FLOW_FIELDS)
+            else r for r in rows]
 NUMBERS = ['open','high','low','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover']
 
 def validate(raw: dict) -> dict:
@@ -29,6 +37,8 @@ def validate(raw: dict) -> dict:
         raise ValueError('수집 시각에는 시간대가 필요합니다.')
     if r['finality'] not in ('unknown','provisional','final','demo'):
         raise ValueError('잘못된 확정 상태입니다.')
+    if r['flow_status'] not in ('','reported','absent_zero','unknown'):
+        raise ValueError('잘못된 수급 상태')
     for k in NUMBERS:
         v = r[k]
         if v is None or v == '':
@@ -55,6 +65,8 @@ def validate(raw: dict) -> dict:
     if all(r[k] is not None for k in ['open','high','low','close']):
         if r['low'] > min(r['open'],r['close']) or r['high'] < max(r['open'],r['close']) or r['high'] < r['low']:
             raise ValueError('OHLC 가격 범위 불일치')
+    if r['flow_status']=='absent_zero' and any(r[k] != 0 for k in FLOW_FIELDS):
+        raise ValueError('응답 미포함 0 처리값 불일치')
     return r
 
 def key(r):
@@ -63,7 +75,7 @@ def key(r):
 def read_csv(path: Path) -> list[dict]:
     with path.open(encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
-        if not (set(FIELDS)-{'open','high','low'}).issubset(reader.fieldnames or []):
+        if not (set(FIELDS)-{'open','high','low','flow_status'}).issubset(reader.fieldnames or []):
             raise ValueError('표준 CSV 헤더가 필요합니다: ' + ','.join(FIELDS))
         return [validate(r) for r in reader]
 
@@ -141,7 +153,7 @@ def metrics(rows: list[dict], sessions: list[str], as_of: str):
         if not r: return None
         if r['buy'] is not None and r['sell'] is not None: return r['buy'] > 0 or r['sell'] > 0
         return True if r['net'] is not None and r['net'] != 0 else None
-    return dict(sum5=total(5), sum20=sum20, buy_only20=buy_only20, streak=streak, streak_censored=censored,
+    return dict(sum5=total(5), sum20=sum20, buy_only20=buy_only20, zero_filled_days=sum(index.get(d,{}).get('flow_status')=='absent_zero' for d in dates), streak=streak, streak_censored=censored,
                 ratio20=ratio, active=traded(latest), active20=any(traded(index.get(d)) is True for d in dates),
                 full_activity=bool(latest and latest['buy'] is not None and latest['sell'] is not None),
                 days=sum(index.get(d,{}).get('net') is not None for d in dates),

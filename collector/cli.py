@@ -3,7 +3,7 @@ import json
 import os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from .core import read_csv, upsert, publish, save_json, load_rows, validate_calendar
+from .core import read_csv, upsert, publish, save_json, load_rows, validate_calendar, fill_legacy_absent_flows, key
 from .demo import generate
 
 def main():
@@ -50,6 +50,10 @@ def main():
             old=json.loads(calendar_path.read_text(encoding='utf-8'))
             calendar['sessions']=sorted(set(old['sessions']+calendar['sessions']))
             calendar['checked_through']=max(old['checked_through'],calendar['checked_through'])
+        if args.command=='collect':
+            combined={key(r):r for r in fill_legacy_absent_flows(existing)}
+            combined.update({key(r):r for r in rows})
+            rows=list(combined.values())
         upsert(root,rows)
         save_json(calendar_path,calendar)
         print(f'Validated and saved {len(rows)} rows. Not published yet.')

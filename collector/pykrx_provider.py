@@ -77,7 +77,7 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
                 if not {'매수거래대금','매도거래대금','순매수거래대금'}.issubset(flow.columns):
                     raise ProviderError(f'{investor} 수급 스키마 변경')
                 for code,info in universe.iterrows():
-                    # An absent flow row is unknown, never an invented zero.
+                    # User policy: absent ticker in a successful market response is zero.
                     f=flow.loc[code] if code in flow.index else None
                     p=prices.loc[code] if code in prices.index else None
                     def val(record,col):
@@ -87,7 +87,10 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
                         buy=val(f,'매수거래대금'),sell=val(f,'매도거래대금'),net=val(f,'순매수거래대금'),
                         buy_volume=val(f,'매수거래량'),sell_volume=val(f,'매도거래량'),net_volume=val(f,'순매수거래량'),
                         open=val(p,'시가'),high=val(p,'고가'),low=val(p,'저가'),close=val(p,'종가'),change_pct=val(p,'등락률'),volume=val(p,'거래량'),turnover=val(p,'거래대금'),
-                        source='KRX via pykrx',collected_at=collected,finality='unknown'))
+                        source='KRX via pykrx',collected_at=collected,finality='unknown',flow_status='reported' if f is not None else 'absent_zero'))
+                    if f is None:
+                        for field in ['buy','sell','net','buy_volume','sell_volume','net_volume']:
+                            rows[-1][field]=0
             print(f'{day} {market}: {len(universe)} stocks processed',flush=True)
     for investor in investors:
         if not any(r['net'] is not None for r in rows if r['investor']==investor):
