@@ -21,8 +21,8 @@ export function previousSession(m:Manifest,today=seoulDate()){
   return m.sessions.filter(d=>d<today).at(-1)??null;
 }
 export async function json<T>(url:string):Promise<T>{const r=await fetch(url,{cache:'no-cache'});if(!r.ok)throw new Error(`데이터를 불러오지 못했습니다 (${r.status}).`);return r.json();}
-export async function loadDataset(mode:'live'|'demo',investor='연기금 등'):Promise<Dataset>{
- const root=`/data/${mode}${investor==='외국인'?'/foreign':''}`;const manifest=await json<Manifest>(`${root}/manifest.json`);
+export async function loadDataset(mode:'live'|'demo',investor='연기금 등',period='20d'):Promise<Dataset>{
+ const root=`/data/${mode}${period==='20d'?'':`/periods/${period}`}${investor==='외국인'?'/foreign':''}`;const manifest=await json<Manifest>(`${root}/manifest.json`);
  if(manifest.schema_version!==1||manifest.mode!==mode||!/^generations\/[a-f0-9]{16}$/.test(manifest.generation))throw new Error('지원하지 않는 데이터 형식입니다.');
  const base=`${root}/${manifest.generation}`;
  return {manifest,stocks:await json<Stock[]>(`${base}/summary.json`),base};
@@ -50,15 +50,15 @@ export function parseCsv(text:string):Row[]{
   return r as Row;
  });
 }
-export function summarize(rows:Row[],sessions:string[],asOf:string,verified=true):Stock{
+export function summarize(rows:Row[],sessions:string[],asOf:string,verified=true,window=20):Stock{
  if(new Set(rows.map(r=>r.investor)).size>1)throw new Error('투자자별로 나누어 계산해야 합니다.');
- const last=rows.at(-1)!;const index=new Map(rows.map(r=>[r.date,r]));const dates=sessions.filter(d=>d<=asOf).slice(-20);const latest=index.get(asOf);
+ const last=rows.at(-1)!;const index=new Map(rows.map(r=>[r.date,r]));const dates=sessions.filter(d=>d<=asOf).slice(-window);const latest=index.get(asOf);
  const total=(n:number)=>{const values=dates.slice(-n).map(d=>index.get(d)?.net);return verified&&values.length===n&&values.every(v=>v!=null)?values.reduce<number>((a,b)=>a+b!,0):null;};
  let streak:number|null=0;let censored=false;
  if(!verified)streak=null;else{for(const d of [...dates].reverse()){const n=index.get(d)?.net;if(n==null){streak=null;break;}if(n<=0)break;streak++;}censored=streak===dates.length;}
  const active=(r:Row|undefined):boolean|null=>!r?null:r.buy!=null&&r.sell!=null?r.buy>0||r.sell>0:r.net!=null&&r.net!==0?true:null;
  const turnovers=dates.map(d=>index.get(d)?.turnover);const denominator=turnovers.every(v=>v!=null)?turnovers.reduce<number>((a,b)=>a+b!,0):null;
- const price=[...rows].reverse().find(r=>r.close!==null);const sum20=total(20);
+ const price=[...rows].reverse().find(r=>r.close!==null);const sum20=total(window);
  return {code:last.code,name:last.name,market:last.market,buy:latest?.buy??null,sell:latest?.sell??null,net:latest?.net??null,close:price?.close??null,price_date:price?.date??null,change_pct:price?.change_pct??null,sum5:total(5),sum20,zero_filled_days:dates.filter(d=>index.get(d)?.flow_status==='absent_zero').length,buy_only20:sum20!==null&&dates.some(d=>index.get(d)!.net!>0)&&dates.every(d=>index.get(d)!.net!>=0),streak,streak_censored:censored,ratio20:sum20!==null&&denominator&&denominator>0?sum20/denominator*100:null,active:active(latest),active20:dates.some(d=>active(index.get(d))===true),full_activity:latest?.buy!=null&&latest?.sell!=null,days:dates.filter(d=>index.get(d)?.net!=null).length,spark:dates.map(d=>index.get(d)?.net??null),source:last.source,finality:latest?.finality??'unknown'};
 }
 export function importedDataset(rows:Row[],calendar?:{sessions:string[];checked_through:string;source:string},investor='연기금 등'):Dataset{
@@ -80,3 +80,4 @@ export function importedDataset(rows:Row[],calendar?:{sessions:string[];checked_
 }
 export function download(name:string,text:string){const url=URL.createObjectURL(new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 export function rowsCsv(rows:Row[]){return Papa.unparse(rows,{columns:fields,escapeFormulae:true});}
+
