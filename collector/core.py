@@ -234,4 +234,3 @@ def publish_investor(rows, target, mode, calendar, investor, window=20):
         generation=f'generations/{generation}', price_kind='close',status='validated')
     save_json(target/'manifest.json',manifest)
     return manifest
-

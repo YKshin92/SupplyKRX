@@ -25,4 +25,3 @@ export default function MarketFlow({dataset,period}:{dataset:Dataset;period:stri
     <p className="market-flow-note">연기금 등 합산 · 외국인은 기타외국인 제외 · 시장 전체 수급 아님{partial?' · 일부 날짜는 확인된 종목만 합산':''}{status?` · ${status}`:''}</p>
   </section>;
 }
-

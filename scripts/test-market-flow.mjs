@@ -22,4 +22,3 @@ test('summary positions use the last twenty sessions of their own dataset',()=>{
  const result=aggregateFlow({manifest:{sessions:dates,as_of:dates.at(-1)},stocks:[{spark:Array.from({length:20},(_,i)=>i)}]});
  assert.equal(result.length,20);assert.equal(result[0].date,dates[5]);assert.equal(result.at(-1).net,19);
 });
-

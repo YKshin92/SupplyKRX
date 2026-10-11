@@ -8,4 +8,3 @@ export function aggregateFlow(dataset: Dataset) {
     return {date,net:values.length?values.reduce((a,b)=>a+b,0):null,known:values.length,total:dataset.stocks.length};
   });
 }
-

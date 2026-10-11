@@ -80,4 +80,3 @@ export function importedDataset(rows:Row[],calendar?:{sessions:string[];checked_
 }
 export function download(name:string,text:string){const url=URL.createObjectURL(new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 export function rowsCsv(rows:Row[]){return Papa.unparse(rows,{columns:fields,escapeFormulae:true});}
-

@@ -13,4 +13,3 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(len(long['spark']),60)
         self.assertTrue(long['buy_only20'])
         self.assertIsNone(metrics(rows[1:],sessions,sessions[-1],60)['sum20'])
-
