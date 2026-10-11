@@ -123,11 +123,11 @@ def upsert(root: Path, incoming: list[dict]):
 def load_rows(root: Path):
     return [r for p in sorted((root/'daily').glob('*.csv')) for r in read_csv(p)]
 
-def metrics(rows: list[dict], sessions: list[str], as_of: str):
+def metrics(rows: list[dict], sessions: list[str], as_of: str, window=20):
     if len({r['investor'] for r in rows}) > 1:
         raise ValueError('투자자별로 나누어 계산해야 합니다.')
     index = {r['date']: r for r in rows}
-    dates = [d for d in sessions if d <= as_of][-20:]
+    dates = [d for d in sessions if d <= as_of][-window:]
     latest = index.get(as_of)
     def total(n):
         ds = dates[-n:]
@@ -145,7 +145,7 @@ def metrics(rows: list[dict], sessions: list[str], as_of: str):
     else:
         censored = True
     eligible = [index.get(d, {}).get('turnover') for d in dates]
-    sum20 = total(20)
+    sum20 = total(window)
     buy_only20 = sum20 is not None and any(index[d]['net'] > 0 for d in dates) and all(index[d]['net'] >= 0 for d in dates)
     denominator = sum(eligible) if eligible and all(v is not None for v in eligible) else None
     ratio = sum20 / denominator * 100 if sum20 is not None and denominator and denominator > 0 else None
@@ -172,7 +172,7 @@ def validate_calendar(calendar: dict):
         raise ValueError('달력 확인일보다 미래인 거래일이 있습니다.')
     return sorted(set(sessions))
 
-def publish(root: Path, target: Path, mode: str, calendar: dict):
+def publish(root: Path, target: Path, mode: str, calendar: dict, window=20):
     rows = load_rows(root)
     sessions = validate_calendar(calendar)
     if len({r['scope'] for r in rows}) > 1 or any(r['date'] not in sessions for r in rows):
@@ -183,11 +183,11 @@ def publish(root: Path, target: Path, mode: str, calendar: dict):
     for investor, suffix in [('외국인','foreign'),('연기금 등','')]:
         selected = [r for r in rows if r['investor'] == investor]
         if selected:
-            results[investor] = publish_investor(selected,target/suffix,mode,calendar,investor)
+            results[investor] = publish_investor(selected,target/suffix,mode,calendar,investor,window)
     if not results: raise ValueError('게시할 데이터가 없습니다.')
     return results
 
-def publish_investor(rows, target, mode, calendar, investor):
+def publish_investor(rows, target, mode, calendar, investor, window=20):
     if not rows: raise ValueError('게시할 데이터가 없습니다.')
     if mode not in ('demo','live'): raise ValueError('잘못된 모드')
     if mode == 'live' and any(r['finality'] == 'demo' for r in rows):
@@ -197,11 +197,11 @@ def publish_investor(rows, target, mode, calendar, investor):
     scopes = {r['scope'] for r in rows}
     if len(scopes) != 1: raise ValueError('서로 다른 거래 범위를 한 화면에서 합산할 수 없습니다.')
     as_of = max(r['date'] for r in rows)
-    display_dates = [d for d in sessions if d <= as_of][-20:]
+    display_dates = [d for d in sessions if d <= as_of][-window:]
     groups = {}
     for r in rows: groups.setdefault(r['code'], []).append(r)
     # Immutable generation: the manifest switches only after every file succeeds.
-    generation = hashlib.sha256(json.dumps([rows,calendar],sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:16]
+    generation = hashlib.sha256(json.dumps([rows,calendar,window],sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:16]
     base = target / 'generations' / generation
     summary = []
     for code, history in sorted(groups.items()):
@@ -216,7 +216,7 @@ def publish_investor(rows, target, mode, calendar, investor):
             close=pricing['close'] if pricing else None, price_date=pricing['date'] if pricing else None,
             change_pct=pricing['change_pct'] if pricing else None,
             source=last['source'],finality=latest['finality'] if latest else 'unknown',
-            **metrics(history,sessions,as_of)))
+            **metrics(history,sessions,as_of,window)))
         save_json(base/'stocks'/f'{code}.json',period)
         atomic_text(base/'csv'/f'{code}.csv', '\ufeff'+csv_text(period))
     summary.sort(key=lambda s: (s['net'] is not None, s['net'] or 0), reverse=True)
@@ -234,3 +234,4 @@ def publish_investor(rows, target, mode, calendar, investor):
         generation=f'generations/{generation}', price_kind='close',status='validated')
     save_json(target/'manifest.json',manifest)
     return manifest
+
