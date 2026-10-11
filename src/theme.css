@@ -1,0 +1,25 @@
+:root{--chart-grid:#e8edf4;--chart-text:#78869b;--pension-bar:#1652a3;--foreign-bar:#e87516;color-scheme:light}
+[data-theme=dark]{color-scheme:dark;color:#e1e9f5;background:#0e1726;--muted:#a0afc3;--border:#2b3b51;--blue:#7db1ff;--red:#ff8997;--chart-grid:#2b3b51;--chart-text:#acbbcf;--pension-bar:#65a8ff;--foreign-bar:#ffac53}
+[data-theme=dark] .app-shell{background:#0e1726;color:#e1e9f5}
+[data-theme=dark] :is(.stats,.list-panel,.detail-panel,.market-flow,.modal,.empty-state){background:#172336;color:#e1e9f5;border-color:var(--border)}
+[data-theme=dark] :is(.button,.icon-button,.screen-preset button,input,select){background:#1c2b41;color:#e1e9f5;border-color:#405470}
+[data-theme=dark] :is(.button,.icon-button,.screen-preset button):hover{background:#293d58;border-color:#7298c8}
+[data-theme=dark] :is(.demo-screen,.search-box,.filters,.stock-table th,.daily-details summary){background:#1c2b41;border-color:var(--border);color:#c4d3e6}
+[data-theme=dark] .stock-table tr:hover,[data-theme=dark] .stock-table tr.selected{background:#263e5e}
+[data-theme=dark] :is(h1,h2,h3,.flow-section>h3,.instrument-meta strong,.stock-select strong,.stock-price){color:#e1e9f5}
+[data-theme=dark] :is(p,small,.stats article>span,.detail-metrics span,.chart-header>span,.instrument-meta,.eyebrow,.status-label,.screen-grid label,.screen-sort,.foreign-flow-section>p,.market-flow p,.market-flow-values small,.stats em,.chart-caption,.previous-info,.source-note,.screen-stock-meta,.trade-pair,.stock-select span){color:#a9bbd2!important}
+[data-theme=dark] .positive{color:#ff8997!important}
+[data-theme=dark] .negative{color:#80b6ff!important}
+[data-theme=dark] .neutral{color:#b4c2d5!important}
+[data-theme=dark] .mode-switch .chosen,[data-theme=dark] .screen-title span{background:#294368;color:#b9d5ff}
+[data-theme=dark] .chart-tip{background:#203149;color:#edf3fc;border-color:#4e688b;box-shadow:0 5px 20px #0005}
+[data-theme=dark] :is(.notice,.micro-warning){background:#382f1d;color:#efd398;border-color:#685533}
+[data-theme=dark] .recharts-cartesian-grid line{stroke:var(--chart-grid)}
+[data-theme=dark] :is(.recharts-cartesian-axis-tick-value,.recharts-text){fill:var(--chart-text)}
+.market-flow .pension-key:before{background:var(--pension-bar)}
+.market-flow .foreign-key:before{background:var(--foreign-bar)}
+.theme-toggle span{white-space:nowrap}
+@media(max-width:550px){.header-actions .theme-toggle{font-size:12px;padding:8px}.theme-toggle span{display:none}}
+
+.period-selector {display:flex;align-items:center;gap:8px;font-size:13px;margin-right:12px}.period-selector select {padding:8px;border-radius:8px;border:1px solid #c9d4e3}
+
