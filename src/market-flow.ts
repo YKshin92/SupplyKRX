@@ -8,3 +8,10 @@ export function aggregateFlow(dataset: Dataset) {
     return {date,net:values.length?values.reduce((a,b)=>a+b,0):null,known:values.length,total:dataset.stocks.length};
   });
 }
+
+/** Sum observed values across the selected dates; report missing coverage explicitly. */
+export function periodFlowTotal(dataset: Dataset) {
+  const rows=aggregateFlow(dataset);
+  const values=rows.filter(r=>r.net!==null);
+  return {net:dataset.manifest.status==='calendar_unverified'||!values.length?null:values.reduce((sum,r)=>sum+r.net!,0),partial:rows.some(r=>r.known<r.total),days:rows.length};
+}

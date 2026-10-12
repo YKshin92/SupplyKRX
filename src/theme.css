@@ -22,3 +22,4 @@
 @media(max-width:550px){.header-actions .theme-toggle{font-size:12px;padding:8px}.theme-toggle span{display:none}}
 
 .period-selector {display:flex;align-items:center;gap:8px;font-size:13px;margin-right:12px}.period-selector select {padding:8px;border-radius:8px;border:1px solid #c9d4e3}
+[data-theme=dark] .collection-message{background:#203149;color:#edf3fc;border-color:#4e688b}[data-theme=dark] .collection-message a{color:#80b6ff}

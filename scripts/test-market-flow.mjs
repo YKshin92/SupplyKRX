@@ -1,6 +1,14 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {aggregateFlow} from '../src/market-flow.ts';
+import {aggregateFlow,periodFlowTotal} from '../src/market-flow.ts';
+
+test('period total changes with the selected sessions and preserves missing coverage',()=>{
+ const d={manifest:{sessions:['2026-10-05','2026-10-06','2026-10-07'],as_of:'2026-10-07',days:3},stocks:[{spark:[100,200,300]},{spark:[-50,null,0]}]};
+ assert.deepEqual(periodFlowTotal(d),{net:550,partial:true,days:3});
+ assert.deepEqual(periodFlowTotal({manifest:{...d.manifest,days:1},stocks:[{spark:[300]},{spark:[0]}]}),{net:300,partial:false,days:1});
+ assert.equal(periodFlowTotal({...d,stocks:[{spark:[null,null,null]}]}).net,null);
+ assert.equal(periodFlowTotal({...d,manifest:{...d.manifest,status:'calendar_unverified'}}).net,null);
+});
 
 test('three-month view retains all sixty positions and gaps',()=>{
  const dates=Array.from({length:60},(_,i)=>new Date(Date.UTC(2026,6,10+i)).toISOString().slice(0,10));
