@@ -21,9 +21,10 @@ class Vercel:
     def __init__(self):
         self.token = os.environ.get('VERCEL_TOKEN', '')
         self.bypass = os.environ.get('VERCEL_PROTECTION_BYPASS', '')
+        self.github = os.environ.get('GITHUB_TOKEN', '')
         self.team = os.environ.get('VERCEL_TEAM_ID', 'team_pdqWo0XZkJpZLMn17nhFjMwD')
-        if not self.token or not self.bypass:
-            raise VerificationError('Configure VERCEL_TOKEN and VERCEL_PROTECTION_BYPASS in private repository Secrets.')
+        if not self.token or not self.bypass or not self.github:
+            raise VerificationError('Configure Vercel Secrets and supply the workflow GitHub token for branch verification.')
         self.opener = build_opener(NoRedirect())
 
     def request(self, path, body=None):
@@ -49,6 +50,9 @@ class Vercel:
 
     def retry(self, deployment):
         return self.request('/v13/deployments', {'name': 'supply-krx', 'deploymentId': deployment['uid'], 'target': 'production', 'withLatestCommit': False})
+
+    def latest_commit(self):
+        return self.read('https://api.github.com/repos/YKshin92/SupplyKRX-data/commits/main', {'Authorization': 'Bearer ' + self.github, 'Accept': 'application/vnd.github+json'})['sha']
 
     def production_sha(self):
         alias = self.request('/v4/aliases/supply-krx.vercel.app')
@@ -91,6 +95,8 @@ def verify(client, sha, date, max_retries=2, timeout=900, sleep=time.sleep, cloc
                     # Never redeploy another commit or change project protection settings.
                     if not uid:
                         raise VerificationError('Deployment ID is missing.')
+                    if client.latest_commit() != sha:
+                        raise VerificationError('The data branch advanced; do not redeploy an older commit.')
                     client.retry({**latest, 'uid': uid})
                     retried.add(uid)
                     retries += 1

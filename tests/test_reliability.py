@@ -28,6 +28,7 @@ class Client:
         self.calls += 1
         return [] if state == 'MISSING' else [dict(uid=str(self.calls), state=state, meta={'githubCommitSha': 'expected'})]
     def retry(self, deployment): self.retries.append(deployment)
+    def latest_commit(self): return self.alias if self.alias == 'newer' else 'expected'
     def production_sha(self): return self.alias
     def manifest(self): return {'as_of': self.date, 'mode': 'live'}
 
@@ -54,6 +55,10 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(client.retries, [])
     def test_stale_data_is_not_success(self):
         with self.assertRaises(v.VerificationError): self.run_check(Client(['READY'], date='2026-10-08'))
+    def test_newer_data_branch_never_redeploys_old_commit(self):
+        client = Client(['ERROR'], alias='newer')
+        with self.assertRaises(v.VerificationError): self.run_check(client)
+        self.assertEqual(client.retries, [])
     def test_freshness_all_groups_and_time(self):
         now = datetime(2026, 10, 12, 10, tzinfo=timezone.utc)
         rows = [dict(date='2026-10-12', market=m, investor=i, collected_at=now.isoformat()) for m in ('KOSPI', 'KOSDAQ') for i in ('연기금 등', '외국인')]
