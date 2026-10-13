@@ -201,7 +201,7 @@ def publish_investor(rows, target, mode, calendar, investor, window=20):
     groups = {}
     for r in rows: groups.setdefault(r['code'], []).append(r)
     # Immutable generation: the manifest switches only after every file succeeds.
-    generation = hashlib.sha256(json.dumps([rows,calendar,window],sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:16]
+    generation = hashlib.sha256(json.dumps([rows,calendar,window,2],sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:16]
     base = target / 'generations' / generation
     summary = []
     for code, history in sorted(groups.items()):
@@ -211,6 +211,7 @@ def publish_investor(rows, target, mode, calendar, investor, window=20):
         period = [r for r in history if r['date'] in display_dates]
         pricing = next((r for r in reversed(history) if r['close'] is not None), None)
         summary.append(dict(code=code, name=last['name'],market=last['market'],
+            latest_row_present=latest is not None, last_observed_date=last['date'],
             **calendar.get('instruments',{}).get(code,{}),
             buy=latest['buy'] if latest else None, sell=latest['sell'] if latest else None, net=latest['net'] if latest else None,
             close=pricing['close'] if pricing else None, price_date=pricing['date'] if pricing else None,

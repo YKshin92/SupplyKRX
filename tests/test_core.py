@@ -18,6 +18,19 @@ def row(day='2026-09-01',net=10,**kwargs):
     return r
 
 class CoreTests(unittest.TestCase):
+    def test_missing_row_is_distinct_from_missing_value(self):
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)/'live'; target=Path(tmp)/'web'
+            rows=[row(code='000001'),row(day='2026-09-02',code='000002',net=None,buy=None,sell=None),row(day='2026-09-02',code='000003',net=0)]
+            upsert(root,rows)
+            m=publish(root,target,'live',dict(sessions=['2026-09-01','2026-09-02'],checked_through='2026-09-02',source='test'))['연기금 등']
+            stocks={s['code']:s for s in json.loads((target/m['generation']/'summary.json').read_text(encoding='utf-8'))}
+            self.assertEqual(m['missing_latest'],2)
+            self.assertFalse(stocks['000001']['latest_row_present'])
+            self.assertEqual(stocks['000001']['last_observed_date'],'2026-09-01')
+            self.assertTrue(stocks['000002']['latest_row_present'])
+            self.assertIsNone(stocks['000002']['net'])
+            self.assertEqual(stocks['000003']['net'],0)
     def test_absent_flow_policy_preserves_unknowns(self):
         missing=row(source='KRX via pykrx',**{k:None for k in FLOW_FIELDS})
         filled=validate(fill_legacy_absent_flows([missing])[0])

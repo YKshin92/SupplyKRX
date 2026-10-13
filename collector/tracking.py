@@ -3,9 +3,33 @@ from collections import defaultdict
 from .core import save_json
 
 
+def five_day_outcome(signal, after):
+    """Next-session open entry through fifth-session close; no shortened windows."""
+    empty = dict(return_5d=None, downside_5d=None, peak_5d=None, outcome_entry_date=None, outcome_end_date=None)
+    if len(after) < 5:
+        return dict(empty, outcome_status='pending')
+    window = after[:5]
+    if any(not r or any(r.get(k) is None or r[k] <= 0 for k in ('open','high','low','close','volume')) for r in window) or not signal.get('close'):
+        return dict(empty, outcome_status='missing')
+    previous = signal['close']
+    for r in window:
+        change = (r['close']/previous-1)*100
+        if abs(change)>35 or r.get('change_pct') is not None and abs(change-r['change_pct'])>5:
+            return dict(empty, outcome_status='price_break')
+        previous = r['close']
+    entry = window[0]['open']
+    return dict(return_5d=(window[-1]['close']/entry-1)*100,
+        downside_5d=min(0,(min(r['low'] for r in window)/entry-1)*100),
+        peak_5d=(max(r['high'] for r in window)/signal['close']-1)*100,
+        outcome_entry_date=window[0]['date'], outcome_end_date=window[-1]['date'], outcome_status='complete')
+
+
 def build_tracking(rows, calendar):
     histories = defaultdict(dict)
+    foreigners = defaultdict(dict)
     for row in rows:
+        if row['investor'] == '외국인':
+            foreigners[row['code']][row['date']] = row
         if row['investor'] == '연기금 등':
             histories[row['code']][row['date']] = row
     dates = sorted({d for h in histories.values() for d in h})
@@ -19,6 +43,7 @@ def build_tracking(rows, calendar):
             signal = series[i]
             if not signal or signal.get('net') is None or signal['net'] < 1e8:
                 continue
+            foreign = foreigners[code].get(signal['date'], {})
             prior = {}
             for window in (10, 20):
                 before = series[i-window:i] if i >= window else []
@@ -37,6 +62,8 @@ def build_tracking(rows, calendar):
             gross_sell_days = sum(r['sell'] > 0 for r in after if r and r.get('sell') is not None)
             events.append(dict(id=f'{code}:{signal["date"]}', code=code, name=signal['name'], market=signal['market'],
                 signal_date=signal['date'], signal_net=signal['net'], signal_close=signal.get('close'),
+                signal_buy=signal.get('buy'), foreign_buy=foreign.get('buy'), foreign_net=foreign.get('net'),
+                **five_day_outcome(signal, after),
                 tracking_days=len(after), prior=prior,
                 current_return=(latest['close']/signal['close']-1)*100 if latest and latest.get('close') and signal.get('close') else None,
                 current_close=latest.get('close') if latest else None,
