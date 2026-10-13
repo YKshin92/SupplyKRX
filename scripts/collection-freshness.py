@@ -3,8 +3,18 @@ import argparse
 import csv
 import os
 from pathlib import Path
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone, timedelta, date
+
+
+def collection_end(requested, now):
+    """Automatic intraday calls must not query today's unpublished daily flow."""
+    if requested:
+        return date.fromisoformat(requested).isoformat()
+    local = now.astimezone(timezone(timedelta(hours=9)))
+    day = local.date() - timedelta(days=int(local.hour < 16))
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day.isoformat()
 
 
 def fresh(rows, day, now, minutes=15):
@@ -28,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--start', default='')
     parser.add_argument('--check-only', default='false')
     args = parser.parse_args()
-    day = args.end or datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat()
+    day = collection_end(args.end, datetime.now(timezone.utc))
     path = args.root / 'data/live/daily' / (day + '.csv')
     rows = []
     if path.exists():
@@ -39,4 +49,6 @@ if __name__ == '__main__':
     skip = not args.start and fresh(rows, day, datetime.now(timezone.utc), minutes)
     with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
         handle.write('skip=' + str(skip).lower() + '\n')
+        handle.write('end=' + day + '\n')
+    print('Collection end date (Seoul): ' + day)
     print('Recent complete collection exists; skip duplicate collection.' if skip else 'Collection is due.')

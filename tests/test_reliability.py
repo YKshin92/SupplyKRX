@@ -34,6 +34,15 @@ class Client:
 
 
 class ReliabilityTests(unittest.TestCase):
+    def test_intraday_collection_uses_previous_day_in_seoul(self):
+        self.assertEqual(f.collection_end('', datetime(2026, 10, 13, 2, tzinfo=timezone.utc)), '2026-10-12')
+        self.assertEqual(f.collection_end('', datetime(2026, 10, 13, 6, 59, tzinfo=timezone.utc)), '2026-10-12')
+        self.assertEqual(f.collection_end('', datetime(2026, 10, 13, 7, tzinfo=timezone.utc)), '2026-10-13')
+    def test_weekend_and_explicit_recovery_dates(self):
+        self.assertEqual(f.collection_end('', datetime(2026, 10, 12, 2, tzinfo=timezone.utc)), '2026-10-09')
+        self.assertEqual(f.collection_end('', datetime(2026, 10, 11, 8, tzinfo=timezone.utc)), '2026-10-09')
+        self.assertEqual(f.collection_end('2026-10-08', datetime(2026, 10, 13, 2, tzinfo=timezone.utc)), '2026-10-08')
+        with self.assertRaises(ValueError): f.collection_end('invalid', datetime.now(timezone.utc))
     def run_check(self, client):
         ticks = iter(range(100))
         return v.verify(client, 'expected', '2026-10-12', timeout=8, sleep=lambda _: None, clock=lambda: next(ticks))

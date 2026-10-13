@@ -73,7 +73,10 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
             if universe.empty: continue
             prices=call(stock.get_market_ohlcv_by_ticker,compact,market=market)
             for investor in investors:
-                flow=call(stock.get_market_net_purchases_of_equities_by_ticker,compact,compact,market,INVESTORS[investor])
+                try:
+                    flow=call(stock.get_market_net_purchases_of_equities_by_ticker,compact,compact,market,INVESTORS[investor])
+                except ProviderError as exc:
+                    raise ProviderError(f'{day} / {market} / {investor}: {exc}') from None
                 if not {'매수거래대금','매도거래대금','순매수거래대금'}.issubset(flow.columns):
                     raise ProviderError(f'{investor} 수급 스키마 변경')
                 for code,info in universe.iterrows():
