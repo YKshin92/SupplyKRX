@@ -25,3 +25,4 @@ main{max-width:none;padding:24px 28px 16px}header{margin-bottom:16px}.header-act
 /* Navigation lives in the workspace tabs and existing watch filters. */
 .app-shell>main{margin-left:0}
 .header-actions .help-button{white-space:nowrap}
+.market-flow-panels{display:grid;gap:18px;margin-top:18px}.investor-flow{border:1px solid var(--border);border-radius:8px;padding:16px}.investor-flow-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.investor-flow-heading h3{font-size:14px}.investor-flow-heading span{font-size:11px;color:var(--muted);margin-right:8px}.investor-flow-heading strong{font-size:19px}.investor-flow .market-flow-chart{height:200px}.investor-flow>p{font-size:10px}@media(max-width:550px){.investor-flow{padding:12px 6px}.investor-flow-heading{padding:0 6px}.investor-flow-heading strong{font-size:17px}}
