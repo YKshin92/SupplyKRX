@@ -26,7 +26,7 @@ entry_events=publish_entry_events(rows,calendar,args.target)
 print(f"Re-entry: {len(entry_events['events'])} events, through {entry_events['as_of']}. Private/local only.")
 as_of=max(r['date'] for r in rows)
 end=date.fromisoformat(as_of)
-for months in (1,3):
+for months in (1,2,3):
     month_index=end.year*12+end.month-1-months
     year,month=divmod(month_index,12)
     month+=1
