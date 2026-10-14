@@ -1,8 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../api/collect.js';
+import liveHandler,{createCollectHandler} from '../api/collect.js';
+const handler=createCollectHandler(async()=>true);
 function response(){return {headers:{},code:0,body:null,setHeader(k,v){this.headers[k]=v;},status(c){this.code=c;return this;},json(v){this.body=v;return this;}};}
 const request={method:'POST',headers:{origin:'https://supply-krx.vercel.app','x-collection-request':'1'},query:{}};
+test('production collection handler rejects anonymous users before dispatch',async()=>{const res=response();await liveHandler(request,res);assert.ok([401,503].includes(res.code));});
 test('manual collection rejects cross-origin requests before calling GitHub',async()=>{
  const res=response();await handler({...request,headers:{...request.headers,origin:'https://example.com'}},res);assert.equal(res.code,403);
 });

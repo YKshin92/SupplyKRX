@@ -1,12 +1,14 @@
+import {requireAdmin} from '../server/auth.js';
 const base='https://api.github.com/repos/YKshin92/SupplyKRX-data/actions';
 const workflow='collect.yml';
 const active=new Set(['queued','in_progress','waiting','pending','requested']);
 const origin='https://supply-krx.vercel.app';
-export default async function handler(req,res) {
+export function createCollectHandler(authorize=requireAdmin){return async function handler(req,res) {
   res.setHeader('Cache-Control','no-store');
   const reply=(code,data)=>res.status(code).json(data);
   if(!['GET','POST'].includes(req.method)){res.setHeader('Allow','GET, POST');return reply(405,{error:'지원하지 않는 요청입니다.'});}
   if(req.method==='POST'&&(req.headers.origin!==origin||req.headers['x-collection-request']!=='1'))return reply(403,{error:'사이트에서 수집 버튼을 사용해 주세요.'});
+  if(!await authorize(req,res))return;
   const token=process.env.GITHUB_COLLECTION_TOKEN;
   if(!token)return reply(503,{error:'수동 수집용 서버 인증이 아직 설정되지 않았습니다.'});
   async function github(path,method='GET',body) {
@@ -38,4 +40,5 @@ export default async function handler(req,res) {
     console.error('collection_api_failed',{status:error.status??'network'});
     return reply(502,{error:[401,403].includes(error.status)?'GitHub 수집 인증이 만료됐거나 권한이 부족합니다.':'GitHub 수집 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.'});
   }
-}
+};}
+export default createCollectHandler();
