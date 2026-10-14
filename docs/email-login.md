@@ -1,6 +1,6 @@
 # 이메일 인증코드 로그인
 
-이 변경은 로컬 준비 단계이다. Descope 프로젝트 연결과 실제 이메일 로그인 검증 전에는 운영 빌드의 UI 커밋을 변경하지 않는다.
+운영은 이메일 인증코드 로그인으로 보호한다. 처음 도입할 때는 Descope 연결과 실제 이메일 로그인을 검증한 뒤 운영 빌드의 UI 커밋을 변경한다.
 
 ## 서비스 설정
 
@@ -26,8 +26,8 @@
 2. 루트 `package.json`은 `type: module`, 서버 dependencies `@descope/node-sdk`, `@vercel/functions`를 포함한다. lockfile을 함께 생성한다. 기존 `installCommand`를 `npm ci --omit=dev`로 바꿔 실제 루트 서버 의존성을 설치한다.
 3. 비공개 `vercel.json`은 기존 framework:null, buildCommand, web-dist를 유지하면서 공개 소스의 proxy 설정 및 private/no-store 데이터·API 헤더를 적용한다.
 4. `scripts/build-web.sh`의 APP_COMMIT을 검증된 공개 소스 커밋으로 변경한다. 기존 공개 소스 임시 디렉터리 npm ci/build와 비공개 원자료 변환은 유지한다.
-5. 현재의 Vercel 접근 보호를 유지한 채 배포하여 미로그인 데이터 401, 변조 토큰 401, 일반 사용자 수집 403, 관리자 수집 성공, 이메일 신규 가입·재접속·세션 갱신·로그아웃을 실제 URL에서 검증한다.
-6. 모든 검증 후에만 기존 Vercel 접근 보호 해제를 진행한다. 현재 사이트를 로그인 연결 전 공개로 전환하지 않는다.
+5. 최초 전환 또는 인증 변경 시 Vercel 접근 보호를 유지한 채 배포하여 미로그인 데이터 401, 변조 토큰 401, 일반 사용자 수집 403, 관리자 수집 성공, 이메일 신규 가입·재접속·세션 갱신·로그아웃을 실제 URL에서 검증한다.
+6. 모든 검증 후에만 Vercel Standard Protection으로 전환한다. 운영 주소는 앱 로그인으로 보호하고 미리보기·배포별 생성 주소의 Vercel 보호는 유지한다. 로그인 연결 전 공개로 전환하지 않는다.
 
 ## 로컬 검증
 
