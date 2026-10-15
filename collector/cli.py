@@ -51,10 +51,19 @@ def main():
             calendar['sessions']=sorted(set(old['sessions']+calendar['sessions']))
             calendar['checked_through']=max(old['checked_through'],calendar['checked_through'])
         if args.command=='collect':
+            from .price_quality import reconcile_price_issues
+            issues=calendar.get('price_quality_issues',[])
+            rows=reconcile_price_issues(rows,existing,issues)
+            if issues:
+                print(f'Price quality: {len(issues)} ticker/session responses retried or quarantined; details retained in private calendar.')
             combined={key(r):r for r in fill_legacy_absent_flows(existing)}
             combined.update({key(r):r for r in rows})
             rows=list(combined.values())
         upsert(root,rows)
+        if args.command=='collect' and issues:
+            report_time=datetime.now(timezone.utc)
+            report_name=report_time.strftime('%Y%m%dT%H%M%S%fZ')
+            save_json(root/'quality'/f'prices-{report_name}.json',dict(observed_at=report_time.isoformat(),issues=issues))
         save_json(calendar_path,calendar)
         print(f'Validated and saved {len(rows)} rows. Not published yet.')
     if args.publish or args.command=='publish':

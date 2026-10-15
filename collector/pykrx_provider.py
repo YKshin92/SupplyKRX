@@ -4,6 +4,7 @@ import os
 import time
 import contextlib
 import io
+from .price_quality import PRICE_FIELDS,price_issue
 
 class ProviderError(RuntimeError): pass
 
@@ -21,6 +22,48 @@ def call(fn, *args, **kwargs):
             time.sleep(2**attempt)
 
 INVESTORS = {"연기금 등": "연기금", "외국인": "외국인"}
+
+PRICE_COLUMNS={'open':'시가','high':'고가','low':'저가','close':'종가','change_pct':'등락률','volume':'거래량','turnover':'거래대금'}
+
+def checked_prices(stock,day,market,codes,fetch=call):
+    """Retry only failed quotes from the same market/date, then quarantine them."""
+    quotes={}
+    unresolved={}
+    pending=set(map(str,codes))
+    recovered=[]
+    for attempt in range(3):
+        frame=fetch(stock.get_market_ohlcv_by_ticker,day.replace('-',''),market=market)
+        for code in list(pending):
+            if code not in frame.index:
+                if code not in unresolved:
+                    quotes[code]={k:None for k in PRICE_FIELDS}
+                    pending.remove(code)
+                continue
+            record=frame.loc[code]
+            raw={key:str(record.get(column,'')) for key,column in PRICE_COLUMNS.items()}
+            try:
+                quote={key:None if raw[key] in ('nan','None','') else float(raw[key]) for key in PRICE_FIELDS}
+                reason=price_issue(quote)
+                if not reason:
+                    quote={key:None if value is None else value if key=='change_pct' else int(value) for key,value in quote.items()}
+            except (ValueError,TypeError,OverflowError):
+                reason='invalid_number'
+            if reason:
+                unresolved[code]=dict(date=day,market=market,code=code,reason=reason,raw=raw,status='unresolved')
+            else:
+                if code in unresolved:
+                    recovered.append({**unresolved.pop(code),'status':'recovered_on_retry'})
+                quotes[code]=quote
+                pending.remove(code)
+        if not pending:
+            break
+        print(f'{day} {market}: price validation retry {attempt+1}/3; codes='+','.join(sorted(pending)),flush=True)
+    if not any(q.get('close') is not None for q in quotes.values()):
+        raise ProviderError(f'{day} / {market}: 전체 시세 검증 실패. 기존 데이터를 유지합니다.')
+    for code,issue in unresolved.items():
+        quotes[code]={k:None for k in PRICE_FIELDS}
+        print(f'{day} {market} {code}: invalid prices quarantined ({issue["reason"]}); flow collection continues',flush=True)
+    return quotes,recovered+list(unresolved.values())
 
 def collect_metadata(stock, day):
     result = {}
@@ -65,13 +108,15 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
     if master.empty: raise ProviderError('검증 가능한 보통주 종목이 없습니다.')
     collected=datetime.now(timezone.utc).isoformat()
     rows=[]
+    price_issues=[]
     for day in selected:
         compact=day.replace('-','')
         for market in ['KOSPI','KOSDAQ']:
             universe=master[master['시장구분'].str.startswith(market)]
             universe=universe[universe['상장일'].dt.strftime('%Y-%m-%d')<=day]
             if universe.empty: continue
-            prices=call(stock.get_market_ohlcv_by_ticker,compact,market=market)
+            prices,issues=checked_prices(stock,day,market,universe.index)
+            price_issues.extend(issues)
             for investor in investors:
                 try:
                     flow=call(stock.get_market_net_purchases_of_equities_by_ticker,compact,compact,market,INVESTORS[investor])
@@ -82,14 +127,13 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
                 for code,info in universe.iterrows():
                     # User policy: absent ticker in a successful market response is zero.
                     f=flow.loc[code] if code in flow.index else None
-                    p=prices.loc[code] if code in prices.index else None
                     def val(record,col):
                         if record is None or col not in record or str(record[col]) in ('nan','None',''): return None
                         return float(record[col]) if col=='등락률' else int(record[col])
                     rows.append(dict(date=day,code=str(code),name=info['한글종목약명'],market=market,investor=investor,scope='KRX',
                         buy=val(f,'매수거래대금'),sell=val(f,'매도거래대금'),net=val(f,'순매수거래대금'),
                         buy_volume=val(f,'매수거래량'),sell_volume=val(f,'매도거래량'),net_volume=val(f,'순매수거래량'),
-                        open=val(p,'시가'),high=val(p,'고가'),low=val(p,'저가'),close=val(p,'종가'),change_pct=val(p,'등락률'),volume=val(p,'거래량'),turnover=val(p,'거래대금'),
+                        **prices[str(code)],
                         source='KRX via pykrx',collected_at=collected,finality='unknown',flow_status='reported' if f is not None else 'absent_zero'))
                     if f is None:
                         for field in ['buy','sell','net','buy_volume','sell_volume','net_volume']:
@@ -100,4 +144,5 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
             raise ProviderError(f'{investor}: 유효한 수급값이 없습니다.')
     calendar=dict(sessions=sessions,checked_through=end,source='pykrx.get_previous_business_days / KRX 관측 거래일')
     calendar['instruments']=collect_metadata(stock,selected[-1])
+    calendar['price_quality_issues']=price_issues
     return rows,calendar

@@ -64,7 +64,7 @@ def validate(raw: dict) -> dict:
         for k in ['open','high','low']: r[k] = None
     if all(r[k] is not None for k in ['open','high','low','close']):
         if r['low'] > min(r['open'],r['close']) or r['high'] < max(r['open'],r['close']) or r['high'] < r['low']:
-            raise ValueError('OHLC 가격 범위 불일치')
+            raise ValueError(f'{r["date"]} {r["market"]} {r["code"]} {r["investor"]}: OHLC 가격 범위 불일치 (open={r["open"]}, high={r["high"]}, low={r["low"]}, close={r["close"]})')
     if r['flow_status']=='absent_zero' and any(r[k] != 0 for k in FLOW_FIELDS):
         raise ValueError('응답 미포함 0 처리값 불일치')
     return r
