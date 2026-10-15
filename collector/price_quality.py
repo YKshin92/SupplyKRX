@@ -25,8 +25,10 @@ def reconcile_price_issues(rows,existing,issues):
 
     New sessions retain null prices; no previous-day price or invented zero is used.
     """
-    prior={(r['date'],r['code'],r['investor'],r['scope']):r for r in existing}
     flagged={(i['date'],i['code']) for i in issues if i['status']=='unresolved'}
+    if not flagged:
+        return rows
+    prior={(r['date'],r['code'],r['investor'],r['scope']):r for r in existing if (r['date'],r['code']) in flagged}
     restored={}
     for row in rows:
         if (row['date'],row['code']) not in flagged:
