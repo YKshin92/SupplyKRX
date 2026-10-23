@@ -1,12 +1,12 @@
 /** Gross-price simulation. Signal selection uses only information available at entry. */
 export type Price={open:number|null;high:number|null;low:number|null;close:number|null;volume?:number|null;change_pct?:number|null};
-export type Signal={index:number;net:number;score:number|null;absent:number};
+export type Signal={index:number;net:number;score:number|null;absent:number;quiet_3m?:boolean|null;volume_ratio_20?:number|null};
 export type Candidate={code:string;name:string;market:string;signals:Signal[];prices:(Price|null)[]};
-export type SimInput={version:number;sessions:string[];stocks:Candidate[];indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string};
-export type Status='pending'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop';
+export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume'};
+export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
-export type SimTrade={code:string;name:string;market:string;signal_date:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>};
+export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>};
 export type Ledger={date:string;morning_cash:number;buy_value:number;sale_proceeds:number;end_cash:number;holdings:number;waiting:number;equity:number|null;strategy_pnl:number|null;benchmark_pnl:number|null;unknown_cost:number};
 const mean=(v:number[])=>v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
 const sum=(v:number[])=>v.reduce((a,b)=>a+b,0);
@@ -24,13 +24,16 @@ export function runSimulation(data:SimInput,s:Settings){
  if(!days.length||!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||s.start<days[0]||s.start>days[days.length-1]||new Date(s.start).toISOString().slice(0,10)!==s.start)throw Error('시작일은 보유 데이터 기간 안에서 선택해 주세요.');
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
  const start=days.findIndex(d=>d>=s.start),byCode=new Map(data.stocks.map(c=>[c.code,c]));
- const trades:SimTrade[]=data.stocks.flatMap(c=>{const signal=c.signals.find(e=>e.index>=start);if(!signal)return [];return [{code:c.code,name:c.name,market:c.market,signal_index:signal.index,signal_date:days[signal.index],signal_net:signal.net,score:signal.score,status:s.mode==='capital'&&signal.score==null?'score_missing':'pending',reason:signal.score==null?'신호일 수급 점수 자료 부족':'다음 거래일 매수 대기',entry_index:null,entry_date:null,entry_price:null,shares:0,invested:0,exit_date:null,exit_price:null,pnl:null,return_pct:null,trading_days:null,calendar_days:null,wait_days:0,ambiguous:false,horizons:{}} as SimTrade];}).sort((a,b)=>a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code));
+ const trades:SimTrade[]=data.stocks.flatMap(c=>{return c.signals.filter((e,j,all)=>e.index>=start&&(s.filter==null||s.filter==='standard'||e.quiet_3m===true&&(s.filter!=='quiet3m-volume'||e.volume_ratio_20!=null&&e.volume_ratio_20<=3))&&all.findIndex(x=>x.index===e.index)===j).map(signal=>({code:c.code,name:c.name,market:c.market,event_id:`${c.code}:${days[signal.index]}`,signal_index:signal.index,signal_date:days[signal.index],signal_net:signal.net,score:signal.score,status:s.mode==='capital'&&signal.score==null?'score_missing':'pending',reason:signal.score==null?'신호일 수급 점수 자료 부족':'다음 거래일 매수 대기',entry_index:null,entry_date:null,entry_price:null,shares:0,invested:0,exit_date:null,exit_price:null,pnl:null,return_pct:null,trading_days:null,calendar_days:null,wait_days:0,ambiguous:false,horizons:{}} as SimTrade));}).sort((a,b)=>a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code));
  let cash=s.initial,benchmarkOpen:number|null=null,benchmarkStart:string|null=null,maxHoldings=0,minCash=cash;
  const ledger:Ledger[]=[],paths=new Map<SimTrade,Map<number,number>>();
  for(let i=start;i<days.length;i++){
+  const heldCodes=new Set(trades.filter(t=>t.status==='open'||t.status==='unresolved').map(t=>t.code));
+  for(const t of trades)if(t.status==='pending'&&t.signal_index===i-1&&heldCodes.has(t.code)){t.status='skipped';t.reason='신호 확인 시 이미 보유 중 · 추가 매수 제외';}
   const morning=cash;let buys=0,sales=0;
   const pending=trades.filter(t=>t.status==='pending'&&t.signal_index<i).sort((a,b)=>s.mode==='capital'?((b.score??-1)-(a.score??-1)||a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code)):a.code.localeCompare(b.code));
   for(const t of pending){
+   if(heldCodes.has(t.code)){t.status='skipped';t.reason='동일 종목 중복 대기 신호 제외';continue;}
    const c=byCode.get(t.code)!,r=c.prices[i],previous=c.prices[i-1];t.wait_days=i-t.signal_index-1;
    if(s.mode==='unlimited'&&i!==t.signal_index+1)continue;
    const problem=s.mode==='unlimited'?priceProblem(previous,r):!positive(r?.open)?'시가 미확인':positive(previous?.close)&&Math.abs(r!.open!/previous.close-1)>.35?'시가 단절':null;
@@ -38,6 +41,7 @@ export function runSimulation(data:SimInput,s:Settings){
    const opening=r!.open!,shares=Math.floor(s.budget/opening),cost=shares*opening;
    if(!shares){t.reason='1주 가격이 매수 한도 초과 · 대기';if(s.mode==='unlimited')t.status='excluded';continue;}
    if(s.mode==='capital'&&cost>cash+1e-7){t.reason='현금 부족 · 매도 대금 재사용 대기';continue;}
+   heldCodes.add(t.code);
    if(s.mode==='capital')cash-=cost;buys+=cost;
    Object.assign(t,{status:'open',reason:'최신 종가 평가',entry_index:i,entry_date:days[i],entry_price:opening,shares,invested:cost});
    paths.set(t,new Map());
@@ -91,3 +95,4 @@ export function runSimulation(data:SimInput,s:Settings){
   horizons:[5,10,20].map(days=>{const p=trades.map(t=>t.horizons[days]).filter(h=>h.status==='complete');return {days,count:p.length,stock:mean(p.map(h=>h.stock!)),index:mean(p.map(h=>h.index!)),excess:mean(p.map(h=>h.excess!))};})};
 }
 export type SimResult=ReturnType<typeof runSimulation>;
+

@@ -18,7 +18,7 @@ def simulation_start(sessions, requested=None):
     return next(d for d in sessions if d>=requested)
 
 
-def first_signals(histories, sessions, lookback=10, quiet_cap=100_000_000, minimum=300_000_000, start_date=None):
+def all_signals(histories, sessions, lookback=10, quiet_cap=100_000_000, minimum=300_000_000, start_date=None, first_only=False):
     """Match tracking registrations, before any future-sale or recency UI filter."""
     result = []
     start=simulation_start(sessions,start_date)
@@ -31,11 +31,16 @@ def first_signals(histories, sessions, lookback=10, quiet_cap=100_000_000, minim
                 continue
             if any(not r or any(r.get(k) is None or not 0 <= r[k] < quiet_cap for k in ('buy', 'sell')) for r in before):
                 continue
-            result.append(dict(code=code, name=signal['name'], market=signal['market'],
+            result.append(dict(event_id=code+':'+signal['date'], code=code, name=signal['name'], market=signal['market'],
                 signal_date=signal['date'], signal_net=signal['net'], signal_index=i,
                 prior_absent_days=sum(r.get('flow_status') == 'absent_zero' for r in before)))
-            break
+            if first_only: break
     return sorted(result, key=lambda r: (r['signal_date'], r['code']))
+
+
+def first_signals(histories, sessions, **kwargs):
+    """Legacy first-registration helper; repeat-event simulations use all_signals."""
+    return all_signals(histories, sessions, first_only=True, **kwargs)
 
 
 def valid_price(row):
@@ -191,3 +196,4 @@ def load_histories(directory, include_foreign=False):
     if duplicates:
         raise ValueError(f'중복 연기금 일자 {duplicates}건: 데이터 확인 필요')
     return (histories, foreign) if include_foreign else histories
+

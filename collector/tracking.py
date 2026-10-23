@@ -24,7 +24,7 @@ def five_day_outcome(signal, after):
         outcome_entry_date=window[0]['date'], outcome_end_date=window[-1]['date'], outcome_status='complete')
 
 
-def build_tracking(rows, calendar):
+def build_tracking(rows, calendar, event_ids=None):
     histories = defaultdict(dict)
     foreigners = defaultdict(dict)
     for row in rows:
@@ -42,6 +42,8 @@ def build_tracking(rows, calendar):
         for i in range(10, len(series)):
             signal = series[i]
             if not signal or signal.get('net') is None or signal['net'] < 1e8:
+                continue
+            if event_ids is not None and f'{code}:{signal["date"]}' not in event_ids:
                 continue
             foreign = foreigners[code].get(signal['date'], {})
             prior = {}
@@ -83,3 +85,4 @@ def publish_tracking(rows, calendar, target):
     result = build_tracking(rows, calendar)
     save_json(target/'tracking-events.json', result)
     return result
+

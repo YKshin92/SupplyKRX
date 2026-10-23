@@ -1,7 +1,7 @@
 """Finite-cash, score-prioritized queue. All entries precede same-day exits."""
 from datetime import date
 import math
-from .simulation import first_signals, price_problem, summarize, simulation_start
+from .simulation import all_signals, price_problem, summarize, simulation_start
 from .simulation_benchmark import index_price, add_benchmark
 
 
@@ -18,9 +18,9 @@ def entry_score(pension, foreign):
         note='신호일 수급 점수 50점을 100점 환산 · 최신 시총 제외')
 
 
-def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_000,budget=3_000_000,take=15,stop=10,start_date=None):
+def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_000,budget=3_000_000,take=30,stop=10,start_date=None):
     start=simulation_start(sessions,start_date)
-    signals=first_signals(histories,sessions,start_date=start)
+    signals=all_signals(histories,sessions,start_date=start)
     trades=[]
     for signal in signals:
         score=entry_score(histories[signal['code']][signal['signal_date']],foreign.get(signal['code'],{}).get(signal['signal_date'],{}))
@@ -35,11 +35,19 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
     peak_queued=0
     for i,day in enumerate(sessions):
         if day<start: continue
+        # A signal observed while this stock is held cannot become a later pyramiding order.
+        held_codes={t['code'] for t in trades if t['status'] in ('open','unresolved')}
+        for t in trades:
+            if t['status']=='pending' and t['signal_index']==i-1 and t['code'] in held_codes:
+                t.update(status='skipped',reason='신호 확인 시 이미 보유 중 · 추가 매수 제외')
         morning_cash=cash
         pending=sorted([t for t in trades if t['status']=='pending' and t['signal_index']<i],
             key=lambda t:(-t['score'],t['signal_date'],t['code']))
         buys=0;buy_count=0;sells=0;sell_count=0
         for t in pending:
+            if t['status']!='pending': continue
+            if t['code'] in held_codes:
+                t.update(status='skipped',reason='동일 종목 중복 대기 신호 제외');continue
             row=histories[t['code']].get(day)
             t['attempts']+=1;t['wait_days']=i-t['signal_index']-1
             # At the opening auction neither today's high/low/close nor its full-day volume is known.
@@ -55,6 +63,7 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
                 t['reason']='1주 가격이 매수 한도 초과 · 대기';continue
             if cost>cash+1e-7:
                 t['funding_blocks']+=1;t['reason']='현금 부족 · 매도 대금 재사용 대기';continue
+            held_codes.add(t['code'])
             before=cash;cash-=cost;buys+=cost;buy_count+=1
             t.update(status='open',reason='최신 종가 평가',entry_date=day,entry_price=opening,shares=shares,
                 invested=cost,cash=budget-cost,actual_entry_index=i)
@@ -118,7 +127,7 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
             delayed_buys=sum(t['invested']>0 and t['wait_days']>0 for t in trades),
             score_missing=sum(t['status']=='score_missing' for t in trades),ledger=ledger,actions=actions,
             score_note='신호일 연기금 35점 + 외국인 15점을 100점 환산 · 현재 시총 제외 · 점수 고정',
-            queue_note='미매수 최초 신호를 만료 없이 보관 · 신규/대기 통합 점수순 · 동점은 오래된 신호/코드순 · 당일 매도 대금은 다음 거래일부터 사용'))
+            queue_note='미매수 신호를 만료 없이 보관 · 보유 중 신호 및 같은 종목 중복 대기 제외 · 신규/대기 통합 점수순 · 동점은 오래된 신호/코드순 · 당일 매도 대금은 다음 거래일부터 사용'))
     # Fixed-horizon selection analysis still uses actual entry dates. The cash-limited
     # portfolio benchmark must not pretend that recycled stock proceeds are new deposits.
     add_benchmark(result,histories,sessions,indices,'kospi')
@@ -131,3 +140,4 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
         excess_pp=((nav-initial)-reference)/initial*100 if nav is not None and reference is not None else None,
         curve=equity_curve,start_date=benchmark_start,count=base_summary['bought'],excluded=[])
     return result
+

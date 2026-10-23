@@ -68,7 +68,7 @@ class PortfolioTests(unittest.TestCase):
         self.f['000002'][self.sessions[-1]]['buy']=999_000_000_000
         changed=self.run_case()
         self.assertEqual(r['trades'][0]['score'],changed['trades'][0]['score'])
-        self.assertEqual([t['entry_date'] for t in r['trades']],[t['entry_date'] for t in changed['trades']])
+        self.assertEqual([(t['code'],t['entry_date']) for t in r['trades'] if t['signal_date']<self.sessions[-1]],[(t['code'],t['entry_date']) for t in changed['trades'] if t['signal_date']<self.sessions[-1]])
 
     def test_entry_does_not_know_same_day_close_missing(self):
         self.h['000001'][self.sessions[11]]['close']=None
@@ -98,3 +98,4 @@ class PortfolioTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+

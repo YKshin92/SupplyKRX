@@ -17,7 +17,7 @@ test('score handles missing data, selling, caps and excludes outcomes',()=>{
 const event=(code,date,extra={})=>({code,signal_date:date,signal_net:6e8,tracking_days:4,buy_days:2,buy_days_complete:true,no_net_sale:true,no_gross_sale:false,prior:{10:{max_buy:1e7,max_sell:2e7},20:null},...extra});
 test('gross thresholds, strict mode and earliest qualifying registration',()=>{
  const first=event('1','2026-09-01'),later=event('1','2026-10-01'),capped=event('2','2026-10-01',{prior:{10:{max_buy:0,max_sell:1e8}}});
- assert.deepEqual(registrations([later,capped,first],10,1,false,5),[first]);
+ assert.deepEqual(registrations([later,capped,first],10,1,false,5).map(e=>[e.signal_date,e.first_registration_date]),[[later.signal_date,first.signal_date],[first.signal_date,first.signal_date]]);
  assert.equal(registrations([first],10,1,true,5).length,0);
  assert.equal(registrations([first],20,1,false,5).length,0);
  assert.equal(registrations([first],10,1,false,7).length,0);
@@ -35,3 +35,4 @@ test('gross versus net sales and missing sustained observations',()=>{
  assert.equal(visibleTracking([small],'recent','gross',[]).length,0);
  assert.deepEqual(visibleTracking([small,missing,one],'sustained','all',[]),[small]);
 });
+
