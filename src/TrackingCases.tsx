@@ -1,3 +1,4 @@
+import {sessionData,parallelParts} from './history-cache';
 import {buyScore} from './buy-score';
 import {useEffect,useMemo,useState} from 'react';
 import {Star} from 'lucide-react';
@@ -18,7 +19,7 @@ export default function TrackingCases(p:Props){
  const [research,setResearch]=useState('standard');
  const [lookback,setLookback]=useState(10),[strict,setStrict]=useState(false);
  const [inputs,setInputs]=useState({quiet:'1',net:'3',cap:'',latest:'0'}),[applied,setApplied]=useState(inputs);
- useEffect(()=>{let cancelled=false;setLoading(true);setError('');json<TrackingData&{files?:string[]}>('/data/live/tracking-history.json').then(async manifest=>{if(manifest.as_of!==p.asOf)throw Error('history not current');if(!manifest.files)return manifest;const events:TrackingEvent[]=[];for(const file of manifest.files){if(!/^tracking-history-[a-z0-9-]+\.json$/.test(file))throw Error('invalid history part');events.push(...await json<TrackingEvent[]>(`/data/live/${file}`));}return {...manifest,events,history_available:true};}).catch(()=>json<TrackingData>('/data/live/tracking-events.json').then(d=>({...d,history_pending:true}))).then(d=>{if(d.schema_version!==1||d.as_of!==p.asOf)throw new Error('추적 데이터 기준일이 다릅니다. 데이터를 다시 생성해 주세요.');if(!cancelled)setData(d);}).catch(e=>{if(!cancelled)setError(String(e));}).finally(()=>{if(!cancelled)setLoading(false);});return()=>{cancelled=true;};},[p.asOf]);
+ useEffect(()=>{let cancelled=false;setLoading(true);setError('');sessionData<TrackingData>(`tracking:${p.asOf}`,()=>json<TrackingData&{files?:string[]}>('/data/live/tracking-history.json').then(async manifest=>{if(manifest.as_of!==p.asOf)throw Error('history not current');if(!manifest.files)return manifest;const parts=await parallelParts(manifest.files,async file=>{if(!/^tracking-history-[a-z0-9-]+\.json$/.test(file))throw Error('invalid history part');return json<TrackingEvent[]>(`/data/live/${file}`);});const events=parts.flat();return {...manifest,events,history_available:true};})).catch(()=>json<TrackingData>('/data/live/tracking-events.json').then(d=>({...d,history_pending:true}))).then(d=>{if(d.schema_version!==1||d.as_of!==p.asOf)throw new Error('추적 데이터 기준일이 다릅니다. 데이터를 다시 생성해 주세요.');if(!cancelled)setData(d);}).catch(e=>{if(!cancelled)setError(String(e));}).finally(()=>{if(!cancelled)setLoading(false);});return()=>{cancelled=true;};},[p.asOf]);
  useEffect(()=>{const timer=setTimeout(()=>setApplied(inputs),350);return()=>clearTimeout(timer);},[inputs]);
  useEffect(()=>setPage(1),[research,view,sale,search,market,order,lookback,strict,applied,p.watch]);
  const invalid=!Number.isFinite(Number(applied.net))||applied.net===''||Number(applied.net)<1||!strict&&(applied.quiet===''||!Number.isFinite(Number(applied.quiet))||Number(applied.quiet)<=0||Number(applied.quiet)>1)||['cap','latest'].some(k=>{const v=applied[k as 'cap'|'latest'];return v!==''&&(!Number.isFinite(Number(v))||Number(v)<0);});
@@ -63,5 +64,4 @@ export default function TrackingCases(p:Props){
   <div className="table-footer"><span>등록 후 수익률: 등록일 종가 대비 현재 종가. 5거래일 성과: 다음 날 시가 진입 → 5일째 종가, 최대 하락은 진입가 대비 기간 최저가. 비용·배당·기업행사 보정 미반영 · 성과는 점수에 사용하지 않음</span><div><button disabled={safePage===1} onClick={()=>setPage(safePage-1)}>이전</button> {safePage}/{pages} <button disabled={safePage===pages} onClick={()=>setPage(safePage+1)}>다음</button></div></div>
  </>;
 }
-
 
