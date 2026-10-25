@@ -1,6 +1,7 @@
+export type TouchResult={status:'take'|'stop'|'open'|'pending'|'missing';entry_date:string|null;entry_price:number|null;first_take_date:string|null;first_stop_date:string|null;first_date:string|null;trading_days:number|null;ambiguous:boolean;scan_complete:boolean;take_touched:boolean|null;stop_touched:boolean|null;reason:string|null};
 export type ScoreInputs={signal_buy?:number|null;foreign_buy?:number|null;foreign_net?:number|null;return_5d?:number|null;downside_5d?:number|null;peak_5d?:number|null;outcome_status?:'pending'|'missing'|'price_break'|'complete';outcome_entry_date?:string|null;outcome_end_date?:string|null};
 export type Prior={max_buy:number;max_sell:number;avg_gross:number;absent_days:number};
-export type TrackingEvent=ScoreInputs&{id:string;first_registration_date?:string;quiet_3m?:boolean|null;volume_ratio_20?:number|null;code:string;name:string;market:string;signal_date:string;signal_net:number;signal_close:number|null;tracking_days:number;prior:Record<string,Prior|null>;current_return:number|null;current_close:number|null;latest_net:number|null;sum_since:number|null;buy_days:number;buy_days_complete:boolean;no_net_sale:boolean|null;no_gross_sale:boolean|null;net_sell_days:number;gross_sell_days:number;spark:(number|null)[];market_cap:number|null;sector:string|null;metadata_date:string|null};
+export type TrackingEvent=ScoreInputs&{touch_outcome?:TouchResult;id:string;first_registration_date?:string;quiet_3m?:boolean|null;volume_ratio_20?:number|null;code:string;name:string;market:string;signal_date:string;signal_net:number;signal_close:number|null;tracking_days:number;prior:Record<string,Prior|null>;current_return:number|null;current_close:number|null;latest_net:number|null;sum_since:number|null;buy_days:number;buy_days_complete:boolean;no_net_sale:boolean|null;no_gross_sale:boolean|null;net_sell_days:number;gross_sell_days:number;spark:(number|null)[];market_cap:number|null;sector:string|null;metadata_date:string|null};
 export type TrackingData={schema_version:number;history_available?:boolean;history_pending?:boolean;as_of:string;first_date:string;sessions:string[];minimum_net:number;events:(TrackingEvent&ScoreInputs)[]};
 export type View='recent'|'new'|'sustained'|'watch'|'all';
 export type Sale='all'|'net'|'gross';
@@ -12,4 +13,3 @@ export function registrations(events:TrackingEvent[],lookback:number,quietCap:nu
 export function visibleTracking(events:TrackingEvent[],view:View,sale:Sale,watch:string[]){
  return events.filter(e=>(view==='all'||view==='watch'||e.tracking_days<(view==='new'?5:10))&&(view!=='watch'||watch.includes(e.code))&&(view!=='sustained'||e.buy_days>=2&&e.buy_days_complete&&e.no_net_sale===true)&&(sale==='all'||(sale==='net'?e.no_net_sale:e.no_gross_sale)===true));
 }
-
