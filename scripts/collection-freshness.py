@@ -4,6 +4,9 @@ import csv
 import os
 from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from collector.investors import INVESTORS
 
 
 def collection_end(requested, now):
@@ -26,7 +29,7 @@ def fresh(rows, day, now, minutes=15):
             return False
         age = (now - min(stamps)).total_seconds()
         groups = {(r['market'], r['investor']) for r in rows}
-        return 0 <= age < minutes * 60 and all((m, i) in groups for m in ('KOSPI', 'KOSDAQ') for i in ('연기금 등', '외국인'))
+        return 0 <= age < minutes * 60 and all((m, i) in groups for m in ('KOSPI', 'KOSDAQ') for i in INVESTORS)
     except (ValueError, KeyError):
         return False
 

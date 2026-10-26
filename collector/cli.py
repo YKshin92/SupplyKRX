@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from .core import read_csv, upsert, publish, save_json, load_rows, validate_calendar, fill_legacy_absent_flows, key
 from .demo import generate
+from .investors import collection_start
 
 def main():
     p=argparse.ArgumentParser(description='연기금 수급 수집·검증·게시')
@@ -29,11 +30,11 @@ def main():
     if args.command=='collect':
         from .pykrx_provider import collect, INVESTORS
         existing=load_rows(root)
-        start=args.start
-        if existing and not start and set(INVESTORS).issubset({r['investor'] for r in existing}):
-            known=sorted({r['date'] for r in existing})
-            start=known[max(0,len(known)-3)] # recheck three sessions + catch up
+        start=collection_start(existing,args.start)
         rows,calendar=collect(args.end,args.days,start,args.codes.split(',') if args.codes else None)
+        from .metadata_snapshots import write_snapshots
+        snapshots=calendar.pop('metadata_snapshots',{})
+        write_snapshots(root,snapshots,max(r['collected_at'] for r in rows))
     elif args.command=='import':
         if not args.csv or not args.calendar: p.error('import는 --csv 및 --calendar가 필요합니다.')
         rows=read_csv(args.csv)

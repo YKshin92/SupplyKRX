@@ -5,6 +5,7 @@ import time
 import contextlib
 import io
 from .price_quality import PRICE_FIELDS,price_issue
+from .investors import INVESTORS
 
 class ProviderError(RuntimeError): pass
 
@@ -20,8 +21,6 @@ def call(fn, *args, **kwargs):
         except Exception as exc:
             if attempt==2: raise ProviderError(f'{fn.__name__} 실패 ({type(exc).__name__}). 인증 및 공급자 상태를 확인하세요.') from None
             time.sleep(2**attempt)
-
-INVESTORS = {"연기금 등": "연기금", "외국인": "외국인"}
 
 PRICE_COLUMNS={'open':'시가','high':'고가','low':'저가','close':'종가','change_pct':'등락률','volume':'거래량','turnover':'거래대금'}
 
@@ -109,6 +108,7 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
     collected=datetime.now(timezone.utc).isoformat()
     rows=[]
     price_issues=[]
+    snapshots={}
     for day in selected:
         compact=day.replace('-','')
         for market in ['KOSPI','KOSDAQ']:
@@ -139,10 +139,12 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
                         for field in ['buy','sell','net','buy_volume','sell_volume','net_volume']:
                             rows[-1][field]=0
             print(f'{day} {market}: {len(universe)} stocks processed',flush=True)
+        snapshots[day]=collect_metadata(stock,day)
     for investor in investors:
         if not any(r['net'] is not None for r in rows if r['investor']==investor):
             raise ProviderError(f'{investor}: 유효한 수급값이 없습니다.')
     calendar=dict(sessions=sessions,checked_through=end,source='pykrx.get_previous_business_days / KRX 관측 거래일')
-    calendar['instruments']=collect_metadata(stock,selected[-1])
+    calendar['instruments']=snapshots[selected[-1]]
+    calendar['metadata_snapshots']=snapshots
     calendar['price_quality_issues']=price_issues
     return rows,calendar

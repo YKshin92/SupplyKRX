@@ -143,3 +143,23 @@ Node55개 테스트, TypeScript/production build 통과. 실제 과거 자료로
 - 화면 증거: outputs/bundle-a-score-production.png, outputs/bundle-a-detail-production.png.
 - 다음 묶음 B: 실제4건의 기업행사 권리·거래정지·재개 처리. DN 상세 상단의 현재/신호 원주가 비교에는 분할 전후 가격이 섞여 -50.42%로 표시되므로, 기업행사 조정 전 확정 수익률처럼 보이지 않도록 함께 수정한다. 이번 묶음은 원인 표시 개선이며 기업행사 정산을 완료한 것은 아니다.
 - 자동 점검은 사용자 요청으로10분에서30분으로 변경하고 설정 파일의 ACTIVE/30분 적용을 확인했다. 전체 개발 완료 전까지 유지한다.
+
+### B2 배포 진행 (2026-10-26)
+
+소스 e67c860cc8dfaa73dc474b6da0fdb164357e8b60(main), 비공개 배포 pin28497b5d772fa895b29290bfe78e7b0db04633b3. 공개 커밋33개 코드/테스트/문서만 포함했으며 private outputs/work/public/data/live/dist는 제외. 최종 배포 파이프라인을 읽어 보니 레거시 history-web simulation-input이 최근 생성물의 정산 맥락을 덮을 수 있어, overlay 이후 annotate-tracking-outcomes.py에서 감사한 맥락을 다시 붙이도록 보완했다. 과거 파일·가격·종목 shard는 변경하지 않으며 근거일 이전에는null. 레거시 덮어쓰기/반복실행/원자료 불변 회귀 테스트2개 통과. Vercel 성공과 실제 운영 화면 확인 전에는 운영 완료가 아니다.
+
+### B2 운영 검증 완료 및 다음 단계 (2026-10-26)
+
+비공개 pin28497b5d772fa895b29290bfe78e7b0db04633b3의 GitHub Vercel status success와 배포 F3ftay3XxZKkBJTUiLncRoVK68kC의 Ready/Production/supply-krx.vercel.app 연결 확인. 실제 운영에서 로그인 세션 복원 후1058신호 worker계산, 남은 정산3건/8,939,300원과 전체 NAV 산출 보류 확인. DN 표/상세의 원매수가81,200원·분할평단16,240원·180주·2025-01-24 청산21,112원·손익876,960원/+30%가 로컬과 일치. 과거 상세162거래일·세 차트 신호/매수/익절 표시와 원주가 비교 보류가 로딩 전후 유지됨을 확인. error 로그0. outputs/corporate-account-production.png 저장. 운영 인증·관리자 수집·다운로드 차단은 변경하지 않았고 데이터 수집 버튼을 실행하지 않았다.
+
+이번 완료 범위는 DN 감사된 분할 정산과 가격 기준 표시이며, 박셀/동화 단주 현금 및 삼양 신설자산/단주/원가 자료는 여전히 미확정이다. 그 원금을 사후 제외하거나 현금·수익률을 합성하지 않는다. 다음 기능 묶음은 기관합계·사모 수집 및 기준일 시총/8항목 전체모집단 순위 계약부터 구현한다. 수집기 기본투자자(provider INVESTORS), core validate/publish의2투자자 고정, CLI 재수집 준비범위 및 daily/history/projection 호환을 함께 갱신해야 한다. 기존 연기금·외국인 화면/신호와 과거 데이터는 보존하고 신규 미수집은0으로 만들지 않는다. 미확정3건의 원천 확보는 병행하며 나머지 전체 계획은 아직 미완료이므로30분 자동 점검을 유지한다.
+
+### 묶음 C1 — 4투자자 수집·검증·게시 및 일자별 시총 기반 (로컬 구현, 2026-10-26)
+
+collector/investors.py에 저장 레이블·pykrx 인수·게시 경로와 기관 포함관계를 정의했다. 기관합계/사모는 공식 pykrx wrap.py에서7050/3100 지원 확인. provider 기본 수집4종, core 검증/분리게시, prepare-local의1/2/3개월 생성, freshness의양시장×4투자자 조건을 함께 확장했다. CLI의3일 overlap은 최근 구간 전체 시장/투자자가 확인될 때만 사용하며, 기존2투자자 파일이면 최초 전체 수집 구간을 생략하지 않는다. 기존 과거 CSV는 그대로 읽고 새 투자자 행을 임의 생성하지 않는다.
+
+각 수집 거래일의 업종·시총을 조회하고 collector/metadata_snapshots.py에서 전체 배치 날짜/코드/시총/출처 검증 후 data/live/metadata/daily/YYYY-MM-DD.json에 비공개 저장하도록 연결했다. calendar에는 최신일 instruments만 두어 모든 날짜 시총을 넣어 비대해지지 않게 한다. CSV 스키마·기존 연기금/외국인 경로는 유지한다. 신규 게시 경로는 institution/private-fund이고 manifest에 기관 부모/포함관계를 기록했다. 화면·8항목 점수는 아직 연결하지 않았다.
+
+Python 전체125개 통과(125개는 포함관계 manifest 추가 전), 후속 관련3개 재통과. 실제0/레거시 미수집 구분,4투자자 분리 게시, 부분 시장/투자자/날짜 누락 시 재수집, 날짜 다른 시총 파일 거부, 원시 과거 신규 행 미생성 검증. docs/investor-extension.md에 계약·운영 준비·제약 정리. 실제 KRX 응답이나 운영 수집 완료로 표시하지 않는다.
+
+다음: 비공개 SupplyKRX-data workflow의 APP_COMMIT/수집 코드 다운로드 ref·freshness 스크립트가 사용하는 실제 위치를 먼저 읽고, C1 소스·테스트만 별도 커밋해 작은 실제 수집을 검증한다. 새4투자자 전체 응답 실패/시총 결측·기준일을 확인하고 최근 원천만 우선 비공개 적재한다. 실패하면 기존 일별 자료·게시를 유지한다. 8항목 점수는 전체 종목 모집단·동일 기간·시총 기준일 커버리지 검증 후 만든다. C1 미배포 파일: collector/investors.py·metadata_snapshots.py·pykrx_provider.py·core.py·cli.py, scripts/prepare-local.py·collection-freshness.py, tests/test_investor_extension.py·test_reliability.py, docs/investor-extension.md·implementation-progress.md. 현재 운영 앱 e67c860/비공개pin28497b5 유지. 미확정3건과 전체 계획은 계속 남아 있다.

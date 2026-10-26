@@ -70,11 +70,12 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(client.retries, [])
     def test_freshness_all_groups_and_time(self):
         now = datetime(2026, 10, 12, 10, tzinfo=timezone.utc)
-        rows = [dict(date='2026-10-12', market=m, investor=i, collected_at=now.isoformat()) for m in ('KOSPI', 'KOSDAQ') for i in ('연기금 등', '외국인')]
+        rows = [dict(date='2026-10-12', market=m, investor=i, collected_at=now.isoformat()) for m in ('KOSPI', 'KOSDAQ') for i in ('연기금 등', '외국인','기관합계','사모')]
         self.assertTrue(f.fresh(rows, '2026-10-12', now + timedelta(minutes=5)))
         self.assertFalse(f.fresh(rows, '2026-10-12', now + timedelta(minutes=20)))
         self.assertFalse(f.fresh(rows[:1], '2026-10-12', now))
         self.assertFalse(f.fresh(rows, '2026-10-13', now))
+        self.assertFalse(f.fresh([r for r in rows if r['investor'] in ('연기금 등','외국인')], '2026-10-12', now))
 
 
 if __name__ == '__main__': unittest.main()

@@ -9,6 +9,7 @@ import os
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
+from .investors import INVESTORS,PUBLICATION_PATHS,INSTITUTION_COMPONENTS,INCLUSION_NOTE
 
 FIELDS = ['date','code','name','market','investor','scope','buy','sell','net','buy_volume','sell_volume','net_volume','close','change_pct','volume','turnover','source','collected_at','finality','open','high','low','flow_status']
 FLOW_FIELDS = ['buy','sell','net','buy_volume','sell_volume','net_volume']
@@ -28,7 +29,7 @@ def validate(raw: dict) -> dict:
     date.fromisoformat(str(r['date']))
     if not re.fullmatch(r'[0-9A-Z]{6}', str(r['code'])):
         raise ValueError('종목코드는 앞자리 0을 포함한 6자리 영숫자 문자열이어야 합니다.')
-    if r['market'] not in ('KOSPI','KOSDAQ') or r['investor'] not in ('연기금 등','외국인'):
+    if r['market'] not in ('KOSPI','KOSDAQ') or r['investor'] not in INVESTORS:
         raise ValueError('시장 또는 투자자 분류가 올바르지 않습니다.')
     if not all(r[k] for k in ['name','scope','source','collected_at','finality']):
         raise ValueError('종목명·출처·거래 범위·수집 시각·확정 상태가 필요합니다.')
@@ -180,7 +181,7 @@ def publish(root: Path, target: Path, mode: str, calendar: dict, window=20):
     if mode == 'live' and any(r['finality'] == 'demo' for r in rows):
         raise ValueError('운영 데이터에 데모가 포함되어 있습니다.')
     results = {}
-    for investor, suffix in [('외국인','foreign'),('연기금 등','')]:
+    for investor, suffix in PUBLICATION_PATHS.items():
         selected = [r for r in rows if r['investor'] == investor]
         if selected:
             results[investor] = publish_investor(selected,target/suffix,mode,calendar,investor,window)
@@ -224,6 +225,9 @@ def publish_investor(rows, target, mode, calendar, investor, window=20):
     save_json(base/'summary.json', summary)
     save_json(base/'instruments.json', [{k:s[k] for k in ['code','name','market']} for s in summary])
     manifest = dict(schema_version=1, investor=investor, mode=mode, as_of=as_of, sessions=sessions,
+        investor_parent='기관합계' if investor in ('연기금 등','사모') else None,
+        investor_components=list(INSTITUTION_COMPONENTS) if investor=='기관합계' else [],
+        investor_aggregation_note=INCLUSION_NOTE,
         calendar_checked_through=calendar['checked_through'],calendar_source=calendar['source'],
         generated_at=datetime.now(timezone.utc).isoformat(),
         collected_at=max(r['collected_at'] for r in rows),

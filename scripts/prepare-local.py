@@ -6,6 +6,7 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root))
 from collector.core import publish, load_rows, publish_investor
+from collector.investors import PUBLICATION_PATHS
 from datetime import date
 import calendar as month_calendar
 parser=argparse.ArgumentParser(description='Generate local/private web data')
@@ -34,7 +35,7 @@ for months in (1,2,3):
     first=max(start,min(r['date'] for r in rows))
     sessions=[d for d in calendar['sessions'] if first<=d<=as_of]
     view_calendar={**calendar,'sessions':sessions}
-    for investor,suffix in [('연기금 등',''),('외국인','foreign')]:
+    for investor,suffix in PUBLICATION_PATHS.items():
         selected=[r for r in rows if r['investor']==investor and first<=r['date']<=as_of]
         if selected:
             manifest=publish_investor(selected,args.target/'periods'/f'{months}m'/suffix,'live',view_calendar,investor,len(sessions))
