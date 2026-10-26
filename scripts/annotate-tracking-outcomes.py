@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from collector.touch_outcome import touch_outcome
 from collector.foreign_record import foreign_record
+from collector.price_comparison import price_comparison
 
 
 def enrich(target):
@@ -35,8 +36,15 @@ def enrich(target):
                     cache[code] = {key: {r['date']: r for r in history.get(key, [])} for key in ('pension', 'foreign')}
                 event['touch_outcome'] = touch_outcome(event['signal_date'], cache[code]['pension'], sessions)
                 event['foreign_record_20'] = foreign_record(event['signal_date'], cache[code]['foreign'], sessions)
+                event['price_comparison'] = price_comparison(event['signal_date'], cache[code]['pension'], sessions)
+                event['current_return'] = ((event['current_close']/event['signal_close']-1)*100
+                    if event['price_comparison']['status'] == 'comparable'
+                    and event.get('current_close') and event.get('signal_close') else None)
                 count += 1
-            path.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+            encoded = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+            if len(encoded.encode('utf-8')) >= 2_000_000:
+                raise ValueError('Annotated tracking shard exceeds response limit')
+            path.write_text(encoded, encoding='utf-8')
     return count
 
 

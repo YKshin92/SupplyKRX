@@ -16,7 +16,7 @@ test('listing and latest boundaries are reported honestly, missing signals yield
 });
 test('specific verified actions and generic quote gaps remain distinct from unbought records',()=>{
  assert.equal(issueDiagnosis({code:'007340',status:'unresolved',reason:'2024-09-25 일봉 가격 미수집'}).kind,'corporate');
- assert.equal(issueDiagnosis({code:'025900',status:'unresolved',reason:'2024-04-12 일봉 가격 미수집'}).kind,'missing');
- assert.equal(issueDiagnosis({code:'323990',status:'unresolved',reason:'2023-11-10 가격 단절'}).kind,'price_basis');
+ assert.equal(issueDiagnosis({code:'025900',status:'unresolved',reason:'2024-04-12 일봉 가격 미수집'}).kind,'corporate');
+ assert.equal(issueDiagnosis({code:'323990',status:'unresolved',reason:'2023-11-10 가격 단절'}).kind,'corporate');
  assert.equal(issueDiagnosis({code:'007340',status:'pending',reason:'현금 부족'}),null);
 });

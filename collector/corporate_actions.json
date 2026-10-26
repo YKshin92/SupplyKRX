@@ -1,0 +1,6 @@
+[
+  {"code":"025900","kind":"split","issue_date":"2024-04-12","resume_date":"2024-05-03","ratio":"2.5","source":"https://kind.krx.co.kr/external/2024/05/02/000682/20240502001733/70764.htm","note":"500원에서200원 액면변경. 문제일은 관측자료 기준. 단주 대금 지급일·금액 확인 필요."},
+  {"code":"007340","kind":"split","issue_date":"2024-09-25","resume_date":"2024-10-07","ratio":"5","source":"https://kind.krx.co.kr/external/2024/07/19/000307/20240719000759/00591.htm","note":"1:5 액면분할. 매매정지·분할 수량과 재개 가격을 함께 처리해야 함."},
+  {"code":"323990","kind":"bonus","issue_date":"2023-11-10","record_date":"2023-11-13","listing_date":"2023-11-30","ratio":"0.2","source":"https://kind.krx.co.kr/external/2023/10/30/000604/20231030001503/10601.htm","note":"1주당0.2주 무상배정. 문제일은 관측자료 기준. 상장 전 신주 매도 금지. 단주 현금 지급일 확인 필요."},
+  {"code":"000070","kind":"spinoff","issue_date":"2025-10-30","resume_date":"2025-11-24","retained_ratio":"0.9039233","new_ratio":"0.960767","new_name":"삼양바이오팜","source":"https://kind.krx.co.kr/external/2025/11/03/000668/20251103001533/10810.htm","ratio_source":"https://kind.krx.co.kr/external/2025/09/02/000079/20250902000123/10601.htm","note":"존속·신설 주식 및 각각의 단주 권리. 신설주 가격·원가배분·현금 지급일 확인 전 정산 불가."}
+]
