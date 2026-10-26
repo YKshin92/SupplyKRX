@@ -109,12 +109,16 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
     rows=[]
     price_issues=[]
     snapshots={}
+    universes={}
+    observed_day=datetime.now(timezone(timedelta(hours=9))).date().isoformat()
     for day in selected:
         compact=day.replace('-','')
+        universes[day]=dict(as_of=day,classification_observed_date=observed_day,classification_status='asof_observed' if observed_day==day else 'historical_classification_unverified',source='KRX current security master via pykrx; common stocks listed by requested day',stocks=[])
         for market in ['KOSPI','KOSDAQ']:
             universe=master[master['시장구분'].str.startswith(market)]
             universe=universe[universe['상장일'].dt.strftime('%Y-%m-%d')<=day]
             if universe.empty: continue
+            universes[day]['stocks'].extend(dict(code=str(code),market=market,name=info['한글종목약명']) for code,info in universe.iterrows())
             prices,issues=checked_prices(stock,day,market,universe.index)
             price_issues.extend(issues)
             for investor in investors:
@@ -146,5 +150,6 @@ def collect(end: str, days=20, start=None, codes=None, investors=None):
     calendar=dict(sessions=sessions,checked_through=end,source='pykrx.get_previous_business_days / KRX 관측 거래일')
     calendar['instruments']=snapshots[selected[-1]]
     calendar['metadata_snapshots']=snapshots
+    calendar['universe_snapshots']=universes
     calendar['price_quality_issues']=price_issues
     return rows,calendar

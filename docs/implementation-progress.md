@@ -163,3 +163,41 @@ collector/investors.py에 저장 레이블·pykrx 인수·게시 경로와 기�
 Python 전체125개 통과(125개는 포함관계 manifest 추가 전), 후속 관련3개 재통과. 실제0/레거시 미수집 구분,4투자자 분리 게시, 부분 시장/투자자/날짜 누락 시 재수집, 날짜 다른 시총 파일 거부, 원시 과거 신규 행 미생성 검증. docs/investor-extension.md에 계약·운영 준비·제약 정리. 실제 KRX 응답이나 운영 수집 완료로 표시하지 않는다.
 
 다음: 비공개 SupplyKRX-data workflow의 APP_COMMIT/수집 코드 다운로드 ref·freshness 스크립트가 사용하는 실제 위치를 먼저 읽고, C1 소스·테스트만 별도 커밋해 작은 실제 수집을 검증한다. 새4투자자 전체 응답 실패/시총 결측·기준일을 확인하고 최근 원천만 우선 비공개 적재한다. 실패하면 기존 일별 자료·게시를 유지한다. 8항목 점수는 전체 종목 모집단·동일 기간·시총 기준일 커버리지 검증 후 만든다. C1 미배포 파일: collector/investors.py·metadata_snapshots.py·pykrx_provider.py·core.py·cli.py, scripts/prepare-local.py·collection-freshness.py, tests/test_investor_extension.py·test_reliability.py, docs/investor-extension.md·implementation-progress.md. 현재 운영 앱 e67c860/비공개pin28497b5 유지. 미확정3건과 전체 계획은 계속 남아 있다.
+
+### C1 실제 원천 사전검증 시작 (2026-10-26)
+
+비공개 daily 수집 workflow는 공개 app main을 바로 checkout하고, readiness는 아직 연기금/외국인2개, history-web은 옛 app3fbfeebe에 고정되어 있음을 확인했다. C1을 main에 올리면 검증 전 운영 수집이 먼저 바뀌므로, 소스4c90eeeb52a0ee2dc4243b6445086f14f04b9459를 codex/investor-extension 브랜치에만 올렸다(main e67c860 유지). 기존125개 회귀 및 신규 수집 사전검증 관련4개 통과.
+
+추가 scripts/verify-investor-collection.py는 거래일별 양시장×4투자자의 동일 종목 집합/중복/유효 순매수/전체시장 gross0 여부와 날짜 일치 시총을 검사하고 커버리지만 출력한다. 시총 미확인은 수를 보고하며0으로 채우지 않는다. 신규 사모 그룹이 아예 빠진 합성 경우를 거부했다.
+
+비공개 investor-preflight.yml을 f705c48f6a82f2fea5fce1ceb1260b68553004be 커밋으로 생성해 push로 자동 실행한다. 정확한 C1 SHA를 checkout하고 기존 KRX secrets로2026-10-23 하루 전 종목을 RUNNER_TEMP에만 수집→4투자자/시총 검증→비공개 web생성 호환을 확인한다. 운영 daily/main에는 원자료를 저장하지 않고,7일 보관 private artifact에는 커버리지 report만 올린다. 기존 정기 수집·배포 pin·로그인 설정은 변경하지 않았다. 다음 재개는 이 preflight run의 최신 상태·실패 단계/커버리지 보고 확인부터 한다. 정상 진행은 알리지 않고, API 실제 성공 확인 후에만 source main 승격 및 private collect readiness4종/history-web code pin을 함께 업데이트할 것. 실패하면 원인 수정 후 격리 검증을 다시 하며 운영 원자료는 보존한다.
+
+Preflight 실행 ID40293062156 (최신 확인 in_progress). 다음은 해당 실행과 jobs의 실제 수집/검증 단계 결과를 확인한다. 사전검증 완료 전 운영4투자자 활성화로 표시하지 않는다.
+
+### C1 실제 원천 성공·수집 활성화 (2026-10-26, 적재/배포 검증 대기)
+
+격리 preflight40293062156/job121472453753 success.2026-10-23 실제 KOSPI801·KOSDAQ1801종목,4투자자10,408행 모두 동일 종목집합,8개 시장/투자자 그룹 유효 응답, 시총 미확인0. 연기금/외국인과 기관/사모 구분·명시적 absent_zero·기준일 시총 및 private web생성 호환 검증 성공. 아직 이 임시 원자료는 운영 daily에 적재된 것이 아니다. 보고서는 private coverage artifact/실행 로그에 보존.
+
+원천 검증 후 공개 main을 감사한4c90eeeb52a0ee2dc4243b6445086f14f04b9459로 승격했다. 먼저 비공개79a28e203c935db614c17140e9b94734722187c5에서 collect readiness를 양시장×4투자자+해당일 시총 snapshot 존재/as_of 확인으로 바꾸고, history-web 및 build-web pin을4c90eeeb로 함께 갱신하여2투자자 검증기/화면 빌더로 새 CSV를 읽는 불일치를 방지했다. inline readiness Python 컴파일 확인. history projection 실행40296257123 success. Vercel E1P1SjLTr1PfpzSRdmBXiuqbBdn8(79a28e2)은 최신 확인pending.
+
+GitHub UI에서 main collect workflow start2026-10-23/end2026-10-26으로 직접 실행해 최근2거래일을 비공개 원장에 저장하도록 시작했다. 실행40296585878은 in_progress. 이 실행은 실제 수집→검증→readiness 통과 후에만 private data/live를 commit한다. 완료 전 운영 적재/배포 완료라고 표시하지 않는다. 다음은40296585878 최신 상태·작업 단계/저장 커밋을 확인하고, 성공 시 실제4투자자 날짜/시총 파일과 Vercel 실제 화면을 확인한 후 기록한다. 이어8항목 순위를 위한 날짜별 전체 보통주 모집단/시총 계약을 보강하고 최근20일 기관/사모를 확장한다. 초기 raw에 남은 과거 종목과 새4투자자 모집단 차이를 단순0 채우기로 해결하지 않는다. 운영4투자자 표시/8항목 점수는 아직 미구현이다.
+
+### C1 운영 적재·갱신 검증 완료 / C2 순위 계산 기반 (2026-10-26)
+
+40296585878/job121484017318 success. 수집→4투자자 private web 호환→readiness→지수/누락 일봉 보완→저장 단계 성공. 저장907b09bb00e0fbaa697c6d42d42b3ef4e015ac7d, 과거 projection 실행40298016047 success/커밋06e0a7ec3d8a51abfd319e1c80523f0d73c24837. 해당 커밋 Vercel status success, 배포3AZmW8M29SYV9Dkdx6a2FT3KBmYM. 실제 운영 로그인 복원 후 수급/가격 기준일2026-10-26과 마지막 수집18:03KST, 기존 탐색 정상 표시와 error0 확인. outputs/four-investor-data-production.png 저장. 새 기관/사모 화면은 아직 없으므로 표시 완료라고 주장하지 않는다.
+
+실제 저장 CSV를 Git blob으로 다시 읽어2026-10-26의 KOSPI801·KOSDAQ1801×4투자자=10,408행 확인. Contents API fetch_file은1MB 초과 CSV content를 빈 문자열로 돌려줘 처음0행처럼 보였으나, 이를 데이터 손실로 해석하지 않고 blob SHA로 재조회해 확인했다. 수집 로그/웹 생성에서도 기관합계·사모 각각2,602종목/2일5,204행 확인.2026-10-26 시총 sidecar2,764개 모두 날짜 일치. 시총 파일의 종목 수가 보통주 흐름 모집단2,602와 다르므로 그대로 순위 N으로 사용하지 않는다. 기관/사모 공통 실제 수집일은10-23·10-26이며 앞선 기간은 미수집이다. 정기 수집 지원은4투자자로 연결됐지만 향후 cron 실행시각 보장은 별도이며 이번 확인은 수동 실행 성공이다.
+
+C2 로컬 collector/flow_ranks.py 추가. 명시적 전체 보통주 모집단/선택 거래일/동일 기준일 시총을 받아4투자자 각각 절대합계·시총비중의 중간순위와유효N/결측수를 계산한다. 필터 이전 계산, 동점중간순위, 양의 순매수에만 동일12.5점 가설 가점,8항목 하나라도 부족하면 총점null/가중치 재분배 금지. 현재v2·매매 조건은 변경하지 않았다. tests/test_flow_ranks.py3개(절대/상대 순서차이·동점·필터후N불변·음수0가점·기간/시총 결측·미래시총·중복·시장불일치)와 전체Python129개 통과. C2는 아직 미커밋/미배포/실제 순위 재생성 전이다.
+
+다음 묶음: 수집 당시 보통주 code/market 모집단을 metadata와 구분해 날짜별 저장하도록 보강하고, 새 순위 생성기에서 그 모집단/시총을 사용한다. 최근일은 실제4투자자 공통일을 제공하고1/2/3개월은 신규 자료2일을 한 달 전체로 표현하지 않는다. 필요 구간을 실제 추가 수집하며 누락날짜를0으로 만들지 않는다. 이후 보호된 순위파일·시장현황/발굴8항목 화면 연결과 로컬/운영 검증. 남은 미정산3건·Cutler/신고가·과거/전진 검증도 전체 계획에 유지한다. 현재공개main4c90eeeb/운영최신private06e0a7ec. C2 미배포는 collector/flow_ranks.py, tests/test_flow_ranks.py, docs 두 파일이다.
+
+### C2 날짜별 모집단과 보호된 순위 생성기 (로컬 구현, 2026-10-26)
+
+provider에서 실제 수집 대상으로 필터링한 보통주 code/market/name 목록을 날짜별 universe_snapshots로 반환하고, CLI가 metadata snapshot의 universe로 저장하도록 확장했다. 시총 파일 전체2,764개와 보통주2,602개를 구분한다. 현재 종목 기본정보를 과거 요청에 쓰는 한계를 숨기지 않고 classification_observed_date와 asof_observed/historical_classification_unverified를 기록한다. 이후 재수집한 생존 종목 목록이 기존 당일 관측 모집단을 덮어쓰지 못하도록 write_snapshots를 보완했다. 전체 배치를 검증한 뒤만 쓴다.
+
+collector/publish_flow_ranks.py와 scripts/publish-flow-ranks.py에서 최신일/1·2·3개월 순위 projection을 별도 비공개 target에 생성한다. 명시적 모집단과 동일일 시총이 있어야 계산하며, 기준 모집단이 없는 기존 자료에는 unavailable 사유 manifest를 써 이전 결과를 오늘 값처럼 재사용하지 않는다. 기간의 거래일 수와 component별 유효N/결측수, 요청 시작일/실제 시작일, 시총·분류 기준을 남긴다. 과거 수급/달력 부족 시 총점null, 기관 포함 관계/동일12.5점은 검증 전 가설로 표시한다. 결과는 content hash generation과1.2MB 이하 shard로 저장하고 manifest를 마지막에 전환한다. 원자료·모집단을 현재 UI필터로 축소해 순위를 다시 계산하지 않는다.
+
+새 projection 테스트3개 및 전체Python132개 통과: 실제 UTF-8 byte한도/여러 shard/행 보존, 반복생성 동일성,1개월 미수집·3개월 달력 부족 점수 보류, 모집단 미확인 시 stale manifest 무효화, 과거 재조회가 당일 관측 모집단을 대체하지 않음. 실제 순위 생성/운영 연동은 아직 하지 않았다. 기존 운영 source4c90eeeb 및 데이터06e0a7ec는 유지한다.
+
+다음 재개는 C2 관련 소스를 별도 codex 브랜치에 커밋해 격리 preflight로 실제 모집단/8항목 순위를 생성·검증하는 단계다. 가능하면2026-10-26을 당일 관측으로 확보하고, 날짜가 바뀌면 과거 분류 미검증 상태를 정확히 보존한다(당시 수집된4투자자 원장으로 모집단을 복원할 경우 원천 공통집합·당시 수집시각·코드 버전 근거를 함께 검증할 것). private investor-preflight.yml은 여전히4c90eeeb/10-23 하루 수집만 검증하므로 새 SHA·날짜·순위 생성/byte검증 단계가 필요하다. 성공 후 prepare-local/build-web와 화면을 순차 연결하고 최근20거래일 기관·사모를 추가 적재한다. C2 새/변경 파일: collector/flow_ranks.py·publish_flow_ranks.py·metadata_snapshots.py·pykrx_provider.py·cli.py, scripts/publish-flow-ranks.py, tests/test_flow_ranks.py·test_rank_projection.py 및 문서. 전부 아직 C2 미커밋/미배포다.

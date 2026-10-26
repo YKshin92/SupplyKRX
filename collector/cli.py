@@ -34,7 +34,8 @@ def main():
         rows,calendar=collect(args.end,args.days,start,args.codes.split(',') if args.codes else None)
         from .metadata_snapshots import write_snapshots
         snapshots=calendar.pop('metadata_snapshots',{})
-        write_snapshots(root,snapshots,max(r['collected_at'] for r in rows))
+        universes=calendar.pop('universe_snapshots',None)
+        write_snapshots(root,snapshots,max(r['collected_at'] for r in rows),universes)
     elif args.command=='import':
         if not args.csv or not args.calendar: p.error('import는 --csv 및 --calendar가 필요합니다.')
         rows=read_csv(args.csv)
