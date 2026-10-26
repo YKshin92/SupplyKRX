@@ -15,6 +15,7 @@ Do not treat unresolved positions as ordinary losses or silently remove their ca
 2. Build-time tracking annotations check the complete signal-to-current price interval with the existing price-quality rule. A missing bar, zero-volume uncertainty or price-basis break suppresses the raw-price return. Normal later signals remain independent of earlier issues.
 3. Tracking sorts unknown returns last. Rows and details explain deferred comparison instead of showing a split-induced percentage as performance. Simulation details perform the same check when loaded. All four account diagnostic cards identify the known corporate action and link its public source.
 4. An incomplete history or legacy payload does not certify a return while loading. Charts keep observed raw data; they are not adjusted-price charts. The warning explicitly states that the return is pending verification.
+5. Annotation can increase file size. Repartition both historical and recent fallback events into bounded 1.5 MB shards after enrichment, write manifests last, and use the same validated parallel reader for both roots. Do not raise the response limit or omit events to make a build pass. Integration fixtures check byte limits, complete event order and safe repeat annotation.
 
 ## Remaining work
 

@@ -10,7 +10,7 @@ from collector.foreign_record import foreign_record
 from collector.price_comparison import price_comparison
 
 
-def enrich(target):
+def enrich(target, shard_limit=1_500_000):
     count = 0
     for root in ('tracking-history.json', 'tracking-events.json'):
         manifest_path = target/root
@@ -20,8 +20,10 @@ def enrich(target):
         sessions = manifest.get('sessions', [])
         files = manifest.get('files') or [root]
         cache = {}
+        all_events = []
+        prefix = root.removesuffix('.json')
         for filename in files:
-            if filename != root and not re.fullmatch(r'tracking-history-[a-z0-9-]+\.json', filename):
+            if filename != root and not re.fullmatch(re.escape(prefix)+r'-[a-z0-9-]+\.json', filename):
                 raise ValueError('Invalid tracking shard')
             path = target/filename
             data = json.loads(path.read_text(encoding='utf-8'))
@@ -41,10 +43,26 @@ def enrich(target):
                     if event['price_comparison']['status'] == 'comparable'
                     and event.get('current_close') and event.get('signal_close') else None)
                 count += 1
-            encoded = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-            if len(encoded.encode('utf-8')) >= 2_000_000:
-                raise ValueError('Annotated tracking shard exceeds response limit')
-            path.write_text(encoded, encoding='utf-8')
+            all_events.extend(events)
+        batch, size, parts = [], 2, []
+        def flush():
+            filename = f'{prefix}-{len(parts):03}.json'
+            encoded = json.dumps(batch, ensure_ascii=False, separators=(',', ':'))
+            (target/filename).write_text(encoded, encoding='utf-8')
+            parts.append(filename)
+        for event in all_events:
+            amount = len(json.dumps(event, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
+            if amount + 2 > shard_limit:
+                raise ValueError('Single tracking event exceeds shard budget')
+            if batch and size + amount + 1 > shard_limit:
+                flush()
+                batch, size = [], 2
+            size += amount + (1 if batch else 0)
+            batch.append(event)
+        if batch:
+            flush()
+        manifest.update(files=parts, events=[])
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     return count
 
 
