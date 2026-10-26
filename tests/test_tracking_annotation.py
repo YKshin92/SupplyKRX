@@ -11,6 +11,21 @@ spec.loader.exec_module(module)
 
 
 class TrackingAnnotationTests(unittest.TestCase):
+    def test_legacy_overlaid_simulation_is_enriched_without_quote_changes(self):
+        base=ROOT/'work/test-tracking-annotation';base.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=base) as tmp:
+            target=Path(tmp);p=target/'simulation-input.json'
+            original=dict(version=1,sessions=['2026-10-23'],stocks=[],stock_files=['simulation-stocks-000.json'])
+            p.write_text(json.dumps(original),encoding='utf-8')
+            self.assertEqual(module.enrich(target),0)
+            result=json.loads(p.read_text(encoding='utf-8'))
+            self.assertEqual(result['corporate_reconciliation']['actions'][0]['resume_date'],'2024-10-08')
+            for k,v in original.items():self.assertEqual(result[k],v)
+            self.assertEqual(module.enrich(target),0)
+            self.assertEqual(result,json.loads(p.read_text(encoding='utf-8')))
+            original['sessions']=['2026-01-01'];p.write_text(json.dumps(original),encoding='utf-8')
+            module.enrich(target)
+            self.assertIsNone(json.loads(p.read_text(encoding='utf-8'))['corporate_reconciliation'])
     def test_history_and_fallback_are_resharded_after_annotation_and_repeat_safely(self):
         base=ROOT/'work/test-tracking-annotation';base.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=base) as tmp:

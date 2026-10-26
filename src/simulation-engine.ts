@@ -1,12 +1,16 @@
 /** Gross-price simulation. Signal selection uses only information available at entry. */
+import {splitDay,type SplitPosition} from './split-lifecycle.ts';
+import {splitValue} from './split-valuation.ts';
+import {corporateActionMap,type CorporateContext} from './corporate-context.ts';
+export type {CorporateContext} from './corporate-context.ts';
 export type Price={open:number|null;high:number|null;low:number|null;close:number|null;volume?:number|null;change_pct?:number|null};
 export type Signal={index:number;net:number;score:number|null;absent:number;quiet_3m?:boolean|null;volume_ratio_20?:number|null};
 export type Candidate={code:string;name:string;market:string;signals:Signal[];prices:(Price|null)[]};
-export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
+export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];corporate_reconciliation?:CorporateContext|null;indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
 export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume'};
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
-export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>};
+export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>;corporate_phase?:SplitPosition['phase'];adjusted_basis?:number;corporate_evidence_on?:string;corporate_reference_value?:number|null;fractional_claim?:{numerator:number;denominator:number}};
 export type Ledger={date:string;morning_cash:number;buy_value:number;sale_proceeds:number;end_cash:number;holdings:number;waiting:number;equity:number|null;strategy_pnl:number|null;benchmark_pnl:number|null;unknown_cost:number};
 const mean=(v:number[])=>v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
 const sum=(v:number[])=>v.reduce((a,b)=>a+b,0);
@@ -19,7 +23,9 @@ export function priceProblem(previous:Price|null|undefined,r:Price|null|undefine
  if(positive(previous?.close)) {const change=(c/previous.close-1)*100;if(Math.abs(change)>35||Math.abs(o/previous.close-1)>.35||(r.change_pct!=null&&Math.abs(change-r.change_pct)>5))return '가격 단절 · 기업행사 확인 필요';}
  return null;
 }
-export function runSimulation(data:SimInput,s:Settings){
+export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateContext){
+ const actionMap=corporateActionMap(corporate);
+ const positions=new Map<SimTrade,SplitPosition>();
  const days=data.sessions;
  if(!days.length||!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||s.start<days[0]||s.start>days[days.length-1]||new Date(s.start).toISOString().slice(0,10)!==s.start)throw Error('시작일은 보유 데이터 기간 안에서 선택해 주세요.');
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
@@ -50,6 +56,16 @@ export function runSimulation(data:SimInput,s:Settings){
   minCash=Math.min(minCash,cash);maxHoldings=Math.max(maxHoldings,trades.filter(t=>t.status==='open'||t.status==='unresolved').length);
   for(const t of trades){
    if(t.status!=='open')continue;
+   const action=actionMap.get(t.code);
+   if(action&&t.entry_date!<action.halt_start){
+    const c=byCode.get(t.code)!,r=c.prices[i];
+    const state=splitDay(positions.get(t)??{entry_date:t.entry_date!,entry_price:t.entry_price!,invested:t.invested,shares:t.shares,basis_price:t.entry_price!,phase:'active',last_close:c.prices[i-1]?.close??t.entry_price!,applied_actions:[]},action,days[i],r);
+    positions.set(t,state);const value=splitValue(state,r,s.take,s.stop);
+    Object.assign(t,{shares:state.shares,corporate_phase:state.phase,adjusted_basis:state.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:value.reference_value,fractional_claim:state.fractional_claim,status:value.status==='halted'?'open':value.status,reason:value.reason??state.diagnosis??'기업행사 정산 확인 중',pnl:value.pnl,return_pct:value.return_pct,exit_date:value.pnl==null?null:days[i],exit_price:value.exit_price??(value.status==='open'?r!.close:null)});
+    if(value.pnl!=null){paths.get(t)!.set(i,value.pnl);t.trading_days=i-t.entry_index!+1;t.calendar_days=Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5);t.ambiguous=value.ambiguous;}
+    if(value.status==='take'||value.status==='stop'){sales+=value.sale_proceeds;if(s.mode==='capital')cash+=value.sale_proceeds;}
+    continue;
+   }
    const c=byCode.get(t.code)!,r=c.prices[i],problem=priceProblem(c.prices[i-1],r);
    if(problem){Object.assign(t,{status:'unresolved',reason:days[i]+' '+problem,pnl:null,return_pct:null,exit_date:null,exit_price:null});continue;}
    const entry=t.entry_price!,upper=entry*(1+s.take/100),lower=entry*(1-s.stop/100);
@@ -63,7 +79,7 @@ export function runSimulation(data:SimInput,s:Settings){
    Object.assign(t,{status,reason,exit_date:days[i],exit_price:price,pnl,return_pct:(price/entry-1)*100,trading_days:i-t.entry_index!+1,calendar_days:Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5)});
    if(status==='take'||status==='stop'){sales+=t.invested+pnl;if(s.mode==='capital')cash+=t.invested+pnl;}
   }
-  const held=trades.filter(t=>t.status==='open'||t.status==='unresolved'),unknown=held.filter(t=>t.status==='unresolved');
+  const held=trades.filter(t=>t.status==='open'||t.status==='unresolved'),unknown=held.filter(t=>t.pnl==null);
   const equity=s.mode==='capital'?(unknown.length?null:cash+sum(held.map(t=>t.invested+t.pnl!))):null;
   const indexClose=data.indices.KOSPI?.[i]?.close;
   ledger.push({date:days[i],morning_cash:morning,buy_value:buys,sale_proceeds:sales,end_cash:cash,holdings:held.length,waiting:trades.filter(t=>t.status==='pending'&&t.signal_index<i).length,equity,strategy_pnl:equity==null?null:equity-s.initial,benchmark_pnl:benchmarkStart==null?0:positive(benchmarkOpen)&&positive(indexClose)?s.initial*(indexClose/benchmarkOpen-1):null,unknown_cost:sum(unknown.map(t=>t.invested))});
@@ -88,11 +104,10 @@ export function runSimulation(data:SimInput,s:Settings){
   curve=ledger.map((d,j)=>{const i=start+j;let a=0,b=0,missing=false;for(const t of paired){if(t.entry_index!>i)continue;const ip=data.indices.KOSPI?.[i]?.close,io=data.indices.KOSPI?.[t.entry_index!]?.open;const value=(t.status==='take'||t.status==='stop')&&t.exit_date!<=d.date?t.pnl:paths.get(t)?.get(i);if(!positive(ip)||!positive(io)||value==null){missing=true;continue;}a+=value;b+=t.invested*(ip/io-1);}return {date:d.date,strategy_pnl:missing?null:a,benchmark_pnl:missing?null:b};});
   benchmarkPnl=paired.length?sum(paired.map(t=>t.invested*(data.indices.KOSPI![days.length-1]!.close!/data.indices.KOSPI![t.entry_index!]!.open!-1))):null;
  }
- return {settings:{...s},first_date:days[start],as_of:days[days.length-1],trades,ledger,curve,
+ return {settings:{...s},corporate_reconciliation:corporate??null,first_date:days[start],as_of:days[days.length-1],trades,ledger,curve,
   account:{cash:last.end_cash,equity:last.equity,pnl:last.equity==null?null:last.equity-s.initial,return_pct:last.equity==null?null:(last.equity/s.initial-1)*100,max_holdings:maxHoldings,min_cash:minCash,unknown_cost:last.unknown_cost},
   summary:{signals:trades.length,bought:bought.length,invested:sum(bought.map(t=>t.invested)),pnl:unknown?null:pnl,known_pnl:pnl,unknown_invested:unknown,gains:sum(priced.map(t=>Math.max(0,t.pnl!))),losses:-sum(priced.map(t=>Math.min(0,t.pnl!))),realized_pnl:sum(realized.map(t=>t.pnl!)),unrealized_pnl:sum(open.map(t=>t.pnl!)),take:trades.filter(t=>t.status==='take').length,stop:trades.filter(t=>t.status==='stop').length,open:open.length,waiting:trades.filter(t=>t.status==='pending').length,take_days:mean(trades.filter(t=>t.status==='take').map(t=>t.trading_days!)),stop_days:mean(trades.filter(t=>t.status==='stop').map(t=>t.trading_days!))},
   benchmark:{pnl:benchmarkPnl,count:benchmarkCount,return_pct:s.mode==='capital'?(benchmarkPnl==null?null:benchmarkPnl/s.initial*100):benchmarkCount&&benchmarkPnl!=null?benchmarkPnl/(benchmarkCount*s.budget)*100:null},
   horizons:[5,10,20].map(days=>{const p=trades.map(t=>t.horizons[days]).filter(h=>h.status==='complete');return {days,count:p.length,stock:mean(p.map(h=>h.stock!)),index:mean(p.map(h=>h.index!)),excess:mean(p.map(h=>h.excess!))};})};
 }
 export type SimResult=ReturnType<typeof runSimulation>;
-

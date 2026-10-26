@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --experimental-strip-types --test scripts/test-data.mjs scripts/test-market-flow.mjs scripts/test-explorer.mjs scripts/test-tracked-entries.mjs scripts/test-research.mjs scripts/test-tracking.mjs scripts/test-collect.mjs scripts/test-auth.mjs scripts/test-simulation.mjs scripts/test-history-data.mjs scripts/test-history-cache.mjs scripts/test-detail-window.mjs scripts/test-price-comparison.mjs scripts/test-tracking-data.mjs",
-    "build:portable": "node scripts/build-portable.mjs"
+    "build:portable": "node scripts/build-portable.mjs",
+    "test:split": "node --experimental-strip-types --test scripts/test-split-lifecycle.mjs scripts/test-simulation-presentation.mjs"
   },
   "dependencies": {
     "@descope/node-sdk": "^2.19.0",

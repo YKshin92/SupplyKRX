@@ -7,6 +7,7 @@ from statistics import mean
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from collector.tracking import build_tracking
 from collector.simulation_portfolio import entry_score
+from collector.corporate_context import published_reconciliation
 NAMES=('buy','sell','net','open','high','low','close','volume','change_pct','turnover')
 def dump(p,x):
     p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(x,ensure_ascii=False,allow_nan=False,separators=(',',':')),encoding='utf-8')
@@ -115,9 +116,8 @@ def build(archive,live,target,indices_path=None,metadata_root=None):
         raw=json.loads(ip.read_text(encoding='utf-8'))
         for key,value in raw.get('indices',{}).items():indices[key]=[value['prices'].get(d) for d in days];quality['index_coverage'][key]=sum(x is not None for x in indices[key])
     stockparts=partition(target,'simulation-stocks',stocks)
-    dump(target/'simulation-input.json',dict(version=1,sessions=days,stocks=[],stock_files=stockparts,indices=indices,source=dict(stocks=len(wanted),rows=quality['rows'],collected_at=collected,repaired_rows=0,index_as_of=max([d for j,d in enumerate(days) if indices.get('KOSPI',[None]*len(days))[j] is not None],default=None),price_source='KRX historical archive; raw prices; instrument types unverified')))
+    dump(target/'simulation-input.json',dict(version=1,sessions=days,stocks=[],stock_files=stockparts,indices=indices,corporate_reconciliation=published_reconciliation(days[-1]),source=dict(stocks=len(wanted),rows=quality['rows'],collected_at=collected,repaired_rows=0,index_as_of=max([d for j,d in enumerate(days) if indices.get('KOSPI',[None]*len(days))[j] is not None],default=None),price_source='KRX historical archive; raw prices; instrument types unverified')))
     quality.update(tracking_events=sum(len(json.loads((target/p).read_text(encoding='utf-8'))) for p in parts),simulation_stocks=len(stocks),simulation_signals=sum(len(x['signals']) for x in stocks),tracking_parts=len(parts),simulation_parts=len(stockparts))
     dump(target/'history-quality.json',quality);print(json.dumps(quality,ensure_ascii=True,indent=2))
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--archive',type=Path,required=True);p.add_argument('--live',type=Path,required=True);p.add_argument('--target',type=Path,required=True);p.add_argument('--indices',type=Path);p.add_argument('--metadata-root',type=Path);a=p.parse_args();build(a.archive,a.live,a.target,a.indices,a.metadata_root)
-

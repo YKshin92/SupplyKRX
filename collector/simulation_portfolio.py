@@ -3,6 +3,9 @@ from datetime import date
 import math
 from .simulation import all_signals, price_problem, summarize, simulation_start
 from .simulation_benchmark import index_price, add_benchmark
+from .split_lifecycle import split_day
+from .split_valuation import split_value
+from .corporate_context import action_map as validate_actions
 
 
 def entry_score(pension, foreign):
@@ -18,7 +21,8 @@ def entry_score(pension, foreign):
         note='신호일 수급 점수 50점을 100점 환산 · 최신 시총 제외')
 
 
-def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_000,budget=3_000_000,take=30,stop=10,start_date=None):
+def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_000,budget=3_000_000,take=30,stop=10,start_date=None,corporate=None):
+    action_map=validate_actions(corporate);positions={}
     start=simulation_start(sessions,start_date)
     signals=all_signals(histories,sessions,start_date=start)
     trades=[]
@@ -78,6 +82,19 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
             if t['status']!='open': continue
             row=histories[t['code']].get(day)
             previous=histories[t['code']].get(sessions[i-1]) if i else None
+            action=action_map.get(t['code'])
+            if action and t['entry_date']<action['halt_start']:
+                state=split_day(positions.get(t['event_id'],dict(entry_date=t['entry_date'],entry_price=t['entry_price'],invested=t['invested'],shares=t['shares'],basis_price=t['entry_price'],phase='active',last_close=(previous or {}).get('close') or t['entry_price'],applied_actions=[])),action,day,row)
+                positions[t['event_id']]=state
+                value=split_value(state,row,take,stop)
+                t.update(shares=state['shares'],corporate_phase=state['phase'],adjusted_basis=state['basis_price'],corporate_evidence_on=action['evidence_on'],corporate_reference_value=value['reference_value'],fractional_claim=state.get('fractional_claim'),status='open' if value['status']=='halted' else value['status'],reason=value.get('reason') or state.get('diagnosis') or '기업행사 정산 확인 중',pnl=value['pnl'],return_pct=value['return_pct'],exit_date=day if value['pnl'] is not None else None,exit_price=value['exit_price'] if value['status']!='open' else row['close'])
+                if value['pnl'] is not None:
+                    t['path'].append(dict(date=day,value=value['pnl']))
+                    t.update(trading_days=i-t['actual_entry_index']+1,calendar_days=(date.fromisoformat(day)-date.fromisoformat(t['entry_date'])).days,ambiguous=value['ambiguous'])
+                if value['status'] in ('take','stop'):
+                    proceeds=value['sale_proceeds'];before=cash;cash+=proceeds;sells+=proceeds;sell_count+=1
+                    actions.append(dict(date=day,action='sell',code=t['code'],name=t['name'],score=t['score'],price=value['exit_price'],shares=t['shares'],value=proceeds,pnl=value['pnl'],cash_before=before,cash_after=cash))
+                continue
             problem=price_problem(previous,row)
             if problem:
                 t.update(status='unresolved',reason=f'{day} {problem} · 자금 회수 미확인',pnl=None,return_pct=None,exit_date=None,exit_price=None)
@@ -100,8 +117,8 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
                 actions.append(dict(date=day,action='sell',code=t['code'],name=t['name'],score=t['score'],price=price,
                     shares=t['shares'],value=proceeds,pnl=pnl,cash_before=before,cash_after=cash))
         active=[t for t in trades if t['status'] in ('open','unresolved') and t['entry_date']]
-        unknown=[t for t in active if t['status']=='unresolved']
-        known_value=sum(t['invested']+t['pnl'] for t in active if t['status']=='open')
+        unknown=[t for t in active if t['pnl'] is None]
+        known_value=sum(t['invested']+t['pnl'] for t in active if t['pnl'] is not None)
         nav=cash+known_value if not unknown else None
         close=index_price(kospi.get(day),'close')
         reference=initial*(close/benchmark_open-1) if benchmark_start and benchmark_open and close else 0 if benchmark_start is None else None
@@ -115,7 +132,7 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
         assert cash>=-1e-6, 'Negative cash / implicit borrowing'
     base_summary=summarize(trades)
     months=sorted({t['signal_date'][:7] for t in trades})
-    result=dict(as_of=sessions[-1],first_date=start,data_first_date=sessions[0],sessions=sum(d>=start for d in sessions),
+    result=dict(corporate_reconciliation=corporate,as_of=sessions[-1],first_date=start,data_first_date=sessions[0],sessions=sum(d>=start for d in sessions),
         settings=dict(mode='capital',initial=initial,budget=budget,take=take,stop=stop,lookback=10,quiet_cap=100_000_000,minimum_net=300_000_000,start_date=start_date or sessions[0]),
         summary=base_summary,cohorts=[dict(month=m,**summarize([t for t in trades if t['signal_date'].startswith(m)])) for m in months],
         trades=[{k:v for k,v in t.items() if k not in ('path','actual_entry_index')} for t in trades],curve=[],
@@ -140,4 +157,3 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
         excess_pp=((nav-initial)-reference)/initial*100 if nav is not None and reference is not None else None,
         curve=equity_curve,start_date=benchmark_start,count=base_summary['bought'],excluded=[])
     return result
-

@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from collector.touch_outcome import touch_outcome
 from collector.foreign_record import foreign_record
 from collector.price_comparison import price_comparison
+from collector.corporate_context import published_reconciliation
 
 
 def enrich(target, shard_limit=1_500_000):
@@ -63,6 +64,13 @@ def enrich(target, shard_limit=1_500_000):
             flush()
         manifest.update(files=parts, events=[])
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    # An older historical projection may replace the current live manifest.
+    # Attach audited reconciliation after that overlay, without changing quotes.
+    simulation_path=target/'simulation-input.json'
+    if simulation_path.exists():
+        simulation=json.loads(simulation_path.read_text(encoding='utf-8'))
+        simulation['corporate_reconciliation']=published_reconciliation(simulation['sessions'][-1])
+        simulation_path.write_text(json.dumps(simulation,ensure_ascii=False,separators=(',',':'),allow_nan=False),encoding='utf-8')
     return count
 
 

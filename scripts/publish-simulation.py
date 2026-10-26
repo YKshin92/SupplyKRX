@@ -7,6 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from collector.simulation import load_histories
 from collector.simulation_portfolio import entry_score
+from collector.corporate_context import published_reconciliation
 
 def publish(root, target):
     h,f=load_histories(root/'data/live/daily',include_foreign=True)
@@ -29,7 +30,7 @@ def publish(root, target):
     p=root/'data/live/simulation-indices.json'
     indices=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}
     repaired=[r for hist in h.values() for r in hist.values() if r.get('_price_supplement')]
-    result=dict(version=1,sessions=days,stocks=candidates,
+    result=dict(version=1,sessions=days,stocks=candidates,corporate_reconciliation=published_reconciliation(days[-1]),
         indices={k:[v['prices'].get(d) for d in days] for k,v in indices.get('indices',{}).items()},
         source=dict(stocks=len(h),rows=sum(len(hist) for hist in h.values()),
             collected_at=max(r['collected_at'] for hist in h.values() for r in hist.values()),

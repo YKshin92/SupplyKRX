@@ -1,0 +1,20 @@
+{
+  "valid":{"as_of":"2026-10-26","actions":[{"code":"000001","id":"split-1","known_on":"2026-01-01","halt_start":"2026-02-02","resume_date":"2026-02-05","numerator":5,"denominator":1,"evidence_on":"2026-02-04","source":"https://example.test/disclosure"}]},
+  "invalid":[
+    {"as_of":"2026-02-30"},
+    {"as_of":"0000-01-01"},
+    {"action":{"resume_date":"2026-02-30"}},
+    {"action":{"known_on":"2026-02-03"}},
+    {"action":{"evidence_on":"2027-01-01"}},
+    {"action":{"evidence_on":"2025-01-01"}},
+    {"action":{"numerator":true}},
+    {"action":{"denominator":1.5}},
+    {"action":{"numerator":9007199254740992}},
+    {"action":{"source":"https://"}},
+    {"action":{"source":"https://example.test:invalid/disclosure"}},
+    {"action":{"source":"https://user:password@example.test/disclosure"}},
+    {"action":{"source":"http://example.test/disclosure"}},
+    {"action":{"id":" "}},
+    {"action":{"code":"../abc"}}
+  ]
+}

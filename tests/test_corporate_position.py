@@ -15,6 +15,10 @@ class CorporatePositionTest(unittest.TestCase):
         self.assertEqual(plan['cash_credited'],0)
         self.assertFalse(plan['account_settled'])
         self.assertEqual(entitlement_plan(self.action('007340'),36)['legs'][0]['whole_shares'],180)
+        dn=self.action('007340')
+        self.assertEqual(dn['scheduled_resume_date'],'2024-10-07')
+        self.assertEqual(dn['resume_date'],'2024-10-08')
+        self.assertGreater(dn['resume_evidence_date'],dn['resume_date'])
 
     def test_bonus_separates_existing_and_locked_new_shares(self):
         plan=entitlement_plan(self.action('323990'),117)

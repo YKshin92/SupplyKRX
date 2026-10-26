@@ -1,0 +1,41 @@
+{
+  "position": {"entry_date":"001","entry_price":100,"invested":1000,"shares":10,"basis_price":100,"phase":"active","last_close":110,"applied_actions":[]},
+  "action": {"id":"split","known_on":"001","halt_start":"002","resume_date":"004","numerator":5,"denominator":1},
+  "valuations": [
+    {"name":"adjusted basis open","position":{"shares":50,"basis_price":20,"last_close":22},"quote":{"open":22,"high":23,"low":21,"close":22,"volume":100},"expect":{"status":"open","pnl":100,"sale_proceeds":0,"confirmed_value":1100}},
+    {"name":"gap take on new share units","position":{"shares":50,"basis_price":20,"last_close":22},"quote":{"open":27,"high":28,"low":26,"close":27,"volume":100},"expect":{"status":"take","pnl":350,"exit_price":27,"sale_proceeds":1350}},
+    {"name":"gap stop on new share units","position":{"shares":50,"basis_price":20,"last_close":22},"quote":{"open":17,"high":18,"low":16,"close":17,"volume":100},"expect":{"status":"stop","pnl":-150,"exit_price":17,"sale_proceeds":850}},
+    {"name":"both barriers stop first","position":{"shares":50,"basis_price":20,"last_close":22},"quote":{"open":20,"high":27,"low":17,"close":22,"volume":100},"expect":{"status":"stop","pnl":-100,"exit_price":18,"sale_proceeds":900,"ambiguous":true}},
+    {"name":"halt reference is never executable","position":{"phase":"halted"},"quote":{"open":200,"high":200,"low":200,"close":200,"volume":100},"expect":{"status":"halted","pnl":null,"reference_value":1100,"confirmed_value":null,"sale_proceeds":0}},
+    {"name":"unpaid fractional claim is never equity","position":{"phase":"unresolved"},"quote":{"open":22,"high":22,"low":22,"close":22,"volume":100},"expect":{"status":"unresolved","pnl":null,"confirmed_value":null,"sale_proceeds":0}}
+  ],
+  "cases": [
+    {"name":"whole split preserves cost, no cash and no repeat allocation","steps":[
+      {"day":"002","quote":null,"expect":{"phase":"halted","shares":10,"cash_delta":0}},
+      {"day":"003","quote":null,"expect":{"phase":"halted","shares":10}},
+      {"day":"004","price":22,"expect":{"phase":"active","shares":50,"entry_price":100,"basis_price":20,"invested":1000,"cash_delta":0,"applied_actions":["split"]}},
+      {"day":"004","price":30,"expect":{"last_close":22,"shares":50}},
+      {"day":"005","price":23,"expect":{"phase":"active","shares":50,"last_close":23}}
+    ]},
+    {"name":"fractional entitlement remains an unpaid claim","position":{"shares":55,"invested":5500},"action":{"denominator":2},"steps":[
+      {"day":"002","quote":null,"expect":{"phase":"halted"}},
+      {"day":"004","price":44,"expect":{"phase":"unresolved","shares":55,"fractional_claim":{"numerator":1,"denominator":2},"cash_delta":0}},
+      {"day":"005","price":45,"expect":{"phase":"unresolved","shares":55}}
+    ]},
+    {"name":"missed resumption never recovers automatically","steps":[
+      {"day":"002","quote":null,"expect":{"phase":"halted"}},
+      {"day":"004","quote":null,"expect":{"phase":"unresolved","shares":10,"cash_delta":0}},
+      {"day":"005","price":22,"expect":{"phase":"unresolved","shares":10}}
+    ]},
+    {"name":"unknown gap before known halt remains unknown","steps":[
+      {"day":"001","quote":null,"expect":{"phase":"unresolved"}},
+      {"day":"002","quote":null,"expect":{"phase":"unresolved"}}
+    ]},
+    {"name":"future disclosure cannot explain current missing bar","action":{"known_on":"003"},"steps":[
+      {"day":"002","quote":null,"expect":{"phase":"unresolved","shares":10}}
+    ]},
+    {"name":"holders acquired after halt are not entitled retroactively","position":{"entry_date":"004","last_close":22,"entry_price":22},"steps":[
+      {"day":"004","price":22,"expect":{"phase":"active","shares":10,"applied_actions":[]}}
+    ]}
+  ]
+}
