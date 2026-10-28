@@ -14,3 +14,9 @@ test('generation paths cannot escape protected data and invalid codes are refuse
  await assert.rejects(historyDetail('000001','2026-10-01',async path=>{if(path.includes('history-stock-'))throw Error();return {...manifest,generation:'../../api/auth'};}));
 });
 
+test('a historical foreign series cannot contain institution/private-fund rows or duplicate days',async()=>{
+ const row={code:'000001',date:'2026-10-23',investor:'외국인',net:0};
+ const data={as_of:'2026-10-23',pension:[],foreign:[row]};
+ assert.equal((await historyDetail('000001','2026-10-01',async()=>data)).foreign[0].net,0);
+ for(const foreign of [[{...row,investor:'사모'}],[{...row,investor:'기관합계'}],[row,row],[{...row,date:'2026-10-24'}]])await assert.rejects(historyDetail('000001','2026-10-01',async()=>({...data,foreign})),/mismatch/);
+});

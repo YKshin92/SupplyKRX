@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(root))
-from collector.core import publish, load_rows, publish_investor
+from collector.core import publish, load_rows, publish_investor, save_json
 from collector.investors import PUBLICATION_PATHS
 from datetime import date
 import calendar as month_calendar
@@ -44,3 +44,5 @@ for months in (1,2,3):
 from collector.publish_flow_ranks import publish_ranks
 rank_report=publish_ranks(args.root,args.target)
 print(f"Flow ranks: {rank_report['state']}. Private/local only.")
+from collector.score_snapshots import research_report
+save_json(args.target/'flow-score-research.json',research_report(args.root,args.target))

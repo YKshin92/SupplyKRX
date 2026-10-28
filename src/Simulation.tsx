@@ -1,4 +1,5 @@
 import SimulationIssues from './SimulationIssues';
+import ScoreResearchStatus from './ScoreResearchStatus';
 import type {Stock} from './data';
 import HistoryEventDetail,{type DetailEvent} from './HistoryEventDetail';
 import {sessionData,parallelParts} from './history-cache';
@@ -43,6 +44,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
   <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · ${capital?`초기 ${won(s.initial)} · `:''}종목당 ${won(s.budget)} · 익절 +${s.take}% / 손절 −${s.stop}%`:'데이터 준비 중'}</p>
+  <ScoreResearchStatus asOf={asOf}/>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
    <section className="simulation-metrics" aria-label="시뮬레이션 요약">

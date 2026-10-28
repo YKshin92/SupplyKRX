@@ -73,7 +73,7 @@ def build(archive,live,target,indices_path=None,metadata_root=None):
             if r['code'] not in wanted:continue
             collected=max(collected,r.get('collected_at',''))
             if r['investor']=='연기금 등':h[r['code']][d]={k:r[k] for k in ('code','date','name','market','investor','flow_status',*NAMES)}
-            else:foreign[r['code']][d]={k:r[k] for k in ('code','date','investor','buy','net')}
+            elif r['investor']=='외국인':foreign[r['code']][d]={k:r[k] for k in ('code','date','investor','buy','net')}
         if i%100==0:print('Load',i,flush=True)
     event_ids=set(extras)
     allrows=(r for group in (h,foreign) for history in group.values() for r in history.values())
