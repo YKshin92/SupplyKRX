@@ -10,7 +10,8 @@ function RankCell({c,relative=false}:{c?:RankComponent;relative?:boolean}){
  return <><strong className={sign(c?.value)}>{c?.value==null?'자료 부족':relative?`${c.value.toFixed(4)}%`:amountLabel(c.value)}</strong><small>{c?.rank==null?'순위 미산출':`${integer(c.rank)}위 / ${integer(c.population)}종목`}</small></>;
 }
 export default function FlowRankExplorer({asOf,revision,watch,toggle,open}:{asOf:string;revision:string;watch:string[];toggle:(code:string)=>void;open:(code:string,element?:HTMLElement)=>void}){
- const [view,setView]=useState('latest'),[result,setResult]=useState<Awaited<ReturnType<typeof loadRanks>>|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+ const view='3m';
+ const [result,setResult]=useState<Awaited<ReturnType<typeof loadRanks>>|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const [search,setSearch]=useState(''),[market,setMarket]=useState('ALL'),[onlyWatch,setOnlyWatch]=useState(false),[order,setOrder]=useState('score'),[ascending,setAscending]=useState(false),[page,setPage]=useState(1),[selected,setSelected]=useState<RankStock|null>(null);
  const opener=useRef<HTMLElement|null>(null);
  useEffect(()=>{let cancelled=false;setResult(null);setError('');setSelected(null);loadRanks(view,asOf,revision).then(data=>{if(!cancelled)setResult(data);}).catch(e=>{if(!cancelled)setError(e instanceof Error?e.message:'수급 순위 로드 실패');});return()=>{cancelled=true;};},[view,asOf,revision,retry]);
@@ -21,7 +22,7 @@ export default function FlowRankExplorer({asOf,revision,watch,toggle,open}:{asOf
  function sort(key:string){setPage(1);if(order===key)setAscending(v=>!v);else{setOrder(key);setAscending(false);}}
  const heading=(key:string,label:string)=><th aria-sort={order===key?(ascending?'ascending':'descending'):'none'}><button onClick={()=>sort(key)}>{label}{order===key?(ascending?' ↑':' ↓'):''}</button></th>;
  return <section className="rank-explorer" aria-label="8항목 수급 순위">
-  <div className="rank-intro"><div><h2>수급 순위 <span>8항목</span></h2><p>네 투자자의 순매수 금액과 시총 대비 비중을 전체 종목 안에서 비교합니다.</p></div><label>수급 집계 기간 <select value={view} onChange={e=>{setView(e.target.value);setPage(1);}}><option value="latest">최근일</option><option value="1m">최근 1달</option><option value="2m">최근 2달</option><option value="3m">최근 3달</option></select></label></div>
+  <div className="rank-intro"><div><h2>수급 순위 <span>8항목</span></h2><p>네 투자자의 순매수 금액과 시총 대비 비중을 전체 종목 안에서 비교합니다.</p></div><span className="rank-fixed-period">수급 집계 기간 <strong>최근 3달</strong></span></div>
   <div className="rank-controls"><label>종목 검색<input placeholder="종목명 또는 코드" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/></label><label>시장<select value={market} onChange={e=>{setMarket(e.target.value);setPage(1);}}><option value="ALL">전체</option><option>KOSPI</option><option>KOSDAQ</option></select></label><button className="button" aria-pressed={onlyWatch} onClick={()=>{setOnlyWatch(v=>!v);setPage(1);}}><Star size={15}/>관심 종목만</button></div>
   {error?<div className="notice" role="alert">{error}<button className="button small" onClick={()=>setRetry(v=>v+1)}>다시 불러오기</button></div>:!result?<div className="chart-empty" role="status">전체 모집단의 수급 순위를 불러오는 중입니다…</div>:m?.state!=='ready'?<div className="chart-empty">수급 순위 준비 중 · {m?.reason??'기준일 모집단 또는 시총 자료가 필요합니다.'}</div>:<>
    <div className="rank-context"><span>{m.first_date} ~ {m.as_of} · {m.sessions}거래일</span><span>전체 {integer(m.population)}종목 · 시총 기준 {m.market_cap_date}</span><span>8항목 점수 확보 {integer(complete)}종목</span></div>
