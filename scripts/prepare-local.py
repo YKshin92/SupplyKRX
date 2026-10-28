@@ -40,3 +40,7 @@ for months in (1,2,3):
         if selected:
             manifest=publish_investor(selected,args.target/'periods'/f'{months}m'/suffix,'live',view_calendar,investor,len(sessions))
             print(f"{months}m {investor}: {manifest['days']} sessions, {manifest['row_count']} rows.")
+
+from collector.publish_flow_ranks import publish_ranks
+rank_report=publish_ranks(args.root,args.target)
+print(f"Flow ranks: {rank_report['state']}. Private/local only.")

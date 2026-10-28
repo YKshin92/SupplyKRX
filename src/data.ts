@@ -22,7 +22,9 @@ export function previousSession(m:Manifest,today=seoulDate()){
 }
 export async function json<T>(url:string):Promise<T>{const r=await fetch(url,{cache:'no-cache'});if(!r.ok)throw new Error(`데이터를 불러오지 못했습니다 (${r.status}).`);return r.json();}
 export async function loadDataset(mode:'live'|'demo',investor='연기금 등',period='20d'):Promise<Dataset>{
- const root=`/data/${mode}${period==='20d'?'':`/periods/${period}`}${investor==='외국인'?'/foreign':''}`;const manifest=await json<Manifest>(`${root}/manifest.json`);
+ const paths:Record<string,string>={'연기금 등':'','외국인':'/foreign','기관합계':'/institution','사모':'/private-fund'};
+ if(!(investor in paths)||!['20d','1m','2m','3m'].includes(period))throw new Error('지원하지 않는 투자자 또는 조회 기간입니다.');
+ const root=`/data/${mode}${period==='20d'?'':`/periods/${period}`}${paths[investor]}`;const manifest=await json<Manifest>(`${root}/manifest.json`);
  if(manifest.schema_version!==1||manifest.mode!==mode||!/^generations\/[a-f0-9]{16}$/.test(manifest.generation))throw new Error('지원하지 않는 데이터 형식입니다.');
  const base=`${root}/${manifest.generation}`;
  return {manifest,stocks:await json<Stock[]>(`${base}/summary.json`),base};

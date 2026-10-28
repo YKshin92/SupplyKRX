@@ -201,3 +201,23 @@ collector/publish_flow_ranks.py와 scripts/publish-flow-ranks.py에서 최신일
 새 projection 테스트3개 및 전체Python132개 통과: 실제 UTF-8 byte한도/여러 shard/행 보존, 반복생성 동일성,1개월 미수집·3개월 달력 부족 점수 보류, 모집단 미확인 시 stale manifest 무효화, 과거 재조회가 당일 관측 모집단을 대체하지 않음. 실제 순위 생성/운영 연동은 아직 하지 않았다. 기존 운영 source4c90eeeb 및 데이터06e0a7ec는 유지한다.
 
 다음 재개는 C2 관련 소스를 별도 codex 브랜치에 커밋해 격리 preflight로 실제 모집단/8항목 순위를 생성·검증하는 단계다. 가능하면2026-10-26을 당일 관측으로 확보하고, 날짜가 바뀌면 과거 분류 미검증 상태를 정확히 보존한다(당시 수집된4투자자 원장으로 모집단을 복원할 경우 원천 공통집합·당시 수집시각·코드 버전 근거를 함께 검증할 것). private investor-preflight.yml은 여전히4c90eeeb/10-23 하루 수집만 검증하므로 새 SHA·날짜·순위 생성/byte검증 단계가 필요하다. 성공 후 prepare-local/build-web와 화면을 순차 연결하고 최근20거래일 기관·사모를 추가 적재한다. C2 새/변경 파일: collector/flow_ranks.py·publish_flow_ranks.py·metadata_snapshots.py·pykrx_provider.py·cli.py, scripts/publish-flow-ranks.py, tests/test_flow_ranks.py·test_rank_projection.py 및 문서. 전부 아직 C2 미커밋/미배포다.
+
+### C2 실제 순위 검증 성공 (2026-10-26)
+
+소스 eef833036774a577c0f3fbc4fd7f4097fb0453f2를 codex/flow-ranks에 올려 격리 검증40335730618/job121616638903 성공 후 공개 main으로 승격했다. private preflight 설정ead5daab1d733de199a519f17a76b697e3253c3a는 해당SHA/2026-10-26 하루 실제 수집과4개 view 순위생성·독립 검증을 실행한다. 최신일2,602종목 모두8항목 총점 산출,3shard·최대1,199,493바이트.1/2/3개월은19/40/42거래일 요청으로 총점산출0종목이며 과거 수급부족을 그대로 보류했다. 실제 source가 당일 관측되어 classification=asof_observed 확인. 상대비중=순매수/시총×100, 동점중간순위·N·누락·8항목점수 합계·byte한도를 독립 검증했다. report artifact는 커버리지만 private7일 저장, 원자료는 임시격리영역에만 유지. 로컬전체Python133개 통과. 기존v2/매매규칙 불변.
+
+정기 수집40333269039/job121607974950도 성공했지만 로그상 기관·사모는 여전히각2,602종목/5,204행으로2일뿐이다. 자동실행 성공을20일 확장 완료라고 해석하지 않는다. 오늘(26일) 실제 모집단을 운영 sidecar에 확보하려면 새main으로 해당일 collect를 한 번 실행해야 한다. 아직 preflight의 실제 순위는 운영 생성물/화면에 연결하지 않았다. 운영 web build pin은C1(4c90eeeb) 유지. 다음은26일 한정 실제 수집으로 universe를 저장→prepare-local에서publish_ranks 연결→보호된 최신일/기간 순위 manifest와8항목 화면/투자자시장흐름 구현→실제20일 추가 수집 및 로컬/배포 검증이다.
+
+C2 보강 scripts/verify-flow-ranks.py는 원본 계산 함수와 별도로 순위별 중간순위/N·양수만 가점·총점/상대비중·중복/경로/UTF-8 shard1.2MB 제한을 확인한다. 조작한 순위를 거부하는 회귀 테스트 포함. 공개 sourceeef83303은 main 승격했지만 운영web pin은4c90eeeb이며, 순위 생성기를prepare-local에 아직 연결하지 않았다. GitHub UI에서main collect start/end2026-10-26 하루를 실행해 당일 universe를 비공개 metadata에 기록하기 시작했다. 완료 후 해당 파일universe.as_of/classification_observed_date/status·2602개 대상과 실제 저장commits를 확인할 것. 그다음rank publisher와8항목 화면으로 진행하며 기존v2 점수는 대체하지 않는다.
+
+C2 당일 모집단 저장 확인:40336256612 success. 실제 private metadata/daily/2026-10-26.json의 universe.as_of와classification_observed_date가 모두2026-10-26,classification_status=asof_observed,stocks2602 확인. 다음은수집재실행이 아니라prepare-local 순위생성 연결과8항목 UI 구현부터 진행한다. 운영8항목 화면/점수는 아직 미반영이며기존v2 유지.
+
+### C3 시장 현황·8항목 수급 발굴 화면 (2026-10-28, 로컬 검증 완료)
+
+시장 현황 / 종목 발굴 / 신규 순매수 추적 / 전략 검증의4개 메뉴로 분리했다. 시장 현황은 기관합계·연기금·사모3개 막대 흐름과 접을 수 있는 외국인 보조 흐름을 제공하며 기관 포함관계·확보 거래일·부분 합계를 명시한다. 기존 연기금 통계에는 투자자명을 붙였다. 기본 화면은 기존 조건 검색을 유지한다.
+
+종목 발굴 안의 ‘수급 순위 ·8항목’은 최근일/1·2·3개월의 보호된 projection을 선택한 때만 병렬 요청한다. 세션 메모리에서 동일 요청을 공유하고 수집 시각이 바뀌면 캐시 키가 바뀐다. 경로/파일수/중복/모집단 수를 검사한다. 검색·시장·관심 필터와 점수·시총·각 투자자 금액/비중 정렬을 제공하며 결측은 양방향 모두 마지막. 클라이언트에서 순위를 재계산하지 않는다. 종목 상세에서4투자자×절대/상대의 금액·%·중간순위·N·관측수·가점을 표시하고 기존 수급/일봉 상세로 연결한다. 모바일 전체 화면, Esc/닫기·포커스 복원은 기존 Drawer 재사용. 기존v2·신호·매매규칙은 변경하지 않는다.
+
+prepare-local.py 끝에서 publish_ranks를 실행하도록 연결했다. 로컬 private 원장2026-10-26 하루10,408행으로 실제 생성→최신일2,602종목 전부8항목 산출,1/2/3개월19/40/61거래일은 자료 부족 총점null 확인. 이는 로컬 한 날짜 원장 검증이며 운영에 확보된 전체 기간과 다르다. 기간 자료·시총·모집단이 없으면0 또는 가짜 값으로 대체하지 않는다. UI는 동일12.5점 비교 가설이며 수익 확률·검증된 전략으로 표현하지 않는다.
+
+TypeScript 검사, 기존 JS59개+기업행사9개+새 rank요청/경로/결측정렬3개, Python133개 통과. 실제 브라우저에서 필터 후 순위/N불변, 시총 양방향 정렬, 관심 버튼의 상세 미개방, 월간 결측 보류, 모바일 상세, 다크/화이트 대비, 기존 수급·일봉 연결 확인. 운영 배포와 실제 화면 확인 전에는 운영 완료가 아니다. 남은 미정산3건/기관·사모 과거 확장/Cutler RSI/신고가/전진 검증은 별도 미완료다. 30분 자동 점검은 사용자 요청으로 삭제했으며 재생성하지 않는다.
