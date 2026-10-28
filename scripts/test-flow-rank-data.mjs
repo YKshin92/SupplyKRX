@@ -19,6 +19,7 @@ test('rank loading coalesces requests and rejects incomplete population',async()
  const previous=globalThis.fetch;let calls=0;
  globalThis.fetch=async url=>{calls++;return {ok:true,json:async()=>String(url).endsWith('latest.json')?manifest:[{code:'001'},{code:'002'}]};};
  try{const [a,b]=await Promise.all([loadRanks('latest','test-1'),loadRanks('latest','test-1')]);assert.equal(a,b);assert.equal(calls,2);
+ await loadRanks('latest','test-1','rebuilt-after-institution-backfill');assert.equal(calls,4);
  globalThis.fetch=async url=>({ok:true,json:async()=>String(url).endsWith('latest.json')?manifest:[{code:'001'}]});
  await assert.rejects(loadRanks('latest','test-2'),/종목 수/);
  }finally{globalThis.fetch=previous;}
