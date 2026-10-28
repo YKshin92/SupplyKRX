@@ -243,3 +243,17 @@ C4 실행 기록: 공개 소스4b2c727c6d538b15d78f62fef8abccf646446884(main), �
 C4 보강: 기관/사모 과거 자료만 보완하면 연기금 최신일 collected_at은 그대로다. 데이터 재생성 후에도 예전 순위 메모리 캐시를 재사용하지 않도록 App의 rank revision을 manifest.generated_at으로 변경했다. 같은 기준일·새 재생성 revision에서 다시 조회하는 회귀 검증 통과. 표시하는 실제 수집 시각을 임의로 바꾸지 않는다.
 
 40686766360의 실제 수집 단계 성공:2026-07-28~10-28 총62거래일 중40일 새 수집·22일 재사용, 기관합계/사모321,142행. per-day 기존 연기금/외국인 digest 및 calendar byte 불변 true. 아직 private 저장/웹 순위 재생성 검사 단계이며 운영 적재 완료로 기록하지 않는다.3달 고정 UI는 private0e4f993의 Vercel5mpXAMbe6v5eg8HMVDWSQzJzTBK3 Ready/supply-krx.vercel.app 및 실제 로그인 화면에서 확인했다. 후속 데이터 배포 완료와 구분한다.
+
+C4 적재·독립 순위 검증 완료:40686766360/job122811118645 전체 success, private cbb98da43e6693991a0a2db70f9fb41c1a8d0da9에 감사된 data/live80개 파일(40개 daily CSV+40개 날짜별 metadata) 저장. 원시 가격/연기금/외국인 행과 최신 calendar는 불변.321,142행은 기관합계·사모의 전체62일 저장 합계이며 새로 더한40일과 기존22일을 포함한다. 실제 검증기 최신일2,603/2,603개,1달21일2,593개,2달40일2,587개,3달62일2,581개 총점 산출.3개월 미산출22개는 결측을0으로 채우거나 가중치를 재분배하지 않는다. 모든 순위/N/점수/상대비중과 shard최대1,199,840byte 통과. coverage artifact는 집계만 private7일 보관하며 원자료는 공개하지 않았다.
+
+공개618f7d19d617a3111265b738a214fa40234d558b에 재생성 revision 캐시 보완 및 테스트/문서를 반영했다. private a31acc5db79fd8e82d535f619911b37d738e15ea는 이 source pin을 포함하고 부모가 위 data commit이라 새 데이터와 코드가 함께 배포된다. Vercel GBmy8W4sSycYFUbLfyPW5o8KdHzC는 현재 queued/building 확인 단계이므로 최종 운영 완료는 아직 아니다. 최종 실제 화면에서3개월 선택 고정·2,581개 총점·시장3차트62일 및 상세를 확인한 뒤 완료로 기록한다.
+
+### C4 운영 반영 완료 (2026-10-28)
+
+위 배포의 대기/진행 기록은 완료 상태로 갱신한다. private a31acc5의 GitHub Vercel status success, GBmy8W4sSycYFUbLfyPW5o8KdHzC Ready/Production/supply-krx.vercel.app 연결 및 실제 로그인 화면 확인 완료. 앞선 cbb98da 데이터 배포가 먼저 실행돼 최종 배포는 대기 후 빌드됐다. 추가 유료 동시 빌드나 운영 보호 설정을 변경하지 않았다.
+
+운영 새로고침 후 조건 검색의 ‘조회 기간 최근3달’ 고정, 수급 순위의 ‘수급 집계 기간 최근3달’ 고정 및 두 period select 모두0개 확인. 실제 범위2026-07-28~10-28/62거래일, 모집단2,603개·총점2,581개가 보호된 생성물에서 표시됨을 확인했다. GS건설 상세8항목의 관측수62/62와 전체유효N/금액·비중 근거 확인. 기관합계·연기금·사모 시장 흐름 역시62일 축과 기관/사모62/62일 관측 표시 확인. 오류 로그0. 주가/기존 수급을 합성하거나 v2·매매규칙을 변경하지 않았다. 로그인·관리자 수집·다운로드 차단은 유지했다.
+
+결과 캡처 outputs/three-month-ranks-production.png, three-month-market-production.png, fixed-three-month-production.png. 실제 수집/독립 순위 집계 보고서는 outputs/three-month-investor-audit.json에 저장했다(원자료 없음). 이번 검증은 Python136개, 새 revision 캐시 회귀3개·TypeScript·로컬 번들 및 실제 Linux 운영 build와 브라우저 확인을 포함한다. 신호 발생일·시뮬레이션 시작일처럼 다른 의미의 필터는 유지한다. 1/2달 및 최근일 생성물은 기존 경로 호환을 위해 남기지만 고객 선택 옵션에는 노출하지 않는다.
+
+이 완료 범위는 최근3달 기관/사모 실제 적재와3달 고정 화면이다. 과거 분류는 현재 기본정보로 수집한 한계를 기록하며3년 전체8항목 전략 검증을 완료했다고 주장하지 않는다. 다음 과제는 더 긴 기관/사모 이력 및 시점별 모집단 검증, 새 점수의 과거/전진 효과 검증, Cutler RSI·신고가, 남은 기업행사3건이다. 삭제한30분 예약 작업은 재생성하지 않았다.
