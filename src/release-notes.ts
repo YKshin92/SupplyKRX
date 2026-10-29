@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-tracking-views',date:'2026-10-30',title:'연구 조건 정리와 추적 보기 순서 변경',
+  targets:[{tab:'cases',label:'신규 순매수 추적'},{tab:'simulation',label:'전략 검증'}],
+  changes:['신규 순매수 추적과 전략 검증에서 연구 조건 선택(직전 3개월 연기금 매수 0원, 3개월 무매수 + 거래량 3배 이하)을 없앴습니다. 두 화면 모두 기본 신호 전체를 사용합니다.','추적 보기 버튼을 전체 이력 · 신규 발견 · 최근 등록 · 매수 지속 순서로 바꾸고 관심 종목 버튼을 없앴습니다. 처음 열면 신규 발견이 선택됩니다.','검증 결과 3개월 무매수 신호의 승률이 다른 기본 신호와 통계적으로 다르지 않아 연구 조건을 정리했습니다.'],
+  verified:'운영 확인 2026-10-30'},
  {id:'2026-10-30-detail-volume-investors',date:'2026-10-30',title:'종목 상세에 거래량과 기관합계·연기금·사모펀드 전환',
   targets:[{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'},{tab:'cases',label:'신규 순매수 추적 · 종목 상세'}],
   changes:['일봉 차트 아래에 같은 날짜 축의 거래량 막대를 표시합니다. 양봉일은 붉은색, 음봉일은 푸른색입니다.','수급 차트에 기관합계 · 연기금 · 사모펀드 버튼을 추가했습니다. 처음에는 연기금이 표시되고, 버튼을 누르면 그 주체의 일별·누적 순매수로 바뀝니다.','기관합계에는 연기금과 사모가 포함된다는 안내를 함께 표시합니다. 위쪽 지표와 연기금 조건 검색은 계속 연기금 기준입니다.'],

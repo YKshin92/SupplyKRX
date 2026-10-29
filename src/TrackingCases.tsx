@@ -12,7 +12,7 @@ import {percentLabel} from './price-change';
 import {registrations,visibleTracking,type TrackingData,type View,type Sale,type TrackingEvent} from './tracking';
 
 type Props={asOf:string;watch:string[];toggle:(code:string)=>void;open:(code:string,element:HTMLElement,event:TrackingEvent,lookback:number)=>void;selected:string};
-const views:[View,string,string][]=[['new','신규 발견','최근 5거래일 내 등록'],['recent','최근 등록','최근 10거래일 내 등록'],['sustained','매수 지속','최근 10거래일 내 등록 · 순매수 2일 이상 · 이후 순매도일 없음'],['watch','관심 종목','전체 등록 이력 중 관심 종목'],['all','전체 이력','과거 등록 및 매도 발생 종목 포함']];
+const views:[View,string,string][]=[['all','전체 이력','과거 등록 및 매도 발생 종목 포함'],['new','신규 발견','최근 5거래일 내 등록'],['recent','최근 등록','최근 10거래일 내 등록'],['sustained','매수 지속','최근 10거래일 내 등록 · 순매수 2일 이상 · 이후 순매도일 없음']];
 function Spark({values}:{values:(number|null)[]}){
  const max=Math.max(1,...values.map(v=>Math.abs(v??0))),step=100/values.length;
  return <svg className="spark" viewBox="0 0 100 28" role="img" aria-label={`등록일부터 ${values.length}거래일 연기금 순매수 흐름`}><line x1="0" x2="100" y1="14" y2="14" stroke="var(--border)"/>{values.map((v,i)=>v===null?<circle key={i} cx={(i+.5)*step} cy="14" r="1.5" fill="var(--muted)"/>:<rect key={i} x={i*step} y={v>=0?14-Math.abs(v)/max*12:14} width={step*.7} height={Math.max(.7,Math.abs(v)/max*12)} fill={v>=0?'#d95b68':'#4284d8'}/>)}</svg>;
@@ -21,20 +21,19 @@ export default function TrackingCases(p:Props){
  const [data,setData]=useState<TrackingData|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  const [view,setView]=useState<View>('new'),[sale,setSale]=useState<Sale>('net');
  const [search,setSearch]=useState(''),[market,setMarket]=useState('ALL'),[order,setOrder]=useState('signal_date'),[page,setPage]=useState(1);
- const [research,setResearch]=useState('standard');
  const [lookback,setLookback]=useState(10),[strict,setStrict]=useState(false);
  const [inputs,setInputs]=useState({quiet:'1',net:'3',cap:'',latest:'0'}),[applied,setApplied]=useState(inputs);
  useEffect(()=>{let cancelled=false;setLoading(true);setError('');sessionData<TrackingData>(`tracking:${p.asOf}`,()=>readTracking('tracking-history',p.asOf,json)).catch(()=>readTracking('tracking-events',p.asOf,json)).then(d=>{if(!cancelled)setData(d);}).catch(e=>{if(!cancelled)setError(String(e));}).finally(()=>{if(!cancelled)setLoading(false);});return()=>{cancelled=true;};},[p.asOf]);
  useEffect(()=>{const timer=setTimeout(()=>setApplied(inputs),350);return()=>clearTimeout(timer);},[inputs]);
- useEffect(()=>setPage(1),[research,view,sale,search,market,order,lookback,strict,applied,p.watch]);
+ useEffect(()=>setPage(1),[view,sale,search,market,order,lookback,strict,applied,p.watch]);
  const invalid=!Number.isFinite(Number(applied.net))||applied.net===''||Number(applied.net)<1||!strict&&(applied.quiet===''||!Number.isFinite(Number(applied.quiet))||Number(applied.quiet)<=0||Number(applied.quiet)>1)||['cap','latest'].some(k=>{const v=applied[k as 'cap'|'latest'];return v!==''&&(!Number.isFinite(Number(v))||Number(v)<0);});
- const registered=useMemo(()=>invalid?[]:registrations(data?.events??[],lookback,Number(applied.quiet),strict,Number(applied.net)).filter(e=>research==='standard'||e.quiet_3m===true&&(research!=='quiet3m-volume'||e.volume_ratio_20!=null&&e.volume_ratio_20<=3)),[data,research,lookback,applied,strict,invalid]);
+ const registered=useMemo(()=>invalid?[]:registrations(data?.events??[],lookback,Number(applied.quiet),strict,Number(applied.net)),[data,lookback,applied,strict,invalid]);
  const counts=useMemo(()=>Object.fromEntries(views.map(([v])=>[v,visibleTracking(registered,v,v==='all'||v==='watch'?'all':sale,p.watch).length])),[registered,sale,p.watch]);
  const list=useMemo(()=>visibleTracking(registered,view,sale,p.watch).filter(e=>`${e.name} ${e.code}`.toLowerCase().includes(search.trim().toLowerCase())&&(market==='ALL'||e.market===market)&&(applied.cap===''||e.market_cap!=null&&e.market_cap>=Number(applied.cap)*1e8)&&(Number(applied.latest)===0||e.latest_net!=null&&e.latest_net>=Number(applied.latest)*1e8)).sort((a,b)=>{const key=order.replace('Asc','') as 'signal_date'|'current_return'|'market_cap'|'signal_net'|'latest_net'|'return_5d';const x=order==='score'?buyScore(a).total:a[key],y=order==='score'?buyScore(b).total:b[key];if(x==null)return y==null?a.id.localeCompare(b.id):1;if(y==null)return -1;return (typeof x==='string'&&typeof y==='string'?x.localeCompare(y):Number(x)-Number(y))*(order.endsWith('Asc')?1:-1)||a.id.localeCompare(b.id);}),[registered,view,sale,p.watch,search,market,applied,order,lookback]);
  const pages=Math.max(1,Math.ceil(list.length/20)),safePage=Math.min(page,pages);
  const update=(key:keyof typeof inputs,value:string)=>setInputs(v=>({...v,[key]:value}));
  function presetView(v:View){setView(v);setSale(v==='all'||v==='watch'?'all':'net');setSearch('');setMarket('ALL');const next={...inputs,cap:'',latest:'0'};setInputs(next);setApplied(next);setPage(1);}
- function reset(){setResearch('standard');setView('new');setSale('net');setSearch('');setMarket('ALL');setOrder('signal_date');setLookback(10);setStrict(false);const next={quiet:'1',net:'3',cap:'',latest:'0'};setInputs(next);setApplied(next);setPage(1);}
+ function reset(){setView('new');setSale('net');setSearch('');setMarket('ALL');setOrder('signal_date');setLookback(10);setStrict(false);const next={quiet:'1',net:'3',cap:'',latest:'0'};setInputs(next);setApplied(next);setPage(1);}
  if(loading)return <DataLoading label="신규 순매수 추적 목록을 불러오고 있습니다"/>;
  if(error)return <div className="no-results" role="alert">추적 데이터를 불러오지 못했습니다. {error}</div>;
  return <>
@@ -43,7 +42,6 @@ export default function TrackingCases(p:Props){
    {data?.history_pending&&<p className="notice">3년 전체 이력 갱신을 기다리고 있습니다. 현재 확보된 최근 이력만 표시합니다.</p>}
    {data?.history_available&&<p className="filter-guidance">전체 이력 {data.first_date} ~ {data.as_of} · 최초 등록일은 이 관측 범위에서 처음 조건을 충족한 날짜입니다. 과거 종목 유형은 미검증이며 우선주 등이 포함될 수 있습니다.</p>}
    <p className="entry-description">저거래 이후 큰 순매수가 시작된 종목 · 등록 전 {lookback}거래일 {strict?'매수·매도 모두 0원':`일별 매수·매도 각각 ${applied.quiet}억원 미만`} → 하루 순매수 {applied.net}억원 이상 · 기준일 {p.asOf}</p>
-   <label className="result-sort">연구 조건<select aria-label="추적 연구 조건" value={research} onChange={e=>setResearch(e.target.value)}><option value="standard">기존 저거래 조건</option><option value="quiet3m" disabled={!data?.history_available}>직전 3개월 연기금 매수 0원</option><option value="quiet3m-volume" disabled={!data?.history_available}>3개월 무매수 + 거래량 20일 평균 3배 이하</option></select></label><p className="filter-guidance">연구 후보: 2024~2025년 31건 익절 48.4%·손절 48.4%, 2026년 21건 익절 33.3%·손절 57.1%. 비용 전 60거래일 관찰이며 미래 확률이 아닙니다. 응답 미포함 0 처리를 포함합니다.</p>
    <div className="quick-filters tracking-views" aria-label="추적 빠른 보기">{views.map(([v,label,description])=><button key={v} aria-pressed={view===v} className={view===v?'active':''} title={description} onClick={()=>presetView(v)}>{label} <span>{counts[v]??0}</span></button>)}</div>
    <p className="filter-guidance">{views.find(([v])=>v===view)?.[2]} · 버튼 종목 수는 등록 조건과 매도 조건 기준이며, 검색·시장·추가 금액 필터 적용 전입니다.</p>
    <div className="basic-filters tracking-basic"><label>종목 검색<input aria-label="사례 종목 검색" value={search} onChange={e=>setSearch(e.target.value)} placeholder="종목명 / 코드"/></label><label>시장<select aria-label="사례 시장" value={market} onChange={e=>setMarket(e.target.value)}><option value="ALL">전체</option><option>KOSPI</option><option>KOSDAQ</option></select></label><label>등록 이후 매도 조건<select aria-label="등록 이후 매도 조건" value={sale} onChange={e=>setSale(e.target.value as Sale)}><option value="net">순매도일 없음</option><option value="gross">매도대금 발생 없음</option><option value="all">전체 · 매도 포함</option></select></label></div>

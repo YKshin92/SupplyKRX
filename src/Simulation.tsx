@@ -36,7 +36,6 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
  return <div className="simulation">
   <div className="simulation-heading"><div><div className="eyebrow">STRATEGY LAB</div><h2>신규 순매수 시뮬레이션</h2><p>신규·재발생 신호별 매수 · 보유 중 중복 매수 제외 · 실제 일봉으로 자금 운용과 성과 비교</p></div><span className="simulation-badge">모의 계산 · 비용 차감 전</span></div>
   <div className="simulation-settings">
-   <label>연구 조건<select value={settings.filter??'standard'} onChange={e=>change('filter',e.target.value as Settings['filter'])}><option value="standard">기존 조건 · 반복 신호</option><option value="quiet3m">직전 3개월 연기금 매수 0원</option><option value="quiet3m-volume">3개월 무매수 + 거래량 평균 3배 이하</option></select></label>
    <label>운용 방식<select value={settings.mode} onChange={e=>change('mode',e.target.value as Settings['mode'])}><option value="capital">초기자금 내 운용</option><option value="unlimited">모든 신호 매수 · 자금 제한 없음</option></select></label>
    <label>시작일<input type="date" value={settings.start} min={input?.sessions[0]} max={input?.sessions[input.sessions.length-1]} onChange={e=>change('start',e.target.value)}/></label>
    <label>초기자금 · 만원<input type="number" min="1" max="100000" step="100" disabled={settings.mode==='unlimited'} value={settings.initial/1e4} onChange={e=>change('initial',Number(e.target.value)*1e4)}/></label>
