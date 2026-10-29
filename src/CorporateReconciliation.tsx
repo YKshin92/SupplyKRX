@@ -1,9 +1,10 @@
 import type {CorporateContext} from './corporate-context';
 import type {SimTrade} from './simulation-engine';
+import {adjustedBasis} from './simulation-presentation';
 const kindLabel={split:'액면분할',bonus:'무상증자',spinoff:'인적분할'} as const;
 /** Lists every audited corporate action applied to this run, with dates, evidence and policy. */
 export default function CorporateReconciliation({context,trades}:{context:CorporateContext;trades:SimTrade[]}){
- const affected=trades.filter(t=>t.invested>0&&t.corporate_phase).length;
+ const affected=trades.filter(t=>t.invested>0&&(adjustedBasis(t)!=null||(t.corporate_legs?.length??0)>1||(t.fractional_forfeit?.length??0)>0)).length;
  const name=(code:string)=>trades.find(t=>t.code===code)?.name??code;
  return <details className="corporate-rights corporate-reconciliation">
   <summary>기업행사 사후 정산 {context.actions.length}건 적용 · 이번 계산 영향 {affected}건 · 확인 기준 {context.as_of}</summary>
