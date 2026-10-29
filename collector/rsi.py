@@ -81,7 +81,53 @@ def summarize(series):
                 below_streak=streak, last_entry_date=last_entry, reason=last['reason'] if last else 'missing')
 
 
-def publish_rsi(rows, calendar, indices, target, chart_sessions=62):
+def _series_out(series, chart_sessions):
+    return [dict(date=x['date'], close=x['close'], rsi=None if x['rsi'] is None else round(x['rsi'], 2)) for x in series[-chart_sessions:]]
+
+
+def _rounded(summary):
+    return {k: (round(v, 2) if k in ('rsi', 'prev_rsi') and v is not None else v) for k, v in summary.items()}
+
+
+def latest_caps(metadata_dir, as_of):
+    """Point-in-time market caps: the newest snapshot on or before as_of. Never a later snapshot."""
+    import json
+    from pathlib import Path
+    folder = Path(metadata_dir) if metadata_dir else None
+    if not folder or not folder.exists():
+        return None, {}
+    days = sorted(p.stem for p in folder.glob('????-??-??.json') if p.stem <= as_of)
+    if not days:
+        return None, {}
+    data = json.loads((folder / f'{days[-1]}.json').read_text(encoding='utf-8'))
+    return days[-1], {c: v.get('market_cap') for c, v in data.get('instruments', {}).items() if v.get('market_cap')}
+
+
+def us_rsi(us, chart_sessions=62, top=30):
+    """US block from the private us-market.json (split-adjusted closes, US sessions from the S&P 500 series)."""
+    if not us or not us.get('indices'):
+        return None
+    calendar = sorted(set().union(*[set(v.get('prices', {})) for v in us['indices'].values()]))
+    def one(prices, require_volume):
+        days = [d for d in calendar if d >= min(prices)] if prices else []
+        series = cutler_series(prices, days, require_volume=require_volume)
+        return _rounded(summarize(series)), _series_out(series, chart_sessions)
+    indices = {}
+    for name, v in us['indices'].items():
+        s, series = one(v.get('prices', {}), False)
+        indices[name] = dict(symbol=v.get('symbol'), summary=s, series=series)
+    stocks = []
+    for item in sorted(us.get('stocks', []), key=lambda x: x['rank'])[:top]:
+        prices = item.get('prices', {})
+        s, series = one(prices, True)
+        stocks.append(dict(rank=item['rank'], symbol=item['symbol'], name=item['name'], market_cap_usd=item.get('market_cap_usd'),
+                           close=series[-1]['close'] if series else None, last_date=series[-1]['date'] if series else None, series=series, **s))
+    return dict(as_of=calendar[-1] if calendar else None, collected_at=us.get('collected_at'), cap_date=us.get('cap_date'),
+                cap_source=us.get('cap_source'), price_source=us.get('price_source'), currency='USD',
+                price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)
+
+
+def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30):
     """rows: collector rows (pension rows carry the stock's daily OHLCV). Writes target/rsi/latest.json."""
     from .core import save_json
     pension = [r for r in rows if r['investor'] == '연기금 등']
@@ -91,11 +137,13 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62):
     for r in pension:
         by_code.setdefault(r['code'], {})[r['date']] = r
     stocks = []
+    series_by_code = {}
     for code, history in by_code.items():
         latest = history.get(as_of)
         if not latest:
             continue  # delisted or not traded on the reference date: outside the monitoring population
         series = cutler_series(history, sessions)
+        series_by_code[code] = series
         s = summarize(series)
         stocks.append(dict(code=code, name=latest['name'], market=latest['market'], close=latest.get('close'),
                            change_pct=latest.get('change_pct'), observed=sum(1 for x in series if x['rsi'] is not None), **s))
@@ -107,16 +155,20 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62):
             continue
         days = [d for d in calendar['sessions'] if min(prices) <= d <= min(max(prices), as_of)]
         series = cutler_series(prices, days, require_volume=False)
-        index_out[name] = dict(summary=summarize(series), series=[dict(date=x['date'], close=x['close'], rsi=None if x['rsi'] is None else round(x['rsi'], 2)) for x in series[-chart_sessions:]])
+        index_out[name] = dict(summary=_rounded(summarize(series)), series=_series_out(series, chart_sessions))
     for s in stocks:
         for k in ('rsi', 'prev_rsi'):
             if s[k] is not None:
                 s[k] = round(s[k], 2)
+    cap_date, caps = latest_caps(metadata_dir, as_of)
+    ranked = sorted((s for s in stocks if caps.get(s['code'])), key=lambda s: (-caps[s['code']], s['code']))[:top]
+    domestic = dict(cap_date=cap_date, cap_source='KRX 시가총액 스냅샷(기준일 이하 최신)', items=[
+        dict(rank=i + 1, market_cap=caps[s['code']], series=_series_out(series_by_code[s['code']], chart_sessions), **s) for i, s in enumerate(ranked)]) if ranked else None
     computed = [s for s in stocks if s['rsi'] is not None]
     result = dict(schema_version=1, as_of=as_of, rules=RULES, population=len(stocks), computed=len(computed),
                   below30=sum(s['state'] == 'below30' for s in computed), entries_today=sum(s['entry_today'] for s in computed),
                   missing=dict(warmup=sum(s['reason'] == 'warmup' for s in stocks), flat=sum(s['reason'] == 'flat' for s in stocks),
                                invalid=sum(s['reason'] == 'invalid' for s in stocks), break_reset=sum(s['reason'] == 'break' for s in stocks)),
-                  indices=index_out, stocks=stocks)
+                  indices=index_out, domestic_top30=domestic, us=us_rsi(us, chart_sessions, top), stocks=stocks)
     save_json(target / 'rsi' / 'latest.json', result)
     return result

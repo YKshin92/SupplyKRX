@@ -43,7 +43,8 @@ for months in (1,2,3):
 
 from collector.rsi import publish_rsi
 index_path=args.root/'data/live/simulation-indices.json'
-rsi=publish_rsi(rows,calendar,json.loads(index_path.read_text(encoding='utf-8')) if index_path.exists() else {},args.target)
+us_path=args.root/'data/live/us-market.json'
+rsi=publish_rsi(rows,calendar,json.loads(index_path.read_text(encoding='utf-8')) if index_path.exists() else {},args.target,metadata_dir=args.root/'data/live/metadata/daily',us=json.loads(us_path.read_text(encoding='utf-8')) if us_path.exists() else None)
 print(f"RSI: {rsi['computed']}/{rsi['population']} computed, {rsi['below30']} below 30, {rsi['entries_today']} entries. Private/local only.")
 from collector.publish_flow_ranks import publish_ranks
 rank_report=publish_ranks(args.root,args.target)

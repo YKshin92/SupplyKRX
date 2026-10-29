@@ -2,6 +2,14 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-rsi-zones-top30',date:'2026-10-30',title:'RSI 신호 구간 음영 · 국내·미국 시총 상위 30',
+  targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수·시총 상위 RSI'}],
+  changes:['RSI 차트의 30 미만 구간을 파란 음영, 70 이상 구간을 빨간 음영으로 칠했습니다. 지수가 그 구간에 있으면 카드 배경도 같은 색으로 바뀝니다.','국내 탭에 시가총액 상위 30종목(시총 기준일 표시)의 RSI·전일 RSI·상태·최근 흐름을 추가했습니다.','미국 탭에 S&P500·나스닥 종합지수와 미국 시가총액 상위 30종목의 RSI를 추가했습니다. 순위는 수집 시점 기준, 가격은 분할 조정 종가(배당 미조정)·USD입니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['미국 자료는 평일 16시 수집 때 함께 갱신되며 기준일은 미국 현지 직전 거래일','미국 순위는 과거 구성에 소급하지 않음','증권사 HTS(대부분 Wilder 방식)와 값이 다를 수 있음']},
+ {id:'2026-10-30-flow-colors-stats',date:'2026-10-30',title:'투자자별 순매수 막대 색상과 요약 카드 연동',
+  targets:[{tab:'market',selector:'.market-flow',label:'시장 현황 · 투자자별 순매수 흐름'},{tab:'market',selector:'.flow-stats',label:'시장 현황 · 요약 카드'}],
+  changes:['기관합계·연기금·사모·외국인 막대를 모두 순매수(0 초과)는 빨간색, 순매도(0 미만)는 파란색으로 표시합니다.','각 패널 제목 옆에 선택 기간 누적 합계와 최근일 순매수대금을 숫자로 표시합니다.','아래 요약 카드에 기관합계 · 연기금 · 사모 버튼을 추가했습니다. 기간 누적, 최근일 순매수·순매도 종목 수가 고른 투자자 기준으로 바뀌고, 위 패널 제목을 눌러도 같은 투자자가 선택됩니다. 처음에는 연기금입니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['기관합계에는 연기금·사모가 포함되어 세 값을 더하지 않음']},
  {id:'2026-10-30-cutler-rsi',date:'2026-10-30',title:'Cutler RSI 모니터링 (국내 전 종목 · KOSPI · KOSDAQ)',
   targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수 RSI'},{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만'}],
   changes:['시장 현황에 KOSPI·KOSDAQ의 RSI(14)와 최근 3달 추이를 표시합니다. 30·70 기준선과 최근 30 하향 진입일도 보여 줍니다.','종목 발굴에 ‘RSI 30 미만’ 보기를 추가했습니다. ‘30 미만 상태’와 ‘오늘 30 하향 진입’(전일 30 이상 → 당일 30 미만)을 따로 볼 수 있고, 행을 누르면 종목 상세가 열립니다.','계산은 원 종가로 직전 14거래일 상승폭과 하락폭을 단순평균하는 Cutler 방식입니다. 거래량 0·결측·가격 단절(기업행사 포함) 뒤에는 15거래일을 다시 모아 계산하고, 값을 채우지 않습니다.'],

@@ -58,5 +58,32 @@ class CutlerRsiTests(unittest.TestCase):
         self.assertTrue(at_cross['entry_today']); self.assertEqual(at_cross['below_streak'], 1)
 
 
+class RsiReferenceTests(unittest.TestCase):
+    def test_latest_caps_never_uses_a_later_snapshot(self):
+        import json, tempfile
+        from pathlib import Path
+        from collector.rsi import latest_caps
+        with tempfile.TemporaryDirectory() as d:
+            for day, cap in (('2026-10-27', 1), ('2026-10-29', 2)):
+                Path(d, f'{day}.json').write_text(json.dumps(dict(instruments={'005930': dict(market_cap=cap)})))
+            self.assertEqual(latest_caps(d, '2026-10-28'), ('2026-10-27', {'005930': 1}))
+            self.assertEqual(latest_caps(d, '2026-10-29')[0], '2026-10-29')
+            self.assertEqual(latest_caps(d, '2026-10-01'), (None, {}))
+
+    def test_us_block_uses_index_sessions_and_keeps_rank(self):
+        from collector.rsi import us_rsi
+        days = [f'2026-09-{i:02}' for i in range(1, 21)]
+        idx = {d: dict(close=100 + i) for i, d in enumerate(days)}
+        stock = {d: dict(close=50 - i, volume=10, open=50 - i) for i, d in enumerate(days) if d != days[3]}
+        out = us_rsi(dict(cap_date='2026-09-20', indices={'S&P500': dict(symbol='^GSPC', prices=idx)},
+                          stocks=[dict(rank=2, symbol='B', name='B', prices={}), dict(rank=1, symbol='A', name='A', market_cap_usd=5, prices=stock)]))
+        self.assertEqual(out['as_of'], days[-1])
+        self.assertEqual(out['indices']['S&P500']['summary']['rsi'], 100.0)
+        self.assertEqual([s['symbol'] for s in out['top30']], ['A', 'B'])
+        self.assertEqual(out['top30'][0]['rsi'], 0.0)  # warm-up restarted after the missing session, then 15 falling sessions
+        self.assertIsNone(out['top30'][1]['rsi'])
+        self.assertIsNone(us_rsi(None))
+
+
 if __name__ == '__main__':
     unittest.main()
