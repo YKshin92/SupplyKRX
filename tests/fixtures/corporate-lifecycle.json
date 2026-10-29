@@ -1,0 +1,542 @@
+{
+ "note": "Synthetic quotes only. Shared by tests/test_corporate_lifecycle.py and scripts/test-corporate-lifecycle.mjs.",
+ "scenarios": [
+  {
+   "name": "bonus stop before listing sells tradable shares, locked shares at listing open",
+   "action": {
+    "id": "b",
+    "kind": "bonus",
+    "known_on": "001",
+    "ex_date": "003",
+    "listing_date": "006",
+    "numerator": 1,
+    "denominator": 5,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1200,
+    "invested": 141600,
+    "shares": 118,
+    "previous_close": 1180
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1200,
+      1210,
+      1190,
+      1200,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      1200,
+      1205,
+      1195,
+      1200,
+      100
+     ]
+    },
+    {
+     "day": "003",
+     "quote": [
+      1000,
+      1010,
+      990,
+      1000,
+      100
+     ]
+    },
+    {
+     "day": "004",
+     "quote": [
+      880,
+      890,
+      870,
+      880,
+      100
+     ]
+    },
+    {
+     "day": "005",
+     "quote": [
+      870,
+      875,
+      860,
+      870,
+      100
+     ]
+    },
+    {
+     "day": "006",
+     "quote": [
+      860,
+      900,
+      850,
+      890,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bonus without barrier merges at listing and later takes profit on all shares",
+   "action": {
+    "id": "b",
+    "kind": "bonus",
+    "known_on": "001",
+    "ex_date": "002",
+    "listing_date": "004",
+    "numerator": 1,
+    "denominator": 5,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1200,
+    "invested": 12000,
+    "shares": 10,
+    "previous_close": 1200
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1200,
+      1210,
+      1190,
+      1200,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      1000,
+      1020,
+      990,
+      1010,
+      100
+     ]
+    },
+    {
+     "day": "004",
+     "quote": [
+      1100,
+      1150,
+      1090,
+      1120,
+      100
+     ]
+    },
+    {
+     "day": "005",
+     "quote": [
+      1200,
+      1400,
+      1190,
+      1350,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bonus ex-date break beyond the theoretical price stays unresolved",
+   "action": {
+    "id": "b",
+    "kind": "bonus",
+    "known_on": "001",
+    "ex_date": "002",
+    "listing_date": "004",
+    "numerator": 1,
+    "denominator": 5,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1200,
+    "invested": 12000,
+    "shares": 10,
+    "previous_close": 1200
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1200,
+      1210,
+      1190,
+      1200,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      500,
+      520,
+      490,
+      500,
+      100
+     ]
+    },
+    {
+     "day": "003",
+     "quote": [
+      1000,
+      1000,
+      1000,
+      1000,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "name": "spinoff joint close take, both legs sold at next open",
+   "action": {
+    "id": "s",
+    "kind": "spinoff",
+    "known_on": "001",
+    "halt_start": "002",
+    "resume_date": "004",
+    "numerator": 9,
+    "denominator": 10,
+    "new_code": "00000N",
+    "new_name": "신설",
+    "new_numerator": 96,
+    "new_denominator": 100,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1000,
+    "invested": 34000,
+    "shares": 34,
+    "previous_close": 1000
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1000,
+      1010,
+      990,
+      1000,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      null,
+      null,
+      null,
+      1000,
+      0
+     ]
+    },
+    {
+     "day": "003",
+     "quote": [
+      null,
+      null,
+      null,
+      1000,
+      0
+     ]
+    },
+    {
+     "day": "004",
+     "quote": [
+      800,
+      820,
+      700,
+      760,
+      100
+     ],
+     "asset": [
+      250,
+      300,
+      250,
+      300,
+      100
+     ]
+    },
+    {
+     "day": "005",
+     "quote": [
+      760,
+      780,
+      750,
+      770,
+      100
+     ],
+     "asset": [
+      390,
+      390,
+      390,
+      390,
+      100
+     ]
+    },
+    {
+     "day": "006",
+     "quote": [
+      770,
+      790,
+      760,
+      780,
+      100
+     ],
+     "asset": [
+      420,
+      430,
+      410,
+      425,
+      100
+     ]
+    },
+    {
+     "day": "007",
+     "quote": [
+      780,
+      800,
+      775,
+      790,
+      100
+     ],
+     "asset": [
+      480,
+      510,
+      470,
+      500,
+      100
+     ]
+    },
+    {
+     "day": "008",
+     "quote": [
+      795,
+      800,
+      780,
+      790,
+      100
+     ],
+     "asset": [
+      505,
+      520,
+      490,
+      510,
+      100
+     ]
+    }
+   ],
+   "take": 10
+  },
+  {
+   "name": "spinoff joint close stop",
+   "action": {
+    "id": "s",
+    "kind": "spinoff",
+    "known_on": "001",
+    "halt_start": "002",
+    "resume_date": "003",
+    "numerator": 9,
+    "denominator": 10,
+    "new_code": "00000N",
+    "new_name": "신설",
+    "new_numerator": 96,
+    "new_denominator": 100,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1000,
+    "invested": 10000,
+    "shares": 10,
+    "previous_close": 1000
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1000,
+      1010,
+      990,
+      1000,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      null,
+      null,
+      null,
+      1000,
+      0
+     ]
+    },
+    {
+     "day": "003",
+     "quote": [
+      700,
+      720,
+      690,
+      700,
+      100
+     ],
+     "asset": [
+      150,
+      160,
+      140,
+      150,
+      100
+     ]
+    },
+    {
+     "day": "004",
+     "quote": [
+      690,
+      700,
+      680,
+      690,
+      100
+     ],
+     "asset": [
+      140,
+      150,
+      140,
+      145,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "name": "spinoff missing new-company quote on resume stays unresolved",
+   "action": {
+    "id": "s",
+    "kind": "spinoff",
+    "known_on": "001",
+    "halt_start": "002",
+    "resume_date": "003",
+    "numerator": 9,
+    "denominator": 10,
+    "new_code": "00000N",
+    "new_name": "신설",
+    "new_numerator": 96,
+    "new_denominator": 100,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1000,
+    "invested": 10000,
+    "shares": 10,
+    "previous_close": 1000
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1000,
+      1010,
+      990,
+      1000,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      null,
+      null,
+      null,
+      1000,
+      0
+     ]
+    },
+    {
+     "day": "003",
+     "quote": [
+      700,
+      720,
+      690,
+      700,
+      100
+     ]
+    },
+    {
+     "day": "004",
+     "quote": [
+      690,
+      700,
+      680,
+      690,
+      100
+     ],
+     "asset": [
+      140,
+      150,
+      140,
+      145,
+      100
+     ]
+    }
+   ]
+  },
+  {
+   "name": "spinoff barrier before halt exits as an ordinary position",
+   "action": {
+    "id": "s",
+    "kind": "spinoff",
+    "known_on": "001",
+    "halt_start": "004",
+    "resume_date": "006",
+    "numerator": 9,
+    "denominator": 10,
+    "new_code": "00000N",
+    "new_name": "신설",
+    "new_numerator": 96,
+    "new_denominator": 100,
+    "fraction_policy": "zero"
+   },
+   "trade": {
+    "entry_date": "001",
+    "entry_price": 1000,
+    "invested": 10000,
+    "shares": 10,
+    "previous_close": 1000
+   },
+   "steps": [
+    {
+     "day": "001",
+     "quote": [
+      1000,
+      1010,
+      990,
+      1000,
+      100
+     ]
+    },
+    {
+     "day": "002",
+     "quote": [
+      1000,
+      1310,
+      990,
+      1200,
+      100
+     ]
+    }
+   ]
+  }
+ ]
+}

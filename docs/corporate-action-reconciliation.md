@@ -1,6 +1,6 @@
 # Corporate action reconciliation
 
-Current status (2026-10-29): DN reconciliation is active in production. C6 exact-rights diagnostics are deployed for the remaining three positions; their account settlement and complete NAV remain unresolved. Earlier paragraphs describe historical stages; use the latest C6 section and implementation-progress for current completion.
+Current status (2026-10-29, C7): all four audited actions (DN split, Dongwha split, Vaxcell bonus issue, Samyang spinoff) are settled by the account engines under the explicit `corporate-v2` policy below. Fractional cash is valued at 0 won because no payment date is disclosed. Earlier paragraphs, including C6, describe historical stages; use the latest C7 section and implementation-progress for current completion.
 
 Do not treat unresolved positions as ordinary losses or silently remove their capital. The existing account engine remains unchanged until quantities, tradability, cost and cash rights are integrated and validated in both engines.
 
@@ -53,3 +53,28 @@ Evidence reviewed:
 - Samyang: the [split issuance report](https://kind.krx.co.kr/external/2025/11/03/000668/20251103001533/10810.htm), section VI, confirms new-company allocation 0.960767 and fractional cash based on the new company's first relisting close, with no actual payment date. It describes November 24 as scheduled, so passing that date does not by itself certify actual listing or availability. Retained-company ratio remains the earlier allocation contract; both actual listing notices, new-company raw prices, both fractional settlements and a documented joint exit/cost policy are still required. Do not infer cash availability from a payment valuation rule.
 
 Validation: three new tests compare all three diagnostic plans field-for-field with Python Fraction, verify pre-listing locks, entry/event guards, no mutation/cash and safe quantities. Related JS20/Python14 tests and TypeScript pass. No simulated NAV or profit improvement is claimed. This audit is not completion of all three account settlements.
+
+### C7 account settlement policy `corporate-v2` (2026-10-29)
+
+User decisions (2026-10-29): joint close-based evaluation for the spinoff, entitlement-basis for the bonus issue, fractional shares valued at 0 won, applied as the production default after Python/TS parity and an actual-data replay.
+
+Evidence rechecked on DART/KIND:
+- Vaxcell bonus: ex-rights 2023-11-10 (price change_pct 6.25% equals the close against the theoretical 5/6 reference), new-share listing 2023-11-30 ([exchange notice](https://kind.krx.co.kr/external/2023/11/27/000543/20231127001403/70791.htm), evidence date 2023-11-27). Fractional cash rule (first listing-day close) is disclosed; the payment date is not.
+- Dongwha split: [split decision, corrected 2024-04-16](https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240416900356) (500 to 200 won, 20,220,816 to 50,552,040 shares, halt 04-12 to 05-02), [trading resumption 2024-05-03](https://kind.krx.co.kr/external/2024/05/02/000685/20240502001738/70799.htm), confirmed by the 2024-05-16 quarterly report. No fractional rule or payment date is disclosed.
+- Samyang spinoff: the [2025 annual report filed 2026-03-23](https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260323001299) states the changed listing and relisting were completed on 2025-11-24 and that 5,231 retained-company fractional shares were bought as treasury stock; Samyang Biopharm's annual report records 5,850. The new company's raw daily prices (code 0120G0) exist in the private projection from 2025-11-24 with positive volume. This is retrospective evidence (evidence_on 2026-03-23), not information available at the 2025 signal; neither report gives a fractional payment date.
+
+Rules (identical in `collector/corporate_lifecycle.py` and `src/corporate-lifecycle.ts`):
+1. Only positions entered before the action's first affected session are changed. Signal scores, registration and entry decisions never use this evidence.
+2. Fractional entitlements (`fraction_policy: "zero"`) are floored to whole shares, recorded as `fractional_forfeit` and valued at 0 won. No cash is ever credited for them. This is conservative by a small amount per position; it is not an estimate of the actual payment.
+3. Split: whole shares after the ratio; adjusted basis = original invested amount / whole shares. Original entry price is preserved. Without the zero policy the previous strict behaviour (unresolved fractional claim) is unchanged.
+4. Bonus issue: on the ex-rights session the price is validated against the theoretical reference (previous close × d/(d+n)). Total entitled whole shares define the basis; ordinary gap/intraday barriers apply to the same security. If a barrier triggers before listing, tradable shares are sold at the barrier and the locked new shares are sold at the listing-day open. Cash arrives on each actual sale day.
+5. Spinoff: halted sessions keep NAV unknown (reference value only). On the relisting day both securities must have valid quotes. Retained × close + new × close is compared with the original invested amount at each close; when +take%/−stop% is reached, both securities are sold at the next session's open. Intraday simultaneity across two securities is unknowable and is not used.
+6. Sale proceeds follow the existing rule: credited after that session's buys, reusable from the next session.
+7. Any missing or broken quote still makes the position unresolved; nothing is filled synthetically.
+
+Validation:
+- New shared fixtures `tests/fixtures/corporate-lifecycle.json` (7 scenarios) compare every field of every Python/TS step; `scripts/corporate-account-fixture.py` checks an integrated bonus+spinoff account, NAV restoration, halted NAV unknown and next-session cash reuse; context validators reject malformed bonus/spinoff shapes.
+- Private actual-data replay (2023-10-23 to 2026-10-29, 1,063 signals, default 20M/3M/+30/−10): Python and TS match on all trades and all 735 ledger sessions. Unresolved positions 3 → 0, whole-account NAV is computable again. Releasing the locked capital changes later entries, so later trade lists differ from the previous release; this is the intended consequence, not a strategy change. Values remain in private audit outputs only.
+- In the default replay the earlier capital release means the Dongwha position no longer coincides with its split. The real Dongwha path was therefore replayed separately from the previous release's actual holding (55 shares entered 2024-04-08): both engines give 137 whole shares, a 1/2-share forfeit and the same adjusted basis, and the same stop on 2024-05-08.
+
+Remaining limits: actual fractional payment dates/amounts, costs, taxes, dividends and slippage are still not modelled. The spinoff rule is a documented policy choice, not a claim about how a real investor would have traded.

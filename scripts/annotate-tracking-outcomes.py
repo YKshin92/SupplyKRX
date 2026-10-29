@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from collector.touch_outcome import touch_outcome
 from collector.foreign_record import foreign_record
 from collector.price_comparison import price_comparison
-from collector.corporate_context import published_reconciliation
+from collector.corporate_context import published_reconciliation, corporate_assets
 
 
 def enrich(target, shard_limit=1_500_000):
@@ -70,6 +70,11 @@ def enrich(target, shard_limit=1_500_000):
     if simulation_path.exists():
         simulation=json.loads(simulation_path.read_text(encoding='utf-8'))
         simulation['corporate_reconciliation']=published_reconciliation(simulation['sessions'][-1])
+        def lookup(code):
+            stock=target/f'history-stock-{code}.json'
+            if not stock.is_file():return {}
+            return {r['date']:r for r in json.loads(stock.read_text(encoding='utf-8')).get('pension',[])}
+        simulation['corporate_assets']=corporate_assets(simulation['corporate_reconciliation'],simulation['sessions'],lookup)
         simulation_path.write_text(json.dumps(simulation,ensure_ascii=False,separators=(',',':'),allow_nan=False),encoding='utf-8')
     return count
 

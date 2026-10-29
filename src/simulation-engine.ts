@@ -1,16 +1,17 @@
 /** Gross-price simulation. Signal selection uses only information available at entry. */
-import {splitDay,type SplitPosition} from './split-lifecycle.ts';
+import {splitDay,type SplitPosition,type SplitAction} from './split-lifecycle.ts';
 import {splitValue} from './split-valuation.ts';
-import {corporateActionMap,type CorporateContext} from './corporate-context.ts';
+import {corporateActionMap,actionStart,type CorporateContext} from './corporate-context.ts';
+import {corporateStep,initialCorporatePosition,type CorporatePosition,type Forfeit,type Leg} from './corporate-lifecycle.ts';
 export type {CorporateContext} from './corporate-context.ts';
 export type Price={open:number|null;high:number|null;low:number|null;close:number|null;volume?:number|null;change_pct?:number|null};
 export type Signal={index:number;net:number;score:number|null;absent:number;quiet_3m?:boolean|null;volume_ratio_20?:number|null};
 export type Candidate={code:string;name:string;market:string;signals:Signal[];prices:(Price|null)[]};
-export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];corporate_reconciliation?:CorporateContext|null;indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
+export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];corporate_reconciliation?:CorporateContext|null;corporate_assets?:Record<string,(Price|null)[]>;indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
 export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume'};
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
-export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>;corporate_phase?:SplitPosition['phase'];adjusted_basis?:number;corporate_evidence_on?:string;corporate_reference_value?:number|null;fractional_claim?:{numerator:number;denominator:number}};
+export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;horizons:Record<string,Horizon>;corporate_phase?:SplitPosition['phase']|CorporatePosition['phase'];adjusted_basis?:number;corporate_evidence_on?:string;corporate_reference_value?:number|null;fractional_claim?:{numerator:number;denominator:number};fractional_forfeit?:Forfeit[];corporate_legs?:Leg[];held_value?:number|null};
 export type Ledger={date:string;morning_cash:number;buy_value:number;sale_proceeds:number;end_cash:number;holdings:number;waiting:number;equity:number|null;strategy_pnl:number|null;benchmark_pnl:number|null;unknown_cost:number};
 const mean=(v:number[])=>v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
 const sum=(v:number[])=>v.reduce((a,b)=>a+b,0);
@@ -25,7 +26,7 @@ export function priceProblem(previous:Price|null|undefined,r:Price|null|undefine
 }
 export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateContext){
  const actionMap=corporateActionMap(corporate);
- const positions=new Map<SimTrade,SplitPosition>();
+ const positions=new Map<SimTrade,SplitPosition>(),corporatePositions=new Map<SimTrade,CorporatePosition>();
  const days=data.sessions;
  if(!days.length||!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||s.start<days[0]||s.start>days[days.length-1]||new Date(s.start).toISOString().slice(0,10)!==s.start)throw Error('시작일은 보유 데이터 기간 안에서 선택해 주세요.');
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
@@ -57,11 +58,21 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   for(const t of trades){
    if(t.status!=='open')continue;
    const action=actionMap.get(t.code);
-   if(action&&t.entry_date!<action.halt_start){
+   if(action&&t.entry_date!<actionStart(action)&&(action.kind==='bonus'||action.kind==='spinoff')){
     const c=byCode.get(t.code)!,r=c.prices[i];
-    const state=splitDay(positions.get(t)??{entry_date:t.entry_date!,entry_price:t.entry_price!,invested:t.invested,shares:t.shares,basis_price:t.entry_price!,phase:'active',last_close:c.prices[i-1]?.close??t.entry_price!,applied_actions:[]},action,days[i],r);
+    const asset=action.kind==='spinoff'?(data.corporate_assets?.[action.new_code]??byCode.get(action.new_code)?.prices)?.[i]??null:null;
+    const step=corporateStep(corporatePositions.get(t)??initialCorporatePosition({entry_date:t.entry_date!,entry_price:t.entry_price!,invested:t.invested,shares:t.shares},c.prices[i-1]?.close),action,days[i],r,asset,s.take,s.stop);
+    corporatePositions.set(t,step.position);
+    Object.assign(t,{shares:step.shares,corporate_phase:step.position.phase,adjusted_basis:step.position.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:step.reference_value,fractional_forfeit:step.position.fractional_forfeit,corporate_legs:step.legs,held_value:step.held_value,status:step.status,reason:step.reason,pnl:step.pnl,return_pct:step.return_pct,exit_date:step.pnl==null?null:days[i],exit_price:step.exit_price});
+    if(step.pnl!=null){paths.get(t)!.set(i,step.pnl);t.trading_days=i-t.entry_index!+1;t.calendar_days=Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5);if(step.ambiguous)t.ambiguous=true;}
+    if(step.cash_in){sales+=step.cash_in;if(s.mode==='capital')cash+=step.cash_in;}
+    continue;
+   }
+   if(action&&t.entry_date!<actionStart(action)){
+    const c=byCode.get(t.code)!,r=c.prices[i];
+    const state=splitDay(positions.get(t)??{entry_date:t.entry_date!,entry_price:t.entry_price!,invested:t.invested,shares:t.shares,basis_price:t.entry_price!,phase:'active',last_close:c.prices[i-1]?.close??t.entry_price!,applied_actions:[]},action as SplitAction,days[i],r);
     positions.set(t,state);const value=splitValue(state,r,s.take,s.stop);
-    Object.assign(t,{shares:state.shares,corporate_phase:state.phase,adjusted_basis:state.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:value.reference_value,fractional_claim:state.fractional_claim,status:value.status==='halted'?'open':value.status,reason:value.reason??state.diagnosis??'기업행사 정산 확인 중',pnl:value.pnl,return_pct:value.return_pct,exit_date:value.pnl==null?null:days[i],exit_price:value.exit_price??(value.status==='open'?r!.close:null)});
+    Object.assign(t,{shares:state.shares,corporate_phase:state.phase,adjusted_basis:state.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:value.reference_value,fractional_claim:state.fractional_claim,fractional_forfeit:state.fractional_forfeit,status:value.status==='halted'?'open':value.status,reason:value.reason??state.diagnosis??'기업행사 정산 확인 중',pnl:value.pnl,return_pct:value.return_pct,exit_date:value.pnl==null?null:days[i],exit_price:value.exit_price??(value.status==='open'?r!.close:null)});
     if(value.pnl!=null){paths.get(t)!.set(i,value.pnl);t.trading_days=i-t.entry_index!+1;t.calendar_days=Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5);t.ambiguous=value.ambiguous;}
     if(value.status==='take'||value.status==='stop'){sales+=value.sale_proceeds;if(s.mode==='capital')cash+=value.sale_proceeds;}
     continue;
@@ -80,7 +91,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    if(status==='take'||status==='stop'){sales+=t.invested+pnl;if(s.mode==='capital')cash+=t.invested+pnl;}
   }
   const held=trades.filter(t=>t.status==='open'||t.status==='unresolved'),unknown=held.filter(t=>t.pnl==null);
-  const equity=s.mode==='capital'?(unknown.length?null:cash+sum(held.map(t=>t.invested+t.pnl!))):null;
+  const equity=s.mode==='capital'?(unknown.length?null:cash+sum(held.map(t=>t.held_value??t.invested+t.pnl!))):null;
   const indexClose=data.indices.KOSPI?.[i]?.close;
   ledger.push({date:days[i],morning_cash:morning,buy_value:buys,sale_proceeds:sales,end_cash:cash,holdings:held.length,waiting:trades.filter(t=>t.status==='pending'&&t.signal_index<i).length,equity,strategy_pnl:equity==null?null:equity-s.initial,benchmark_pnl:benchmarkStart==null?0:positive(benchmarkOpen)&&positive(indexClose)?s.initial*(indexClose/benchmarkOpen-1):null,unknown_cost:sum(unknown.map(t=>t.invested))});
   if(cash<-.000001)throw Error('현금이 음수입니다.');

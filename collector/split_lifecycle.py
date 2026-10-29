@@ -31,13 +31,20 @@ def split_day(position, action, day, quote):
         product=p['shares']*n
         if product>9007199254740991:
             raise ValueError('Invalid split ratio')
-        if product%d:
-            p['fractional_claim']=dict(numerator=product%d,denominator=d)
+        remainder=product%d
+        if remainder and action.get('fraction_policy')!='zero':
+            p['fractional_claim']=dict(numerator=remainder,denominator=d)
             return unresolved('단주 권리 현금 정산 필요')
+        if remainder:
+            from math import gcd
+            k=gcd(remainder,d)
+            p['fractional_forfeit']=p.get('fractional_forfeit',[])+[dict(asset='분할 후 주식',fraction=f'{remainder//k}/{d//k}')]
         problem=price_problem(dict(close=p['last_close']*d/n),quote)
         if problem:
             return unresolved('재개일 '+problem)
-        p.update(shares=product//d,basis_price=p['invested']/(product//d),
+        if product-remainder==0:
+            return unresolved('분할 후 정수 주식 없음')
+        p.update(shares=(product-remainder)//d,basis_price=p['invested']/((product-remainder)//d),
                  phase='active',pending_action=None,diagnosis=None,cash_delta=0,
                  applied_actions=p.get('applied_actions',[])+[action['id']])
     else:

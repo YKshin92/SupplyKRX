@@ -5,7 +5,8 @@ from .simulation import all_signals, price_problem, summarize, simulation_start
 from .simulation_benchmark import index_price, add_benchmark
 from .split_lifecycle import split_day
 from .split_valuation import split_value
-from .corporate_context import action_map as validate_actions
+from .corporate_context import action_map as validate_actions, action_start
+from .corporate_lifecycle import corporate_step, initial_corporate_position
 
 
 def entry_score(pension, foreign):
@@ -22,7 +23,7 @@ def entry_score(pension, foreign):
 
 
 def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_000,budget=3_000_000,take=30,stop=10,start_date=None,corporate=None):
-    action_map=validate_actions(corporate);positions={}
+    action_map=validate_actions(corporate);positions={};corporate_positions={}
     start=simulation_start(sessions,start_date)
     signals=all_signals(histories,sessions,start_date=start)
     trades=[]
@@ -83,11 +84,24 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
             row=histories[t['code']].get(day)
             previous=histories[t['code']].get(sessions[i-1]) if i else None
             action=action_map.get(t['code'])
-            if action and t['entry_date']<action['halt_start']:
+            if action and t['entry_date']<action_start(action) and action['kind'] in ('bonus','spinoff'):
+                asset=histories.get(action['new_code'],{}).get(day) if action['kind']=='spinoff' else None
+                step=corporate_step(corporate_positions.get(t['event_id']) or initial_corporate_position(t,(previous or {}).get('close')),action,day,row,asset,take,stop)
+                corporate_positions[t['event_id']]=step['position']
+                t.update(shares=step['shares'],corporate_phase=step['position']['phase'],adjusted_basis=step['position']['basis_price'],corporate_evidence_on=action['evidence_on'],corporate_reference_value=step['reference_value'],fractional_forfeit=step['position']['fractional_forfeit'],corporate_legs=step['legs'],held_value=step['held_value'],status=step['status'],reason=step['reason'],pnl=step['pnl'],return_pct=step['return_pct'],exit_date=day if step['pnl'] is not None else None,exit_price=step['exit_price'])
+                if step['pnl'] is not None:
+                    t['path'].append(dict(date=day,value=step['pnl']))
+                    t.update(trading_days=i-t['actual_entry_index']+1,calendar_days=(date.fromisoformat(day)-date.fromisoformat(t['entry_date'])).days)
+                    if step['ambiguous']:t['ambiguous']=True
+                if step['cash_in']:
+                    proceeds=step['cash_in'];before=cash;cash+=proceeds;sells+=proceeds;sell_count+=1
+                    actions.append(dict(date=day,action='sell',code=t['code'],name=t['name'],score=t['score'],price=step['exit_price'],shares=step['shares'],value=proceeds,pnl=step['pnl'] if step['status'] in ('take','stop') else None,cash_before=before,cash_after=cash))
+                continue
+            if action and t['entry_date']<action_start(action):
                 state=split_day(positions.get(t['event_id'],dict(entry_date=t['entry_date'],entry_price=t['entry_price'],invested=t['invested'],shares=t['shares'],basis_price=t['entry_price'],phase='active',last_close=(previous or {}).get('close') or t['entry_price'],applied_actions=[])),action,day,row)
                 positions[t['event_id']]=state
                 value=split_value(state,row,take,stop)
-                t.update(shares=state['shares'],corporate_phase=state['phase'],adjusted_basis=state['basis_price'],corporate_evidence_on=action['evidence_on'],corporate_reference_value=value['reference_value'],fractional_claim=state.get('fractional_claim'),status='open' if value['status']=='halted' else value['status'],reason=value.get('reason') or state.get('diagnosis') or '기업행사 정산 확인 중',pnl=value['pnl'],return_pct=value['return_pct'],exit_date=day if value['pnl'] is not None else None,exit_price=value['exit_price'] if value['status']!='open' else row['close'])
+                t.update(shares=state['shares'],corporate_phase=state['phase'],adjusted_basis=state['basis_price'],corporate_evidence_on=action['evidence_on'],corporate_reference_value=value['reference_value'],fractional_claim=state.get('fractional_claim'),fractional_forfeit=state.get('fractional_forfeit'),status='open' if value['status']=='halted' else value['status'],reason=value.get('reason') or state.get('diagnosis') or '기업행사 정산 확인 중',pnl=value['pnl'],return_pct=value['return_pct'],exit_date=day if value['pnl'] is not None else None,exit_price=value['exit_price'] if value['status']!='open' else row['close'])
                 if value['pnl'] is not None:
                     t['path'].append(dict(date=day,value=value['pnl']))
                     t.update(trading_days=i-t['actual_entry_index']+1,calendar_days=(date.fromisoformat(day)-date.fromisoformat(t['entry_date'])).days,ambiguous=value['ambiguous'])
@@ -118,7 +132,7 @@ def simulate_portfolio(histories, foreign, sessions, indices, *, initial=20_000_
                     shares=t['shares'],value=proceeds,pnl=pnl,cash_before=before,cash_after=cash))
         active=[t for t in trades if t['status'] in ('open','unresolved') and t['entry_date']]
         unknown=[t for t in active if t['pnl'] is None]
-        known_value=sum(t['invested']+t['pnl'] for t in active if t['pnl'] is not None)
+        known_value=sum(t['held_value'] if t.get('held_value') is not None else t['invested']+t['pnl'] for t in active if t['pnl'] is not None)
         nav=cash+known_value if not unknown else None
         close=index_price(kospi.get(day),'close')
         reference=initial*(close/benchmark_open-1) if benchmark_start and benchmark_open and close else 0 if benchmark_start is None else None

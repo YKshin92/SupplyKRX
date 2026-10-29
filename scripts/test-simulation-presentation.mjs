@@ -14,3 +14,9 @@ test('halt reference and unpaid fractions cannot be described as confirmed cash'
  assert.match(notes,/확정 자산·손익에 포함하지 않습니다/);
  assert.match(notes,/단주 1\/2주/);assert.match(notes,/현금에 반영하지 않았습니다/);
 });
+test('zero-valued fractions, locked bonus shares and joint spinoff rules are disclosed',()=>{
+ const bonus=corporateNotes({entry_price:25400,adjusted_basis:21257,corporate_phase:'closed',reason:'손절선 아래 갭 시가 청산 · 무상신주 23주 2023-11-30 상장일 시가 매도',fractional_forfeit:[{asset:'무상배정 신주',fraction:'3/5'}],corporate_evidence_on:'2023-11-27'}).join(' ');
+ assert.match(bonus,/무상배정 신주 0\.6주/);assert.match(bonus,/0원 처리/);assert.match(bonus,/상장일 시가/);
+ const spin=corporateNotes({entry_price:87900,adjusted_basis:47000,corporate_legs:[{name:'존속 주식',code:'',shares:30,price:1},{name:'삼양바이오팜',code:'0120G0',shares:32,price:1}],fractional_forfeit:[{asset:'존속 주식',fraction:'3666961/5000000'}]}).join(' ');
+ assert.match(spin,/합계/);assert.match(spin,/다음 거래일 시가/);assert.match(spin,/존속 주식 0\.7333922주/);
+});
