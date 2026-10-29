@@ -23,3 +23,10 @@ test('later entries, unrelated failures, settled/adjusted and unsafe quantities 
  for(const patch of [{entry_date:'2024-04-12'},{reason:'2025-01-01 가격 미수집'},{status:'take'},{corporate_phase:'unresolved'},{shares:0},{shares:1.5},{shares:Number.MAX_SAFE_INTEGER}])assert.equal(corporateRights({...t,...patch},'2026-10-29'),null);
  assert.equal(corporateRights(t,'2024-04-11'),null);
 });
+test('whole-share entitlements do not invent a fractional-payment dependency',()=>{
+ for(const [code,day] of [['025900','2024-04-12'],['323990','2023-11-10']]){
+  const r=corporateRights({...holding(code,day),shares:10},'2026-10-29');
+  assert.ok(r.legs.every(l=>l.fraction===null));assert.equal(r.cashRule,null);
+  assert.ok(r.blockers.every(x=>!x.includes('단주')));assert.equal(r.settled,false);
+ }
+});
