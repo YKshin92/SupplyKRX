@@ -1,4 +1,6 @@
-# Corporate action reconciliation, stage 1
+# Corporate action reconciliation
+
+Current status (2026-10-29): DN reconciliation is active in production. C6 exact-rights diagnostics are deployed for the remaining three positions; their account settlement and complete NAV remain unresolved. Earlier paragraphs describe historical stages; use the latest C6 section and implementation-progress for current completion.
 
 Do not treat unresolved positions as ordinary losses or silently remove their capital. The existing account engine remains unchanged until quantities, tradability, cost and cash rights are integrated and validated in both engines.
 
