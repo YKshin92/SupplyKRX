@@ -1,0 +1,10 @@
+.release-button{position:relative}.release-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.release-modal{max-width:720px}.release-lead{font-size:13px!important;margin-bottom:12px!important}
+.release-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}.release-list>li{border:1px solid var(--border);border-radius:9px;padding:14px 16px}.release-list>li.superseded{opacity:.72}
+.release-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 9px}.release-head time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.release-head strong{font-size:15px}
+.release-list ul{margin:9px 0;padding-left:18px;font-size:13px;line-height:1.75}.release-note{font-size:12px!important;color:var(--muted);margin:4px 0!important}
+.release-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:8px}.release-foot small{font-size:11px;color:#457b70}.release-foot>span{display:flex;flex-wrap:wrap;gap:6px}
+.new-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;line-height:1;padding:3px 5px;border-radius:4px;background:var(--red);color:#fff;vertical-align:middle;margin-left:5px}
+.release-highlight{animation:release-pulse 2.6s ease-out 1;border-radius:8px}@keyframes release-pulse{0%,35%{box-shadow:0 0 0 3px #f0a43a}100%{box-shadow:0 0 0 0 transparent}}
+[data-theme=dark] .release-foot small{color:#7cc6b5}
+@media(max-width:600px){.release-button span{display:none}.release-modal{padding:24px 18px}.release-foot{flex-direction:column;align-items:flex-start}}
