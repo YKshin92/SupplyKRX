@@ -41,6 +41,10 @@ for months in (1,2,3):
             manifest=publish_investor(selected,args.target/'periods'/f'{months}m'/suffix,'live',view_calendar,investor,len(sessions))
             print(f"{months}m {investor}: {manifest['days']} sessions, {manifest['row_count']} rows.")
 
+from collector.rsi import publish_rsi
+index_path=args.root/'data/live/simulation-indices.json'
+rsi=publish_rsi(rows,calendar,json.loads(index_path.read_text(encoding='utf-8')) if index_path.exists() else {},args.target)
+print(f"RSI: {rsi['computed']}/{rsi['population']} computed, {rsi['below30']} below 30, {rsi['entries_today']} entries. Private/local only.")
 from collector.publish_flow_ranks import publish_ranks
 rank_report=publish_ranks(args.root,args.target)
 print(f"Flow ranks: {rank_report['state']}. Private/local only.")

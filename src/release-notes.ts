@@ -1,7 +1,11 @@
 /** Public release history shown in the app. No private quotes, account values or credentials. */
-export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks';selector?:string;label:string};
+export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-cutler-rsi',date:'2026-10-30',title:'Cutler RSI 모니터링 (국내 전 종목 · KOSPI · KOSDAQ)',
+  targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수 RSI'},{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만'}],
+  changes:['시장 현황에 KOSPI·KOSDAQ의 RSI(14)와 최근 3달 추이를 표시합니다. 30·70 기준선과 최근 30 하향 진입일도 보여 줍니다.','종목 발굴에 ‘RSI 30 미만’ 보기를 추가했습니다. ‘30 미만 상태’와 ‘오늘 30 하향 진입’(전일 30 이상 → 당일 30 미만)을 따로 볼 수 있고, 행을 누르면 종목 상세가 열립니다.','계산은 원 종가로 직전 14거래일 상승폭과 하락폭을 단순평균하는 Cutler 방식입니다. 거래량 0·결측·가격 단절(기업행사 포함) 뒤에는 15거래일을 다시 모아 계산하고, 값을 채우지 않습니다.'],
+  verified:'운영 확인 2026-10-30',limits:['연기금 신호·점수·매매 규칙에는 반영하지 않은 모니터링 지표','과거 Wilder 방식 연구 결과와는 값이 다름']},
  {id:'2026-10-30-tracking-views',date:'2026-10-30',title:'연구 조건 정리와 추적 보기 순서 변경',
   targets:[{tab:'cases',label:'신규 순매수 추적'},{tab:'simulation',label:'전략 검증'}],
   changes:['신규 순매수 추적과 전략 검증에서 연구 조건 선택(직전 3개월 연기금 매수 0원, 3개월 무매수 + 거래량 3배 이하)을 없앴습니다. 두 화면 모두 기본 신호 전체를 사용합니다.','추적 보기 버튼을 전체 이력 · 신규 발견 · 최근 등록 · 매수 지속 순서로 바꾸고 관심 종목 버튼을 없앴습니다. 처음 열면 신규 발견이 선택됩니다.','검증 결과 3개월 무매수 신호의 승률이 다른 기본 신호와 통계적으로 다르지 않아 연구 조건을 정리했습니다.'],
