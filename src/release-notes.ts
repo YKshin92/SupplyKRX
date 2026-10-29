@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-detail-volume-investors',date:'2026-10-30',title:'종목 상세에 거래량과 기관합계·연기금·사모펀드 전환',
+  targets:[{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'},{tab:'cases',label:'신규 순매수 추적 · 종목 상세'}],
+  changes:['일봉 차트 아래에 같은 날짜 축의 거래량 막대를 표시합니다. 양봉일은 붉은색, 음봉일은 푸른색입니다.','수급 차트에 기관합계 · 연기금 · 사모펀드 버튼을 추가했습니다. 처음에는 연기금이 표시되고, 버튼을 누르면 그 주체의 일별·누적 순매수로 바뀝니다.','기관합계에는 연기금과 사모가 포함된다는 안내를 함께 표시합니다. 위쪽 지표와 연기금 조건 검색은 계속 연기금 기준입니다.'],
+  verified:'운영 확인 2026-10-30',limits:['기관합계·사모 종목별 자료는 최근 3달(2026-07-29~)만 있어, 신호 전후 보기에서 그 이전 날짜는 비워 둡니다']},
  {id:'2026-10-29-detail-three-month',date:'2026-10-29',title:'신호 상세도 최근 3달 기준으로 표시',
   targets:[{tab:'cases',label:'신규 순매수 추적 · 종목 상세'},{tab:'simulation',label:'전략 검증 · 거래 상세'}],
   changes:['신규 순매수 추적과 전략 검증에서 여는 종목 상세가 종목 발굴과 같은 최근 3달 수급·일봉을 기본으로 보여 줍니다.','신호일 전후 구간(신호 전 20거래일 ~ 후 40거래일, 청산 후 10거래일)은 상세 안의 ‘신호 전후’ 버튼으로 계속 볼 수 있습니다.','신호일이 최근 3달 밖이면 그 사실과 ‘신호 전후 보기’ 버튼을 표시합니다.'],
