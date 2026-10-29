@@ -20,3 +20,10 @@ test('specific verified actions and generic quote gaps remain distinct from unbo
  assert.equal(issueDiagnosis({code:'323990',status:'unresolved',reason:'2023-11-10 가격 단절'}).kind,'corporate');
  assert.equal(issueDiagnosis({code:'007340',status:'pending',reason:'현금 부족'}),null);
 });
+import {recentStart,recentWindow} from '../src/detail-window.ts';
+test('recent window matches the published 3-month boundary and reports an out-of-range signal',()=>{
+ assert.equal(recentStart('2026-10-29'),'2026-07-29');assert.equal(recentStart('2026-05-31'),'2026-02-28');assert.equal(recentStart('2026-01-15'),'2025-10-15');
+ const days=['2026-07-28','2026-07-29','2026-08-03','2026-10-29','2026-10-30'].map(date=>({date}));
+ const w=recentWindow(days,'2026-10-29','2026-08-03');assert.deepEqual(w.rows.map(r=>r.date),['2026-07-29','2026-08-03','2026-10-29']);assert.equal(w.signalFound,true);
+ assert.equal(recentWindow(days,'2026-10-29','2024-01-02').signalFound,false);
+});

@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-29-detail-three-month',date:'2026-10-29',title:'신호 상세도 최근 3달 기준으로 표시',
+  targets:[{tab:'cases',label:'신규 순매수 추적 · 종목 상세'},{tab:'simulation',label:'전략 검증 · 거래 상세'}],
+  changes:['신규 순매수 추적과 전략 검증에서 여는 종목 상세가 종목 발굴과 같은 최근 3달 수급·일봉을 기본으로 보여 줍니다.','신호일 전후 구간(신호 전 20거래일 ~ 후 40거래일, 청산 후 10거래일)은 상세 안의 ‘신호 전후’ 버튼으로 계속 볼 수 있습니다.','신호일이 최근 3달 밖이면 그 사실과 ‘신호 전후 보기’ 버튼을 표시합니다.'],
+  verified:'운영 확인 2026-10-29'},
  {id:'2026-10-29-corporate-v2',date:'2026-10-29',title:'기업행사 3건 계좌 정산',
   targets:[{tab:'simulation',selector:'.corporate-reconciliation',label:'전략 검증 · 기업행사 정산 목록'}],
   changes:['박셀바이오 무상증자, 동화기업 액면분할, 삼양홀딩스 인적분할 보유분을 계좌에서 정산합니다. 정산 대기는 0건이 되고 총 평가자산과 총 손익을 다시 표시합니다.',
