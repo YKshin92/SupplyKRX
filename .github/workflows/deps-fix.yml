@@ -1,0 +1,35 @@
+name: Refresh lockfile for dependency fixes (temporary branch workflow)
+on:
+  push:
+    branches: [deps-fix]
+    paths: ['package.json', '.github/workflows/deps-fix.yml']
+permissions:
+  contents: write
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: npm install --no-audit --no-fund
+      - name: Audit after the update (report)
+        run: |
+          npm audit --json > /tmp/audit.json || true
+          python3 -c "import json;d=json.load(open('/tmp/audit.json'));print('::notice title=audit-after::'+json.dumps(d['metadata']['vulnerabilities'])+' '+' '.join(sorted(d.get('vulnerabilities',{}))))"
+          echo "::notice title=versions::vite $(node -p "require('vite/package.json').version") zod $(node -p "require('zod/package.json').version")"
+      - run: python -m unittest discover -s tests
+      - run: npm test
+      - run: npm run build
+      - name: Commit the refreshed lockfile to this branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'deps: refresh lockfile (zod override, vite patch, drop unused vitest)' || exit 0
+          git push origin HEAD:deps-fix
