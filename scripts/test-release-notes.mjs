@@ -5,7 +5,7 @@ test('release history is ordered, unique and points at real screens',()=>{
  assert.equal(latestRelease,RELEASES[0]);
  assert.equal(new Set(RELEASES.map(r=>r.id)).size,RELEASES.length);
  for(let i=1;i<RELEASES.length;i++)assert.ok(RELEASES[i-1].date>=RELEASES[i].date,'newest first');
- for(const r of RELEASES){assert.match(r.date,/^\d{4}-\d{2}-\d{2}$/);assert.ok(r.changes.length&&r.targets.length&&r.verified);for(const t of r.targets)assert.ok(['market','explore','cases','simulation'].includes(t.tab));}
+ for(const r of RELEASES){assert.match(r.date,/^\d{4}-\d{2}-\d{2}$/);assert.ok(r.changes.length&&r.targets.length&&r.verified);for(const t of r.targets)assert.ok(['market','explore','cases','simulation','signals'].includes(t.tab));}
 });
 test('NEW lasts seven calendar days and ignores superseded releases',()=>{
  assert.equal(isRecent('2026-10-29','2026-10-29'),true);assert.equal(isRecent('2026-10-29','2026-11-04'),true);
