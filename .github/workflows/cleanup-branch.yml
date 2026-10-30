@@ -1,0 +1,17 @@
+name: One-off cleanup of the temporary deps-fix branch
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete only refs/heads/deps-fix
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/git/refs/heads/deps-fix" >/dev/null 2>&1; then
+            gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/deps-fix"; echo "::notice title=cleanup::deps-fix deleted"
+          else echo "::notice title=cleanup::deps-fix not found"; fi
