@@ -34,7 +34,7 @@ function TopTable({title,note,rows,currency}:{title:string;note:string;rows:Row[
  const [open,setOpen]=useState<string|null>(null);
  return <div className="rsi-top">
   <div className="rsi-top-title"><h4>{title}</h4><span>{note} · 종목을 누르면 일봉·거래량·RSI 차트가 열립니다</span></div>
-  <div className="table-scroll"><table className="rsi-top-table"><thead><tr><th>순위</th><th>종목</th><th>시가총액</th><th>종가</th><th>RSI</th><th>전일</th><th>Cutler 참고</th><th>상태</th><th>최근 흐름</th></tr></thead>
+  <div className="lab-scroll"><table className="rsi-top-table"><thead><tr><th>순위</th><th>종목</th><th>시가총액</th><th>종가</th><th>RSI</th><th>전일</th><th>Cutler 참고</th><th>상태</th><th>최근 흐름</th></tr></thead>
   <tbody>{rows.map(r=><Fragment key={r.key}><tr className={`${r.state??''}${open===r.key?' open':''}`} tabIndex={0} aria-expanded={open===r.key} onClick={()=>setOpen(open===r.key?null:r.key)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();setOpen(open===r.key?null:r.key);}}}><td>{r.rank}</td><td><strong>{r.name}</strong><small>{r.sub}</small></td><td>{r.cap}</td><td>{r.close}</td><td className="rsi-num">{fmt(r.rsi)}</td><td>{fmt(r.prev_rsi)}</td><td className="rsi-muted">{fmt(r.cutler)}</td><td>{r.rsi==null?<span className="rsi-muted">{reasonLabel(r.reason)||'산출 불가'}</span>:<span className={`rsi-state ${r.state}`}>{stateLabel(r.state)}{r.entry_today?' · 오늘 진입':''}{unsettled(r)?' · 안정화 전':''}</span>}</td><td><RsiSpark series={r.series}/></td></tr>
   {open===r.key&&<tr className="rsi-detail-row"><td colSpan={9}><RsiStockDetail name={r.name} sub={r.sub} series={r.series} currency={currency} onClose={()=>setOpen(null)}/></td></tr>}</Fragment>)}</tbody></table></div>
  </div>;

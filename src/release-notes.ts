@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-design-polish',date:'2026-10-30',title:'글자 간격·크기·여백 등 화면 디자인 정리',
+  targets:[{tab:'market',selector:'.market-flow',label:'시장 현황'},{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 / 3년 신고가'},{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['한글이 단어 중간에서 줄바꿈되지 않도록 하고, 글자 간격과 줄 간격을 조금 다듬었습니다.','9~10px로 작던 안내 문구·표 하단·차트 설명 글자를 11~12px로 키웠습니다.','RSI 30 미만·3년 신고가 화면을 연기금 조건 검색과 같은 여백·입력창 모양으로 맞추고, 신호 성과 검증 탭이 옆으로 넘치던 문제를 고쳤습니다.','수급 차트 금액 축을 ‘9,000.00억원’ 대신 ‘9,000억’ ‘1.5조’처럼 짧게 표시하고, 시총 상위 30 표의 숫자를 오른쪽 정렬했습니다.','상단 ‘조회 기간’ 표시가 제목과 붙어 보이던 간격을 넓혔습니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-integrated-tracking',date:'2026-10-30',title:'신호 성과 검증에 통합 추적과 8항목 점수 구간 비교 추가',
   targets:[{tab:'signals',selector:'.signal-tracking',label:'신호 성과 검증 · 통합 추적'},{tab:'signals',selector:'.signal-bands',label:'신호 성과 검증 · 8항목 점수 구간'}],
   changes:['통합 추적: 최근 60거래일 동안 연기금·수급 상위·RSI 신호를 종목별로 묶어, 어떤 신호가 언제 겹쳤는지와 첫 신호 진입 후 현재 수익률·익절/손절 상태를 한 줄로 보여 줍니다. 기본은 2가지 이상 신호가 겹친 종목입니다.','8항목 점수 구간 비교: 날마다 장 마감 뒤 고정 기록한 점수를 순위(1~20 / 21~100 / 101~300 / 301 이하)와 점수(70 이상 / 50~70 / 50 미만) 구간으로 나눠 이후 5·10·20거래일 수익률과 지수 대비 초과수익을 비교합니다.'],

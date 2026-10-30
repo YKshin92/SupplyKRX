@@ -1,0 +1,85 @@
+/* Design polish (2026-10-30): one type scale, Korean line breaking, minimum readable sizes,
+   consistent panel padding and table alignment across the newer screens.
+   `:root` prefixes outrank the lazily loaded screen stylesheets that load after this file. */
+
+/* Typography: Korean words break at spaces, slightly tighter tracking, steady numerals. */
+body{word-break:keep-all;overflow-wrap:break-word;line-height:1.5;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,h5{letter-spacing:-.02em;line-height:1.35}
+table{font-variant-numeric:tabular-nums}
+
+/* Minimum readable sizes (9–10px text was hard to read in Korean). */
+:root .source-note{font-size:11.5px;line-height:1.75}
+:root .table-footer{font-size:11.5px;align-items:center;gap:10px}
+:root .table-footer button{font-size:12px}
+:root .micro-warning{font-size:11.5px;line-height:1.6}
+:root .chart-header>span{font-size:11px}
+:root .previous-info{font-size:11px}
+:root .stats p{font-size:12px;line-height:1.6}
+:root .stats small{font-size:11px}
+:root .stats article>span{display:block;line-height:1.4}
+:root .chart-caption{font-size:10.5px}
+:root .stock-select span{font-size:11px}
+:root .stock-price small,:root .trade-pair,:root .streak{font-size:11px}
+:root .filter-guidance{font-size:12px;line-height:1.65}
+:root footer{font-size:11px}
+:root .detail-metrics span{font-size:12px}
+:root .price-line small{font-size:11px}
+:root .investor-flow p{font-size:11.5px;line-height:1.6}
+:root .explorer-table th{font-size:11.5px}
+:root .explorer-table td small{font-size:11px}
+
+/* Header: keep the period label on one line and give the actions room. */
+:root header{gap:16px;flex-wrap:wrap}
+:root .period-selector{white-space:nowrap;font-size:12px;color:var(--muted);padding:0 6px}
+:root .period-selector strong{color:var(--text-strong);margin-left:4px}
+
+/* Newer explorer screens (RSI 30 미만 · 3년 신고가): same frame as 연기금 조건 검색. */
+:root .rsi-explorer{padding:20px 22px 8px}
+:root .rsi-explorer .rsi-title{margin-bottom:4px}
+:root .rsi-explorer .rsi-title h2{font-size:18px}
+:root .rsi-explorer .rsi-title h2 span{font-size:12px;font-weight:400;color:var(--muted);margin-left:8px}
+:root .rsi-explorer .rsi-title>span{font-size:12px;color:var(--muted)}
+:root .rsi-counts{gap:8px 22px;font-size:12.5px;margin:12px 0 14px;align-items:baseline}
+:root .rsi-counts b{font-size:16px;color:var(--text-strong);margin-left:4px}
+:root .rsi-counts small{display:block;font-size:11px;margin-top:2px}
+:root .rsi-explorer .quick-filters{margin:4px 0 8px}
+:root .rsi-filters{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:14px;margin:14px 0 16px}
+:root .rsi-filters input{height:40px;width:100%;border:1px solid var(--border);border-radius:7px;background:var(--surface-soft);color:var(--text-strong);padding:0 12px;font-size:13px}
+:root .rsi-explorer .explorer-table-scroll{margin:0 -22px;border-top:1px solid var(--border)}
+:root .rsi-explorer .explorer-table th:first-child,:root .rsi-explorer .explorer-table td:first-child{padding-left:22px;text-align:left}
+:root .rsi-explorer .table-footer{margin:0 -22px;padding:13px 22px}
+:root .rsi-explorer .source-note{margin-top:4px}
+@media(max-width:760px){:root .rsi-explorer{padding:16px 12px 6px}:root .rsi-filters{grid-template-columns:1fr 1fr}:root .rsi-filters label:first-child{grid-column:1/-1}:root .rsi-explorer .explorer-table-scroll,:root .rsi-explorer .table-footer{margin:0 -12px}}
+
+/* 신호 성과 검증: panel padding, no horizontal page overflow, readable cards and tables. */
+:root .signal-lab{padding:22px 24px;min-width:0;gap:16px}
+:root .signal-lab>*{min-width:0;max-width:100%}
+:root .signal-lab-head h2{font-size:22px}
+:root .signal-lab-head p{font-size:12.5px;margin-top:6px}
+:root .signal-lab-scope{font-size:12px;line-height:1.6;padding:10px 12px}
+:root .signal-card{padding:14px;gap:8px}
+:root .signal-card small{font-size:11.5px;line-height:1.55;color:var(--muted)}
+:root .signal-card-row{font-size:12.5px}
+:root .signal-card-main em{font-size:11.5px}
+:root .signal-detail,:root .signal-recent{padding:16px 18px}
+:root .signal-detail h3,:root .signal-recent h3{font-size:16px}
+:root .signal-detail h3 small,:root .signal-recent h3 small{font-size:12px}
+.lab-scroll{overflow-x:auto;max-width:100%}
+:root .signal-horizon-table th,:root .signal-table th,:root .rsi-top-table th{background:var(--surface-soft);font-size:12px}
+:root .signal-horizon-table th:not(:first-child),:root .signal-horizon-table td:not(:first-child){text-align:right}
+:root .signal-table td{vertical-align:middle;line-height:1.45}
+:root .signal-table td small{font-size:11px}
+:root .signal-month small,:root .signal-month b{font-size:11px}
+@media(max-width:760px){:root .signal-lab{padding:16px 12px}}
+
+/* 시총 상위 30 표: numbers right-aligned. */
+:root .rsi-top-table th:nth-child(n+3):nth-child(-n+7),:root .rsi-top-table td:nth-child(n+3):nth-child(-n+7){text-align:right}
+:root .rsi-top-table td small{font-size:11px}
+:root .rsi-top-title span{font-size:12px;line-height:1.55}
+:root .rsi-zone-dates{font-size:12px}
+:root .rsi-detail-zones,:root .rsi-trend-note{font-size:12px;line-height:1.6}
+
+/* 시장 현황 수급 패널. */
+:root .investor-flow-heading{gap:12px;align-items:flex-start}
+:root .investor-flow-figures dt{font-size:11.5px}
+:root .flow-stats-toggle{margin:2px 0 10px}

@@ -9,6 +9,8 @@ const numbers=['open','high','low','buy','sell','net','buy_volume','sell_volume'
 export const money=(n:number|null|undefined,digits=1)=>n==null?'—':new Intl.NumberFormat('ko-KR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n/1e8);
 export const amountUnit=(n:number|null|undefined)=>Math.abs(n??0)>=1e12?'조원':'억원';
 export const amountNumber=(n:number|null|undefined,digits=2)=>n==null?'—':new Intl.NumberFormat('ko-KR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n/(Math.abs(n)>=1e12?1e12:1e8));
+/** Compact axis ticks: 0 · 1,500억 · 1.5조 (no trailing .00). */
+export const axisAmount=(n:number)=>{if(!Number.isFinite(n)||n===0)return '0';const a=Math.abs(n),s=n<0?'-':'';if(a>=1e12){const v=a/1e12;return `${s}${Number.isInteger(v)?v:v.toFixed(1)}조`;}const v=a/1e8;return `${s}${(v>=10?Math.round(v):Math.round(v*10)/10).toLocaleString('ko-KR')}억`;};
 export const amountLabel=(n:number|null|undefined)=>n==null?'—':amountNumber(n)+amountUnit(n);
 export const integer=(n:number|null|undefined)=>n==null?'—':new Intl.NumberFormat('ko-KR').format(n);
 export const sign=(n:number|null|undefined)=>n==null?'':n>0?'positive':n<0?'negative':'neutral';

@@ -4,4 +4,5 @@ import AuthGate from './AuthGate';
 import './style.css';
 import './theme.css';
 import './explorer.css';
+import './polish.css';
 createRoot(document.getElementById('root')!).render(<React.StrictMode><AuthGate/></React.StrictMode>);
