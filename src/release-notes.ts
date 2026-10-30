@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-integrated-tracking',date:'2026-10-30',title:'신호 성과 검증에 통합 추적과 8항목 점수 구간 비교 추가',
+  targets:[{tab:'signals',selector:'.signal-tracking',label:'신호 성과 검증 · 통합 추적'},{tab:'signals',selector:'.signal-bands',label:'신호 성과 검증 · 8항목 점수 구간'}],
+  changes:['통합 추적: 최근 60거래일 동안 연기금·수급 상위·RSI 신호를 종목별로 묶어, 어떤 신호가 언제 겹쳤는지와 첫 신호 진입 후 현재 수익률·익절/손절 상태를 한 줄로 보여 줍니다. 기본은 2가지 이상 신호가 겹친 종목입니다.','8항목 점수 구간 비교: 날마다 장 마감 뒤 고정 기록한 점수를 순위(1~20 / 21~100 / 101~300 / 301 이하)와 점수(70 이상 / 50~70 / 50 미만) 구간으로 나눠 이후 5·10·20거래일 수익률과 지수 대비 초과수익을 비교합니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['8항목 점수는 10-28부터 기록되어 5거래일 결과는 다음 주부터 채워짐']},
  {id:'2026-10-30-new-highs',date:'2026-10-30',title:'종목 발굴에 3년 신고가 보기 추가',
   targets:[{tab:'explore',discovery:'highs',selector:'.highs-explorer',label:'종목 발굴 · 3년 신고가'}],
   changes:['오늘 장중 고가가 직전 3년(약 735거래일) 최고가를 넘은 종목, 종가 신고가 종목, 직전 최고가 5% 이내 근접 종목을 보여 줍니다.','직전 최고가와 그 날짜, 고점 간격(오래된 고점 돌파인지), 최근 20일 신고가 횟수, 연기금 오늘·5일 순매수, RSI를 함께 표시하고 ‘신고가 + 연기금 순매수’만 따로 볼 수 있습니다.','액면분할·병합은 수정주가로 보정하고, 3년치 자료가 없는 종목은 ‘보유 자료 기준’으로 구분합니다.'],

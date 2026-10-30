@@ -27,6 +27,9 @@ COOLDOWN = 20
 TOP = 20
 SETTLED = 60  # Wilder RSI needs this many changes since a restart before an entry counts
 RECENT_SESSIONS = 20
+TRACK_SESSIONS = 60
+RANK_BANDS = ((1, 20, '1~20위'), (21, 100, '21~100위'), (101, 300, '101~300위'), (301, 10**9, '301위 이하'))
+SCORE_BANDS = ((70, 101, '70점 이상'), (50, 70, '50~70점'), (0, 50, '50점 미만'))
 KST = timezone(timedelta(hours=9))
 STRATEGIES = [
     dict(key='pension', label='연기금 신호', description='기본 신호 + 직전 3개월 연기금 매수 0원 + 신호일 거래량 20일 평균 3배 이하'),
@@ -71,7 +74,7 @@ def barrier(prices, sessions, start, entry, take, stop):
     return dict(status='open', date=None, days=len(sessions) - start, ret=round((last['close'] / entry - 1) * 100, 2) if last else None, reason=None)
 
 
-def evaluate(prices, sessions, pos, signal_date, index_prices):
+def evaluate(prices, sessions, pos, signal_date, index_prices, barriers=True):
     i = pos.get(signal_date)
     out = dict(entry_date=None, entry_price=None, status='waiting', horizons={}, rules={})
     if i is None:
@@ -100,7 +103,7 @@ def evaluate(prices, sessions, pos, signal_date, index_prices):
         idx = (idx_close / idx_open - 1) * 100 if idx_open and idx_close else None
         out['horizons'][h] = dict(status='complete', ret=round(ret, 2), index=None if idx is None else round(idx, 2),
                                   excess=None if idx is None else round(ret - idx, 2))
-    for name, take, stop in RULES:
+    for name, take, stop in (RULES if barriers else ()):
         out['rules'][name] = barrier(prices, sessions, start, entry, take, stop)
     return out
 
@@ -158,7 +161,9 @@ def rank_entries(root):
         for part in header['parts']:
             stocks += json.loads(gzip.decompress((path.parent / part['file']).read_bytes()))
         ranked = sorted((s for s in stocks if s['score'] is not None), key=lambda s: (-s['score'], s['code']))[:TOP]
-        days[day] = dict(header=header, top=[s['code'] for s in ranked], scores={s['code']: s['score'] for s in ranked})
+        full = sorted((s for s in stocks if s['score'] is not None), key=lambda s: (-s['score'], s['code']))
+        days[day] = dict(header=header, top=[s['code'] for s in ranked], scores={s['code']: s['score'] for s in ranked},
+                         ranking=[(s['code'], s['score']) for s in full])
     ordered = sorted(days)
     entries = []
     for prev, day in zip(ordered, ordered[1:]):
@@ -168,7 +173,7 @@ def rank_entries(root):
                 entries.append(dict(code=code, signal_date=day, rank=rank, score=days[day]['scores'][code], previous_snapshot=prev,
                                     frozen=days[day]['header']['capture_kind'] == 'same_day_after_close'))
     frozen_days = {d for d, v in days.items() if v['header']['capture_kind'] == 'same_day_after_close'}
-    return entries, {d: set(v['top']) for d, v in days.items()}, frozen_days
+    return entries, {d: set(v['top']) for d, v in days.items()}, frozen_days, {d: v['ranking'] for d, v in days.items()}
 
 
 def frozen_log(root):
@@ -181,6 +186,65 @@ def frozen_log(root):
         for s in data.get('signals', []):
             out.add((s['strategy'], s['code'], data['as_of']))
     return out
+
+
+def integrated_tracking(counted, sessions, prices, as_of, window=TRACK_SESSIONS):
+    """One row per stock with every signal it had in the last `window` sessions; outcome from its first signal."""
+    since = sessions[-window] if len(sessions) >= window else sessions[0]
+    base = {'pension', 'rank8', 'rsi'}
+    groups = {}
+    for s in counted:
+        if s['signal_date'] >= since:
+            groups.setdefault(s['code'], []).append(s)
+    out = []
+    for code, items in groups.items():
+        items.sort(key=lambda s: (s['signal_date'], s['strategy']))
+        first = next((s for s in items if s['entry_date']), items[0])
+        last_row = None
+        for d in reversed(sessions):
+            r = prices.get(code, {}).get(d)
+            if r and r.get('close'):
+                last_row = (d, r['close'])
+                break
+        ret = round((last_row[1] / first['entry_price'] - 1) * 100, 2) if first['entry_price'] and last_row else None
+        kinds = sorted({s['strategy'] for s in items} & base)
+        out.append(dict(code=code, name=first['name'], market=first['market'], kinds=kinds, overlap=len(kinds),
+                        combos=sorted({s['strategy'] for s in items} - base),
+                        signals=[dict(strategy=s['strategy'], date=s['signal_date'], forward=s['forward']) for s in items],
+                        first_date=items[0]['signal_date'], last_date=items[-1]['signal_date'], entry_date=first['entry_date'],
+                        entry_price=first['entry_price'], last_close=last_row[1] if last_row else None, ret=ret,
+                        status=(first['rules'].get('30/10') or {}).get('status', first['status'])))
+    out.sort(key=lambda r: (r['last_date'], r['code']), reverse=True)
+    out.sort(key=lambda r: -r['overlap'])  # stable: most overlapping signal types first, newest first within
+    return out
+
+
+def score_bands(rankings, frozen_days, prices, sessions, pos, index_prices, markets):
+    """Forward returns by 8-item rank band and score band, only for scores frozen on their own day."""
+    groups = {}
+    observed = sorted(d for d in rankings if d in frozen_days and d in pos)
+    for day in observed:
+        for rank, (code, score) in enumerate(rankings[day], 1):
+            r = evaluate(prices.get(code, {}), sessions, pos, day, index_prices.get(markets.get(code), {}), barriers=False)
+            if not r['entry_date']:
+                continue
+            rank_label = next(label for lo, hi, label in RANK_BANDS if lo <= rank <= hi)
+            score_label = next(label for lo, hi, label in SCORE_BANDS if lo <= score < hi)
+            for kind, label in (('rank', rank_label), ('score', score_label), ('all', '전체')):
+                groups.setdefault((kind, label), []).append(r)
+    out = []
+    order = [('rank', l) for _, _, l in RANK_BANDS] + [('score', l) for _, _, l in SCORE_BANDS] + [('all', '전체')]
+    for key in order:
+        items = groups.get(key, [])
+        hz = {}
+        for h in HORIZONS[:3]:
+            done = [x['horizons'][h] for x in items if x['horizons'].get(h, {}).get('status') == 'complete']
+            ex = [d['excess'] for d in done if d['excess'] is not None]
+            hz[h] = dict(count=len(done), mean=round(mean(d['ret'] for d in done), 2) if done else None,
+                         excess=round(mean(ex), 2) if ex else None,
+                         positive=round(sum(d['ret'] > 0 for d in done) / len(done) * 100, 1) if done else None)
+        out.append(dict(kind=key[0], label=key[1], observations=len(items), horizons=hz))
+    return dict(days=observed, bands=out, note='같은 날 장 마감 뒤 고정 기록한 8항목 점수만 사용 · 다음 거래일 시가 진입 · 기간이 지나야 결과가 채워짐')
 
 
 def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
@@ -215,7 +279,7 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
                 for r in rows:
                     target_rows.setdefault(r['date'], r)
 
-    ranks, top_sets, frozen_days = rank_entries(root)
+    ranks, top_sets, frozen_days, rankings = rank_entries(root)
     rsi = []
     for code, series in rsi_series.items():
         for a, b in zip(series, series[1:]):
@@ -233,7 +297,7 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
 
     logged = frozen_log(root)
     raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_rank=rsi_rank, rsi_pension=rsi_pension)
-    strategies, recent, today = [], [], []
+    strategies, recent, today, all_counted = [], [], [], []
     recent_from = sessions[-RECENT_SESSIONS] if len(sessions) >= RECENT_SESSIONS else sessions[0]
     for spec in STRATEGIES:
         key = spec['key']
@@ -256,13 +320,16 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
         strategies.append(dict(spec, first_signal=first, backtest=summarize(back), forward=summarize(fwd), monthly=monthly(counted),
                                forward_only=key in ('rank8', 'rsi_rank')))
         recent += [s for s in counted if s['signal_date'] >= recent_from]
+        all_counted += counted
         today += [dict(strategy=key, code=s['code']) for s in counted if s['signal_date'] == as_of]
     recent.sort(key=lambda s: (s['signal_date'], s['strategy'], s['code']), reverse=True)
+    tracking = integrated_tracking(all_counted, sessions, prices, as_of)
+    bands = score_bands(rankings, frozen_days, prices, sessions, pos, index_prices, markets)
     result = dict(schema_version=1, as_of=as_of, period=dict(first=sessions[0] if sessions else None, last=as_of),
                   rules=dict(entry='신호 다음 거래일 시가', horizons=list(HORIZONS), barriers=[dict(name=n, take=t, stop=s) for n, t, s in RULES],
                              cooldown=COOLDOWN, top=TOP, rsi_settled=SETTLED, same_day='익절·손절 동시 도달은 손절(시가 갭은 시가 체결)',
                              costs='수수료·세금·배당 미반영', universe='RSI는 현재 상장 보통주(상장폐지 종목 제외), 연기금은 3년 추적 이력'),
-                  strategies=strategies, recent=recent, today=today)
+                  strategies=strategies, recent=recent, today=today, tracking=tracking, score_bands=bands)
     save_json(Path(target) / 'signal-lab' / 'latest.json', result)
     return result
 

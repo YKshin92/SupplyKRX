@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import barrier, evaluate, summarize, wilson
+from collector.signal_lab import barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -48,6 +48,21 @@ class SignalLabTests(unittest.TestCase):
         self.assertEqual(s['rules']['10/5']['take'], 1)
         self.assertEqual(s['horizons'][5]['count'], 1)
         self.assertEqual(wilson(0, 0), None)
+
+    def test_integrated_tracking_groups_signals_and_score_bands(self):
+        p = {d: bar(100, 101, 99, 100) for d in self.days}
+        p['d29'] = bar(110, 111, 109, 110)
+        def item(strategy, day):
+            r = evaluate(p, self.days, self.pos, day, {})
+            return dict(r, strategy=strategy, code='A', name='에이', market='KOSPI', signal_date=day, forward=False)
+        rows = integrated_tracking([item('rsi', 'd20'), item('pension', 'd22'), item('rsi_pension', 'd22')], self.days, {'A': p}, 'd29')
+        self.assertEqual(rows[0]['kinds'], ['pension', 'rsi']); self.assertEqual(rows[0]['combos'], ['rsi_pension'])
+        self.assertEqual((rows[0]['entry_date'], rows[0]['ret']), ('d21', 10.0))
+        bands = score_bands({'d05': [('A', 80.0), ('B', 40.0)]}, {'d05'}, {'A': p, 'B': p}, self.days, self.pos, {}, {})
+        top = next(b for b in bands['bands'] if b['label'] == '1~20위')
+        self.assertEqual((top['observations'], top['horizons'][5]['count']), (2, 2))
+        self.assertEqual(next(b for b in bands['bands'] if b['label'] == '50점 미만')['observations'], 1)
+        self.assertEqual(score_bands({'d05': [('A', 80.0)]}, set(), {'A': p}, self.days, self.pos, {}, {})['days'], [])
 
 
 if __name__ == '__main__':

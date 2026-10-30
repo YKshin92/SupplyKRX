@@ -8,7 +8,9 @@ type Month={month:string;signals:number;take:number;stop:number;win_rate:number|
 type Strategy={key:string;label:string;description:string;first_signal:string|null;forward_only:boolean;backtest:Summary;forward:Summary;monthly:Month[]};
 type Outcome={status:string;date:string|null;days:number|null;ret:number|null};
 type Signal={strategy:string;code:string;name:string;market:string|null;signal_date:string;forward:boolean;entry_date:string|null;entry_price:number|null;status:string;horizons:Record<string,{status:string;ret?:number;excess?:number|null}>;rules:Record<string,Outcome>;rank?:number;score?:number;rsi?:number};
-type Lab={schema_version:1;as_of:string;period:{first:string;last:string};rules:{entry:string;horizons:number[];barriers:{name:string;take:number;stop:number}[];cooldown:number;same_day:string;costs:string;universe:string;rsi_settled:number};strategies:Strategy[];recent:Signal[];today:{strategy:string;code:string}[]};
+type Track={code:string;name:string;market:string|null;kinds:string[];overlap:number;combos:string[];signals:{strategy:string;date:string;forward:boolean}[];first_date:string;last_date:string;entry_date:string|null;entry_price:number|null;last_close:number|null;ret:number|null;status:string};
+type Band={kind:'rank'|'score'|'all';label:string;observations:number;horizons:Record<string,{count:number;mean:number|null;excess:number|null;positive:number|null}>};
+type Lab={tracking?:Track[];score_bands?:{days:string[];bands:Band[];note:string};schema_version:1;as_of:string;period:{first:string;last:string};rules:{entry:string;horizons:number[];barriers:{name:string;take:number;stop:number}[];cooldown:number;same_day:string;costs:string;universe:string;rsi_settled:number};strategies:Strategy[];recent:Signal[];today:{strategy:string;code:string}[]};
 
 const pct=(v:number|null|undefined,d=1)=>v==null?'—':`${v>0?'+':''}${v.toFixed(d)}%`;
 const cls=(v:number|null|undefined)=>v==null?'':v>0?'positive':v<0?'negative':'';
@@ -17,7 +19,7 @@ const statusLabel:Record<string,string>={take:'익절',stop:'손절',open:'관�
 /** 신호 성과 검증: pension / 8-item rank / RSI signals and combinations under one evaluation rule set. */
 export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
  const [lab,setLab]=useState<Lab|null>(null),[error,setError]=useState('');
- const [rule,setRule]=useState('30/10'),[scope,setScope]=useState<'backtest'|'forward'>('backtest'),[selected,setSelected]=useState('rsi'),[filter,setFilter]=useState('all'),[page,setPage]=useState(1);
+ const [overlapOnly,setOverlapOnly]=useState(true),[trackPage,setTrackPage]=useState(1),[rule,setRule]=useState('30/10'),[scope,setScope]=useState<'backtest'|'forward'>('backtest'),[selected,setSelected]=useState('rsi'),[filter,setFilter]=useState('all'),[page,setPage]=useState(1);
  useEffect(()=>{import('./data.ts').then(d=>d.json<Lab>('/data/live/signal-lab/latest.json')).then(d=>{if(!d||d.schema_version!==1||!Array.isArray(d.strategies))throw Error();setLab(d);}).catch(()=>setError('신호 성과 자료를 아직 불러올 수 없습니다.'));},[]);
  const rows=useMemo(()=>(lab?.recent??[]).filter(s=>filter==='all'||s.strategy===filter),[lab,filter]);
  useEffect(()=>setPage(1),[filter]);
@@ -55,6 +57,8 @@ export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
    <p className="source-note">막대 높이는 신호 수, 숫자는 그 달 신호의 승률(+30% 먼저 도달 비율)입니다. 특정 시기에만 잘 맞았는지 확인하는 용도입니다.</p>
   </div>
 
+  <IntegratedTracking lab={lab} label={label} overlapOnly={overlapOnly} setOverlapOnly={v=>{setOverlapOnly(v);setTrackPage(1);}} page={trackPage} setPage={setTrackPage} onOpen={onOpen}/>
+  <ScoreBands lab={lab}/>
   <div className="signal-recent">
    <div className="signal-recent-head"><h3>최근 20거래일 신호 <small>{rows.length}건 · 오늘 {lab.today.length}건</small></h3>
     <select aria-label="신호 종류" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">전체 신호</option>{lab.strategies.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select></div>
@@ -71,4 +75,36 @@ export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
   </div>
   <p className="source-note">진입: {lab.rules.entry} · 같은 종목은 신호 뒤 {lab.rules.cooldown}거래일 안의 재신호를 세지 않음 · {lab.rules.same_day} · {lab.rules.costs} · {lab.rules.universe} · RSI 신호는 재시작 뒤 {lab.rules.rsi_settled}거래일 이상 안정화된 값만 · 상승장 구간의 결과는 지수 대비 초과수익과 함께 보세요 · 투자 권유 아님</p>
  </section>;
+}
+
+function IntegratedTracking({lab,label,overlapOnly,setOverlapOnly,page,setPage,onOpen}:{lab:Lab;label:Record<string,string>;overlapOnly:boolean;setOverlapOnly:(v:boolean)=>void;page:number;setPage:(n:number)=>void;onOpen:(code:string)=>void}){
+ const all=lab.tracking??[];const rows=overlapOnly?all.filter(t=>t.overlap>=2):all;
+ const pages=Math.max(1,Math.ceil(rows.length/20)),current=Math.min(page,pages);
+ const short:Record<string,string>={pension:'연기금',rank8:'수급 상위',rsi:'RSI',rsi_rank:'RSI+수급',rsi_pension:'RSI+연기금'};
+ return <div className="signal-recent signal-tracking">
+  <div className="signal-recent-head"><h3>통합 추적 <small>최근 60거래일 · 종목별 신호 묶음 · {all.filter(t=>t.overlap>=2).length}종목이 2가지 이상 신호</small></h3>
+   <div className="signal-lab-toggles"><div role="group" aria-label="통합 추적 범위"><button type="button" aria-pressed={overlapOnly} onClick={()=>setOverlapOnly(true)}>2가지 이상 겹침</button><button type="button" aria-pressed={!overlapOnly} onClick={()=>setOverlapOnly(false)}>전체 {all.length}종목</button></div></div></div>
+  <div className="table-scroll"><table className="signal-table"><thead><tr><th>종목</th><th>신호 (날짜순)</th><th>첫 신호 진입</th><th>현재 수익률</th><th>+30% / −10%</th></tr></thead><tbody>
+   {rows.slice((current-1)*20,current*20).map(t=><tr key={t.code} tabIndex={0} onClick={()=>onOpen(t.code)} onKeyDown={e=>{if(e.key==='Enter')onOpen(t.code);}}>
+    <td><strong>{t.name}</strong><small>{t.code} · {t.market??'—'}{t.overlap>=2?` · ${t.overlap}가지 겹침`:''}</small></td>
+    <td className="signal-chips">{t.signals.map((s,i)=><span key={i} className={`signal-badge ${s.strategy}`} title={label[s.strategy]}>{short[s.strategy]??s.strategy} {s.date.slice(5)}{s.forward?' ✓':''}</span>)}</td>
+    <td>{t.entry_date?<>{t.entry_date.slice(5)}<small>{t.entry_price?.toLocaleString('ko-KR')}원</small></>:<span className="rsi-muted">진입 대기</span>}</td>
+    <td className={cls(t.ret)}>{pct(t.ret)}</td>
+    <td><span className={`signal-status ${t.status}`}>{statusLabel[t.status]??t.status}</span></td></tr>)}
+  </tbody></table></div>
+  {!rows.length&&<p className="no-results">해당하는 종목이 없습니다.</p>}
+  <div className="table-footer"><span>현재 수익률은 첫 신호 다음날 시가 대비 최근 종가 · ✓는 사전 기록 신호</span><span><button disabled={current<=1} onClick={()=>setPage(current-1)}>이전</button> {current}/{pages} <button disabled={current>=pages} onClick={()=>setPage(current+1)}>다음</button></span></div>
+ </div>;
+}
+
+function ScoreBands({lab}:{lab:Lab}){
+ const sb=lab.score_bands;if(!sb)return null;
+ const hs=['5','10','20'];
+ return <div className="signal-detail signal-bands">
+  <h3>8항목 점수 구간별 전진 성과 <small>기록일 {sb.days.length}일 ({sb.days[0]??'—'} ~ {sb.days.at(-1)??'—'})</small></h3>
+  <div className="table-scroll"><table className="signal-horizon-table"><thead><tr><th>구간</th><th>관측</th>{hs.map(h=><th key={h}>{h}일 평균 / 지수 대비 (완료)</th>)}</tr></thead><tbody>
+   {sb.bands.map(b=><tr key={b.kind+b.label} className={b.kind==='all'?'signal-barrier-row':''}><td>{b.kind==='rank'?'순위 ':b.kind==='score'?'점수 ':''}{b.label}</td><td>{b.observations}</td>{hs.map(h=>{const x=b.horizons[h];return <td key={h}>{x?.count?<><span className={cls(x.mean)}>{pct(x.mean,2)}</span> / <span className={cls(x.excess)}>{pct(x.excess,2)}</span> <small>({x.count})</small></>:<span className="rsi-muted">대기</span>}</td>;})}</tr>)}
+  </tbody></table></div>
+  <p className="source-note">{sb.note}. 같은 종목이 여러 날 관측되면 날마다 따로 셉니다. 순위가 높을수록 성과가 좋은지 확인하는 용도이며, 표본이 쌓이기 전에는 판단하지 않습니다.</p>
+ </div>;
 }

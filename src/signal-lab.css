@@ -16,3 +16,4 @@
 .signal-table tbody tr{cursor:pointer}.signal-table tbody tr:hover{background:var(--surface-soft,#f6f8fb)}.signal-table td small{display:block;color:var(--muted);font-size:11px}.signal-table td strong{display:block}
 .signal-badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--border)}.signal-badge.rsi{background:var(--rsi-low-zone,#4284d824)}.signal-badge.pension{background:#cd4e6022}.signal-badge.rank8{background:#9275e833}.signal-badge.rsi_rank,.signal-badge.rsi_pension{background:#20a68a2e}
 .signal-status.take{color:var(--red);font-weight:700}.signal-status.stop{color:#3574c5;font-weight:700}.signal-status.open{color:var(--muted)}.signal-forward{font-size:11px;font-weight:700;color:var(--blue)}
+.signal-chips{white-space:normal!important}.signal-chips .signal-badge{margin:1px 3px 1px 0}
