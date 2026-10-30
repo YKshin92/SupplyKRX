@@ -23,3 +23,10 @@ export function readRsi(read:Reader=json):Promise<RsiData>{
 }
 export const stateLabel=(s:RsiState)=>s==='below30'?'30 미만':s==='above70'?'70 이상':s==='neutral'?'30~70':'산출 불가';
 export const reasonLabel=(r:string|null)=>r==='warmup'?'관측 부족(15거래일 미만)':r==='flat'?'14일 보합':r==='invalid'?'기준일 거래 없음':r==='break'?'가격 단절 후 재시작':'';
+
+export type StockRsi={schema_version:1;code:string;as_of:string;series:{date:string;rsi:number|null;cutler:number|null}[]};
+/** Per-stock RSI path for the detail panel. */
+export function readStockRsi(code:string,read:Reader=json):Promise<StockRsi>{
+ if(!/^[0-9A-Z]{6}$/.test(code))return Promise.reject(Error('invalid code'));
+ return read<StockRsi>(`/data/live/rsi/stocks/${code}.json`).then(d=>{if(!d||d.schema_version!==1||d.code!==code||!Array.isArray(d.series))throw Error('RSI 자료 형식 확인 필요');return d;});
+}

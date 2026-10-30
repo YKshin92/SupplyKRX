@@ -108,7 +108,8 @@ def _series_ohlcv(series, prices, chart_sessions):
     out = []
     for x in _series_out(series, chart_sessions):
         r = prices.get(x['date']) or {}
-        out.append(dict(x, open=r.get('open'), high=r.get('high'), low=r.get('low'), volume=r.get('volume')))
+        rd = lambda v: None if v is None else round(v, 4)
+        out.append(dict(x, open=rd(r.get('open')), high=rd(r.get('high')), low=rd(r.get('low')), volume=r.get('volume')))
     return out
 
 
@@ -226,4 +227,9 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
                                invalid=sum(s['reason'] == 'invalid' for s in stocks), break_reset=sum(s['reason'] == 'break' for s in stocks)),
                   indices=index_out, domestic_top30=domestic, us=us_rsi(us, chart_sessions, top), stocks=stocks)
     save_json(target / 'rsi' / 'latest.json', result)
+    # Per-stock RSI path for the stock detail panel (last chart_sessions sessions, Wilder + Cutler reference).
+    for code, series in series_by_code.items():
+        if by_code[code].get(as_of):
+            save_json(target / 'rsi' / 'stocks' / f'{code}.json', dict(schema_version=1, code=code, as_of=as_of, series=[
+                dict(date=x['date'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]]))
     return result

@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-rsi-stock-detail',date:'2026-10-30',title:'RSI 30 미만 종목 상세에 최근 60거래일 일봉·거래량·RSI 추세',
+  targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만'}],
+  changes:['RSI 30 미만 목록에서 종목을 누르면 오른쪽 종목 상세에 최근 60거래일 일봉, 거래량, RSI(14) 추세가 같은 날짜 축으로 차례로 표시됩니다. 연기금 수급 차트는 그 아래에 있습니다.','RSI 차트에는 30 미만·70 이상 음영과 도달일 점, 진입일 목록이 함께 나옵니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-rsi-chart-height',date:'2026-10-30',title:'지수 RSI 차트 확대, 30·70 도달일 표시, 시총 상위 종목 차트',
   targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수·시총 상위 RSI'}],
   changes:['지수 RSI 차트 높이를 2배 이상 키웠습니다(모바일은 조금 낮게).','30 미만·70 이상인 날은 선 위에 파란·빨간 점으로 표시하고, 차트에 마우스를 올리면 날짜·RSI·Cutler 참고값·종가를 보여 줍니다.','차트 아래에 30 미만·70 이상으로 들어간 날짜와 구간에 머문 일수를 표시합니다.','시총 상위 30 표에서 종목을 누르면 그 아래에 일봉·거래량·RSI 차트가 같은 날짜 축으로 크게 열립니다. 30 미만·70 이상 진입일도 함께 표시합니다.'],
