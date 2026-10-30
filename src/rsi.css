@@ -1,7 +1,7 @@
 .index-rsi{background:var(--panel-bg,#fff);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin:0 0 18px}.rsi-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}.rsi-title h3,.rsi-title h2{font-size:15px}.rsi-title small,.rsi-title h2 span{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}.rsi-title>span{font-size:11px;color:var(--muted)}
 .index-rsi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:10px}.index-rsi-grid article{border:1px solid var(--border);border-radius:8px;padding:12px}.index-rsi-grid article.below30{border-color:#9dbbe6}.index-rsi-grid article.above70{border-color:#e7a3ab}
 .index-rsi-head{display:flex;justify-content:space-between;align-items:center}.index-rsi-value{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:6px 0}.index-rsi-value b{font-size:26px;font-family:Arial,sans-serif}.index-rsi-value span{font-size:12px;font-weight:600}.index-rsi-value small{font-size:11px;color:var(--muted);flex-basis:100%}
-.index-rsi-chart{height:120px}.rsi-event{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#4284d8;color:#fff;margin-left:6px}
+.index-rsi-chart{height:260px}.rsi-event{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#4284d8;color:#fff;margin-left:6px}
 .rsi-explorer{padding:4px 0}.rsi-counts{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted);margin:10px 0}.rsi-counts b{color:var(--text,#20324d);font-size:14px;margin-left:4px}.rsi-counts small{display:block;font-size:10px}
 .rsi-table td small{display:block;font-size:10px;color:var(--muted)}.rsi-table tr{cursor:pointer}.rsi-table tr:hover{background:#f5f8fd}[data-theme=dark] .rsi-table tr:hover{background:#1d2b40}[data-theme=dark] .index-rsi{background:#172336}[data-theme=dark] .rsi-counts b{color:#e1e9f5}
 @media(max-width:700px){.index-rsi-grid{grid-template-columns:1fr}}
@@ -19,3 +19,6 @@
 .rsi-top-table tr.below30{background:var(--rsi-low-zone)}.rsi-top-table tr.above70{background:var(--rsi-high-zone)}
 .rsi-top-table .rsi-num{font-weight:700;font-variant-numeric:tabular-nums}.rsi-state.below30{color:var(--rsi-low-line);font-weight:700}.rsi-state.above70{color:var(--rsi-high-line);font-weight:700}.rsi-muted{color:var(--muted);font-size:12px}
 .rsi-spark{display:block;border-radius:3px;background:var(--surface)}
+@media(max-width:700px){.index-rsi-chart{height:220px}}
+.rsi-zone-dates{display:grid;gap:4px;margin-top:8px;font-size:12px}.rsi-zone-dates div{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}.rsi-zone-dates b{font-weight:600;margin-right:2px}.rsi-zone-dates b.low{color:var(--rsi-low-line)}.rsi-zone-dates b.high{color:var(--rsi-high-line)}.rsi-zone-dates small{color:var(--muted);margin-left:4px}
+.rsi-chip{display:inline-block;padding:1px 7px;border-radius:999px;font-variant-numeric:tabular-nums;font-size:11px}.rsi-chip.low{background:var(--rsi-low-zone);color:var(--rsi-low-line)}.rsi-chip.high{background:var(--rsi-high-zone);color:var(--rsi-high-line)}

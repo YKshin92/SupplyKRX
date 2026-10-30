@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import RsiChart from './RsiChart';
+import RsiChart,{zoneEntries} from './RsiChart';
 import RsiSpark from './RsiSpark';
 import {readRsi,stateLabel,reasonLabel,unsettled,type RsiData,type RsiIndex,type RsiSummary,type RsiPoint} from './rsi-data';
 import './rsi.css';
@@ -8,6 +8,15 @@ const fmt=(v:number|null|undefined,d=1)=>v==null?'—':v.toFixed(d);
 const krCap=(v:number)=>v>=1e12?`${(v/1e12).toFixed(1)}조`:`${Math.round(v/1e8).toLocaleString('ko-KR')}억`;
 const usCap=(v:number|null)=>v==null?'—':v>=1e12?`$${(v/1e12).toFixed(2)}T`:`$${(v/1e9).toFixed(0)}B`;
 
+function ZoneDates({series}:{series:RsiPoint[]}){
+ const z=zoneEntries(series);
+ const chips=(days:string[],cls:string)=>days.length?days.map(d=><span key={d} className={`rsi-chip ${cls}`}>{d.slice(5)}</span>):<span className="rsi-muted">없음</span>;
+ return <div className="rsi-zone-dates">
+  <div><b className="low">30 미만 진입일</b>{chips(z.low,'low')}<small>구간 내 {z.lowDays}일</small></div>
+  <div><b className="high">70 이상 진입일</b>{chips(z.high,'high')}<small>구간 내 {z.highDays}일</small></div>
+ </div>;
+}
+
 function IndexCard({name,x}:{name:string;x?:RsiIndex}){
  if(!x)return <article><strong>{name}</strong><p>지수 자료 없음</p></article>;
  const s=x.summary;
@@ -15,6 +24,7 @@ function IndexCard({name,x}:{name:string;x?:RsiIndex}){
   <div className="index-rsi-head"><strong>{name}</strong>{s.entry_today&&<span className="rsi-event">오늘 30 하향 진입</span>}</div>
   <div className="index-rsi-value"><b>{fmt(s.rsi)}</b><span>{stateLabel(s.state)}</span><small>전일 {fmt(s.prev_rsi)} · Cutler 참고 {fmt(s.cutler)}{unsettled(s)?' · 안정화 전':''}{s.last_entry_date?` · 최근 30 하향 진입 ${s.last_entry_date}`:''}</small></div>
   <div className="index-rsi-chart"><RsiChart series={x.series}/></div>
+  <ZoneDates series={x.series}/>
  </article>;
 }
 
@@ -23,7 +33,7 @@ function TopTable({title,note,rows}:{title:string;note:string;rows:Row[]}){
  return <div className="rsi-top">
   <div className="rsi-top-title"><h4>{title}</h4><span>{note}</span></div>
   <div className="table-scroll"><table className="rsi-top-table"><thead><tr><th>순위</th><th>종목</th><th>시가총액</th><th>종가</th><th>RSI</th><th>전일</th><th>Cutler 참고</th><th>상태</th><th>최근 흐름</th></tr></thead>
-  <tbody>{rows.map(r=><tr key={r.key} className={r.state??''}><td>{r.rank}</td><td><strong>{r.name}</strong><small>{r.sub}</small></td><td>{r.cap}</td><td>{r.close}</td><td className="rsi-num">{fmt(r.rsi)}</td><td>{fmt(r.prev_rsi)}</td><td className="rsi-muted">{fmt(r.cutler)}</td><td>{r.rsi==null?<span className="rsi-muted">{reasonLabel(r.reason)||'산출 불가'}</span>:<span className={`rsi-state ${r.state}`}>{stateLabel(r.state)}{r.entry_today?' · 오늘 진입':''}{unsettled(r)?' · 안정화 전':''}</span>}</td><td><RsiSpark series={r.series}/></td></tr>)}</tbody></table></div>
+  <tbody>{rows.map(r=><tr key={r.key} className={r.state??''}><td>{r.rank}</td><td><strong>{r.name}</strong><small>{r.sub}</small></td><td>{r.cap}</td><td>{r.close}</td><td className="rsi-num">{fmt(r.rsi)}</td><td>{fmt(r.prev_rsi)}</td><td className="rsi-muted">{fmt(r.cutler)}</td><td>{r.rsi==null?<span className="rsi-muted">{reasonLabel(r.reason)||'산출 불가'}</span>:<span className={`rsi-state ${r.state}`}>{stateLabel(r.state)}{r.entry_today?' · 오늘 진입':''}{unsettled(r)?' · 안정화 전':''}</span>}</td><td><RsiSpark series={r.series} width={168} height={46}/></td></tr>)}</tbody></table></div>
  </div>;
 }
 
