@@ -1,8 +1,7 @@
 name: Collect pension and foreign flow
 on:
-  schedule:
-    # Provisional slots, KST 18:17 and 20:17. Confirm source publication timing.
-    - cron: '17 9,11 * * 1-5'
+  # Collection runs in the private data repository (Claude 16:00 dispatch + 20:10 backup).
+  # This public workflow stays manual-only and is gated by COLLECTION_ENABLED.
   workflow_dispatch:
     inputs:
       start:
@@ -28,11 +27,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 1
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
