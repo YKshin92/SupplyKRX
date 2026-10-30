@@ -18,11 +18,12 @@ Rules (also published in the output so the UI can state them):
   today's RSI is < 30. Staying below 30 is a state, never a new event.
 """
 from .simulation import price_break
+from .price_adjust import adjust_history
 
 PERIOD = 14
 LOW, HIGH = 30, 70
 RULES = dict(method='Wilder RSI (표준, HTS/MTS 기본값)', secondary='Cutler RSI (단순평균)', period=PERIOD, low=LOW, high=HIGH, price='raw close',
-             invalid='close 미수집·0, 거래량 0(거래정지 추정)', reset='결측·거래량 0·가격 단절(기업행사 포함) 다음부터 warm-up 재시작',
+             invalid='close 미수집·0, 거래량 0(거래정지 추정)은 봉이 없는 날로 건너뜀', adjusted='등락률로 설명되는 액면분할·병합 등은 수정주가로 이전 가격을 보정', reset='등락률로 설명되지 않는 가격 단절 뒤에만 warm-up 재시작',
              flat='14일 모두 보합이면 값 없음', event='전일 RSI 30 이상 → 당일 30 미만일 때만 하향 진입 사건')
 
 
@@ -44,8 +45,8 @@ def cutler_series(rows, sessions, period=PERIOD, require_volume=True):
         r = rows.get(day)
         valid = bool(r and r.get('close') and r['close'] > 0 and (not require_volume or (r.get('volume') or 0) > 0))
         if not valid:
-            changes, previous, wg, wl, count = [], None, None, None, 0
-            out.append(dict(date=day, close=r.get('close') if r else None, rsi=None, cutler=None, since_reset=0, reason='invalid'))
+            # Halted / missing session: no bar (as on HTS charts). The calculation continues from the last valid bar.
+            out.append(dict(date=day, close=r.get('close') if r else None, rsi=None, cutler=None, since_reset=count, reason='invalid'))
             continue
         reason = None
         if previous is not None and price_break(previous, r):
@@ -128,7 +129,9 @@ def load_warmup(path):
     sessions = data['sessions']
     out = {}
     for code, values in data['stocks'].items():
-        if data.get('schema_version') == 2:
+        if data.get('schema_version') == 3:
+            out[code] = {d: dict(open=v[0], high=v[1], low=v[2], close=v[3], volume=v[4], change_pct=v[5]) for d, v in zip(sessions, values) if v}
+        elif data.get('schema_version') == 2:
             out[code] = {d: dict(open=v[0], high=v[1], low=v[2], close=v[3], volume=v[4]) for d, v in zip(sessions, values) if v}
         else:
             out[code] = {d: dict(close=v[0], volume=v[1]) for d, v in zip(sessions, values) if v}
@@ -195,6 +198,12 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
         for d, w in warm.get(code, {}).items():
             if d < first_live:
                 history.setdefault(d, w)
+    # 수정주가: scale prices before split/reverse-split style breaks explained by the exchange change rate.
+    adjustments = {}
+    for code in list(by_code):
+        by_code[code], points = adjust_history(by_code[code], sessions)
+        if points:
+            adjustments[code] = [dict(date=d, factor=round(f, 6)) for d, f in points]
     stocks = []
     series_by_code = {}
     for code, history in by_code.items():
@@ -204,7 +213,7 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
         series = cutler_series(history, sessions)
         series_by_code[code] = series
         s = summarize(series)
-        stocks.append(dict(code=code, name=latest['name'], market=latest['market'], close=latest.get('close'),
+        stocks.append(dict(adjustments=adjustments.get(code, []), code=code, name=latest['name'], market=latest['market'], close=latest.get('close'),
                            change_pct=latest.get('change_pct'), observed=sum(1 for x in series if x['rsi'] is not None), **s))
     stocks.sort(key=lambda x: (x['rsi'] is None, x['rsi'] if x['rsi'] is not None else 0, x['code']))
     index_out = {}
@@ -237,5 +246,6 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
     for code, series in series_by_code.items():
         if by_code[code].get(as_of):
             save_json(target / 'rsi' / 'stocks' / f'{code}.json', dict(schema_version=1, code=code, as_of=as_of, series=[
-                dict(date=x['date'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]]))
+                dict(date=x['date'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]],
+                adjustments=adjustments.get(code, [])))
     return result

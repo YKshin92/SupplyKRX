@@ -37,10 +37,14 @@ class RsiTests(unittest.TestCase):
         self.assertEqual(cutler_series(*rows(list(range(100, 115))))[-1]['rsi'], 100.0)
         gap = list(range(100, 110)) + [None] + list(range(110, 120))
         s = cutler_series(*rows(gap))
-        self.assertEqual(s[10]['reason'], 'invalid'); self.assertIsNone(s[-1]['rsi'])  # only 9 changes after the gap
+        self.assertEqual(s[10]['reason'], 'invalid'); self.assertIsNone(s[10]['rsi'])
+        self.assertEqual(s[-1]['rsi'], 100.0)  # the missing day is skipped, not a restart: 19 valid bars
         r, d = rows(list(range(100, 130)))
         r[d[20]] = dict(r[d[20]], volume=0)
-        self.assertIsNone(cutler_series(r, d)[25]['rsi'])
+        s = cutler_series(r, d)
+        self.assertIsNone(s[20]['rsi']); self.assertEqual(s[25]['rsi'], 100.0)  # halted day skipped
+        r[d[22]] = dict(r[d[22]], close=r[d[22]]['close'] * 3, open=r[d[22]]['open'] * 3)  # unexplained break still restarts
+        self.assertEqual(cutler_series(r, d)[22]['reason'], 'break')
         r, d = rows(list(range(100, 130)))
         r[d[20]] = dict(r[d[20]], close=300, open=300)  # >35% jump: corporate-action style break
         s = cutler_series(r, d)

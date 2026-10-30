@@ -1,7 +1,7 @@
 """Private one-time (re-runnable) warm-up history for Wilder RSI: raw closes and volumes before the live data.
 
 Wilder RSI depends on its starting point, so the published value only settles after enough history.
-This stores [open, high, low, close, volume] (schema 2) for every KOSPI/KOSDAQ ticker on the N KRX sessions before the first live
+This stores [open, high, low, close, volume, change_pct] (schema 3) for every KOSPI/KOSDAQ ticker on the N KRX sessions before the first live
 daily file, using pykrx market-wide quotes (KRX_ID/KRX_PW from the environment; never printed).
 Missing tickers stay null (not listed / no quote); nothing is filled or adjusted.
 Output: data/live/rsi-warmup.json.gz (private repo only).
@@ -35,8 +35,8 @@ if len(sessions) < 30:
     raise SystemExit(f'not enough KRX sessions before {first_live}')
 target = live / 'rsi-warmup.json.gz'
 previous = json.loads(gzip.decompress(target.read_bytes())) if target.exists() else None
-if previous and previous.get('schema_version') != 2:
-    previous = None  # schema 1 had closes only; refetch with OHLC
+if previous and previous.get('schema_version') != 3:
+    previous = None  # older schemas lack OHLC or the exchange change rate; refetch
 done = {}
 if previous:  # resume: keep sessions already fetched
     for i, d in enumerate(previous['sessions']):
@@ -48,7 +48,7 @@ with contextlib.redirect_stdout(io.StringIO()):
 def save():
     codes = sorted({c for q in done.values() for c in q})
     kept = [d for d in sessions if d in done]
-    payload = dict(schema_version=2, fields=['open', 'high', 'low', 'close', 'volume'], source='KRX via pykrx get_market_ohlcv_by_ticker (원 시가·고가·저가·종가·거래량)',
+    payload = dict(schema_version=3, fields=['open', 'high', 'low', 'close', 'volume', 'change_pct'], source='KRX via pykrx get_market_ohlcv_by_ticker (원 시가·고가·저가·종가·거래량·등락률)',
                    collected_at=datetime.now(timezone.utc).isoformat(timespec='seconds'), first_live=first_live,
                    sessions=kept, stocks={c: [done[d].get(c) for d in kept] for c in codes})
     tmp = target.with_suffix('.tmp')
@@ -70,10 +70,14 @@ for n, day in enumerate(sessions, 1):
         for code, record in frame.iterrows():
             try:
                 o, h, l, close, volume = (float(record[k]) for k in ('시가', '고가', '저가', '종가', '거래량'))
+                try:
+                    chg = round(float(record['등락률']), 2)
+                except (KeyError, TypeError, ValueError):
+                    chg = None
             except (KeyError, TypeError, ValueError):
                 continue
             if close > 0:
-                quotes[str(code)] = [int(o), int(h), int(l), int(close), int(volume)]
+                quotes[str(code)] = [int(o), int(h), int(l), int(close), int(volume), chg]
     done[day] = quotes
     print(f'{n}/{len(sessions)} {day}: {len(quotes)} tickers', flush=True)
     fetched += 1

@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-adjusted-prices',date:'2026-10-30',title:'수정주가 반영 (액면분할·병합 등)과 거래정지일 처리',
+  targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 · 종목 상세'},{tab:'market',selector:'.index-rsi',label:'시장 현황 · 시총 상위 30'}],
+  changes:['액면분할·병합처럼 거래소 등락률로 설명되는 가격 단절은 증권사 차트처럼 이전 가격을 수정주가로 보정합니다(예: 중앙첨단소재 2026-10-02 10:1 병합). 종목 상세 일봉 아래에 보정 날짜와 비율을 표시합니다.','RSI도 수정주가로 계산해 기업행사 뒤에 값을 처음부터 다시 쌓지 않습니다.','거래정지로 거래량이 0인 날은 봉이 없는 날로 건너뛰고, RSI 계산을 이어 갑니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['배당락처럼 등락률 차이가 5%p 이하인 경우는 보정하지 않음','과거 1년 이전 구간은 등락률 재수집이 끝난 뒤 반영']},
  {id:'2026-10-30-rsi-trendlines',date:'2026-10-30',title:'종목 RSI 차트 추세선 그리기 버튼',
   targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 · 종목 상세'},{tab:'market',selector:'.index-rsi',label:'시장 현황 · 시총 상위 30 종목 차트'}],
   changes:['종목 상세의 RSI 차트에 ‘추세선 그리기’ 버튼을 추가했습니다. 누르면 상승 추세(높아지는 저점끼리)는 빨간 선, 하락 추세(낮아지는 고점끼리)는 파란 선으로 연결하고 오른쪽으로 늘려 그립니다.','RSI가 선을 뚫은 날까지는 점선으로 표시합니다. 저점·고점은 앞뒤 3거래일보다 낮은(높은) 날입니다.'],
