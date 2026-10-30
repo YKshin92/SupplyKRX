@@ -35,7 +35,6 @@ STRATEGIES = [
     dict(key='pension', label='연기금 신호', description='기본 신호 + 직전 3개월 연기금 매수 0원 + 신호일 거래량 20일 평균 3배 이하'),
     dict(key='rank8', label='8항목 수급 상위 20 신규 진입', description='날짜별로 고정 기록한 8항목 수급 점수 상위 20위에 전 거래일에는 없다가 새로 들어온 종목 (2026-10-29부터 기록)'),
     dict(key='rsi', label='RSI 30 하향 진입', description='Wilder RSI(14)가 전일 30 이상에서 당일 30 미만으로 내려온 날 (재시작 후 60거래일 이상 안정화된 값만)'),
-    dict(key='rsi_rank', label='RSI 진입 + 수급 상위 20', description='RSI 30 하향 진입일에 8항목 수급 점수 상위 20위인 종목'),
     dict(key='rsi_pension', label='RSI 진입 + 연기금 신호', description='RSI 30 하향 진입과 연기금 신호가 5거래일 안에 함께 나온 경우 (둘 중 늦은 날을 신호일로)'),
     dict(key='co_buy', label='연기금·외국인 동반 매집 (추격 제외)', description='최근 5거래일 연기금·외국인 순매수가 각각 시총의 0.1% 이상 · 당일 +5% 이상 급등, 거래량 20일 평균 5배 이상, 52주 신고가 돌파일은 제외 · 종가 1,000원·20일 평균 거래대금 10억·시총 500억 이상 (2026-10-30 전략 연구의 가장 일관된 후보, 사전 기록으로 검증 중)'),
 ]
@@ -356,7 +355,6 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
         for a, b in zip(series, series[1:]):
             if a['rsi'] is not None and b['rsi'] is not None and a['rsi'] >= 30 > b['rsi'] and (b.get('since_reset') or 0) >= SETTLED:
                 rsi.append(dict(code=code, signal_date=b['date'], rsi=round(b['rsi'], 2)))
-    rsi_rank = [dict(s, rank_top20=True, frozen=s['signal_date'] in frozen_days) for s in rsi if s['code'] in top_sets.get(s['signal_date'], ())]
     rsi_by_code = {}
     for s in rsi:
         rsi_by_code.setdefault(s['code'], []).append(s)
@@ -368,7 +366,7 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
 
     logged = frozen_log(root)
     co_buy = co_buy_signals(live_rows, prices, sessions, load_caps(root)) if live_rows else []
-    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_rank=rsi_rank, rsi_pension=rsi_pension, co_buy=co_buy)
+    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_pension=rsi_pension, co_buy=co_buy)
     strategies, recent, today, all_counted = [], [], [], []
     recent_from = sessions[-RECENT_SESSIONS] if len(sessions) >= RECENT_SESSIONS else sessions[0]
     for spec in STRATEGIES:
@@ -383,14 +381,14 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
             last_index[s['code']] = i
             market = markets.get(s['code'])
             result = evaluate(prices.get(s['code'], {}), sessions, pos, s['signal_date'], index_prices.get(market, {}))
-            forward = (key, s['code'], s['signal_date']) in logged or (key in ('rank8', 'rsi_rank') and bool(s.get('frozen')))
+            forward = (key, s['code'], s['signal_date']) in logged or (key == 'rank8' and bool(s.get('frozen')))
             item = dict(s, strategy=key, name=names.get(s['code'], s['code']), market=market, forward=forward, **result)
             counted.append(item)
         back = [s for s in counted if not s['forward']]
         fwd = [s for s in counted if s['forward']]
         first = counted[0]['signal_date'] if counted else None
         strategies.append(dict(spec, first_signal=first, backtest=summarize(back), forward=summarize(fwd), monthly=monthly(counted),
-                               forward_only=key in ('rank8', 'rsi_rank')))
+                               forward_only=key == 'rank8'))
         recent += [s for s in counted if s['signal_date'] >= recent_from]
         all_counted += counted
         today += [dict(strategy=key, code=s['code']) for s in counted if s['signal_date'] == as_of]

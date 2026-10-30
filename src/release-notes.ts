@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-31-drop-rsi-rank',date:'2026-10-31',title:'신호 성과 검증에서 ‘RSI 진입 + 수급 상위 20’ 조합 제외',
+  targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['RSI 30 하향 진입일에 8항목 수급 점수 상위 20위인 종목을 따로 보는 조합을 목록과 통합 추적에서 뺐습니다. RSI 단독, 8항목 상위 20 신규 진입, RSI+연기금, 동반 매집은 그대로 비교합니다.'],
+  verified:'Vercel 빌드 확인 예정'},
  {id:'2026-10-30-co-buy-chase',date:'2026-10-30',title:'동반 매집 전략 사전 기록 시작과 추격 주의 표시',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'},{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'}],
   changes:['신호 성과 검증에 ‘연기금·외국인 동반 매집 (추격 제외)’을 추가했습니다. 최근 5거래일 연기금·외국인 순매수가 각각 시총의 0.1% 이상이고, 당일 +5% 급등·거래량 5배·52주 신고가 돌파일은 제외합니다. 매일 16시 수집 때 사전 기록으로 쌓아 실제 성과를 확인합니다.','종목 상세에서 최근 거래일이 ‘거래량 20일 평균 5배 이상 + 5% 이상 상승’이면 추격 주의 문구를 보여 줍니다. 3년 연구에서 이런 날 다음 날 매수는 20거래일간 시장보다 2~4%p 낮았습니다.'],
