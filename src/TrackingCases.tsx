@@ -17,6 +17,9 @@ function Spark({values}:{values:(number|null)[]}){
  const max=Math.max(1,...values.map(v=>Math.abs(v??0))),step=100/values.length;
  return <svg className="spark" viewBox="0 0 100 28" role="img" aria-label={`등록일부터 ${values.length}거래일 연기금 순매수 흐름`}><line x1="0" x2="100" y1="14" y2="14" stroke="var(--border)"/>{values.map((v,i)=>v===null?<circle key={i} cx={(i+.5)*step} cy="14" r="1.5" fill="var(--muted)"/>:<rect key={i} x={i*step} y={v>=0?14-Math.abs(v)/max*12:14} width={step*.7} height={Math.max(.7,Math.abs(v)/max*12)} fill={v>=0?'#d95b68':'#4284d8'}/>)}</svg>;
 }
+/** Tracking condition: base signal + no pension buying in the prior 3 months + signal-day volume ≤ 3× its 20-day average. */
+export const quietVolume=(e:{quiet_3m?:boolean|null;volume_ratio_20?:number|null})=>e.quiet_3m===true&&e.volume_ratio_20!=null&&e.volume_ratio_20<=3;
+
 export default function TrackingCases(p:Props){
  const [data,setData]=useState<TrackingData|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  const [view,setView]=useState<View>('new'),[sale,setSale]=useState<Sale>('net');
@@ -27,7 +30,7 @@ export default function TrackingCases(p:Props){
  useEffect(()=>{const timer=setTimeout(()=>setApplied(inputs),350);return()=>clearTimeout(timer);},[inputs]);
  useEffect(()=>setPage(1),[view,sale,search,market,order,lookback,strict,applied,p.watch]);
  const invalid=!Number.isFinite(Number(applied.net))||applied.net===''||Number(applied.net)<1||!strict&&(applied.quiet===''||!Number.isFinite(Number(applied.quiet))||Number(applied.quiet)<=0||Number(applied.quiet)>1)||['cap','latest'].some(k=>{const v=applied[k as 'cap'|'latest'];return v!==''&&(!Number.isFinite(Number(v))||Number(v)<0);});
- const registered=useMemo(()=>invalid?[]:registrations(data?.events??[],lookback,Number(applied.quiet),strict,Number(applied.net)),[data,lookback,applied,strict,invalid]);
+ const registered=useMemo(()=>invalid?[]:registrations(data?.events??[],lookback,Number(applied.quiet),strict,Number(applied.net)).filter(quietVolume),[data,lookback,applied,strict,invalid]);
  const counts=useMemo(()=>Object.fromEntries(views.map(([v])=>[v,visibleTracking(registered,v,v==='all'||v==='watch'?'all':sale,p.watch).length])),[registered,sale,p.watch]);
  const list=useMemo(()=>visibleTracking(registered,view,sale,p.watch).filter(e=>`${e.name} ${e.code}`.toLowerCase().includes(search.trim().toLowerCase())&&(market==='ALL'||e.market===market)&&(applied.cap===''||e.market_cap!=null&&e.market_cap>=Number(applied.cap)*1e8)&&(Number(applied.latest)===0||e.latest_net!=null&&e.latest_net>=Number(applied.latest)*1e8)).sort((a,b)=>{const key=order.replace('Asc','') as 'signal_date'|'current_return'|'market_cap'|'signal_net'|'latest_net'|'return_5d';const x=order==='score'?buyScore(a).total:a[key],y=order==='score'?buyScore(b).total:b[key];if(x==null)return y==null?a.id.localeCompare(b.id):1;if(y==null)return -1;return (typeof x==='string'&&typeof y==='string'?x.localeCompare(y):Number(x)-Number(y))*(order.endsWith('Asc')?1:-1)||a.id.localeCompare(b.id);}),[registered,view,sale,p.watch,search,market,applied,order,lookback]);
  const pages=Math.max(1,Math.ceil(list.length/20)),safePage=Math.min(page,pages);
@@ -40,7 +43,7 @@ export default function TrackingCases(p:Props){
   <div className="explorer-filters entry-filters compact-tracking">
    <div className="filter-top"><h2>신규 순매수 추적</h2><button className="button small" onClick={reset}>조건 초기화</button></div>
    {data?.history_pending&&<p className="notice">3년 전체 이력 갱신을 기다리고 있습니다. 현재 확보된 최근 이력만 표시합니다.</p>}
-   {data?.history_available&&<p className="filter-guidance">전체 이력 {data.first_date} ~ {data.as_of} · 최초 등록일은 이 관측 범위에서 처음 조건을 충족한 날짜입니다. 과거 종목 유형은 미검증이며 우선주 등이 포함될 수 있습니다.</p>}
+   <p className="filter-guidance"><b>추적 조건</b> 기본 신호 중 직전 3개월(62거래일) 연기금 매수 0원 + 신호일 거래량이 20일 평균의 3배 이하인 신호만 등록합니다.</p>{data?.history_available&&<p className="filter-guidance">전체 이력 {data.first_date} ~ {data.as_of} · 최초 등록일은 이 관측 범위에서 처음 조건을 충족한 날짜입니다. 과거 종목 유형은 미검증이며 우선주 등이 포함될 수 있습니다.</p>}
    <p className="entry-description">저거래 이후 큰 순매수가 시작된 종목 · 등록 전 {lookback}거래일 {strict?'매수·매도 모두 0원':`일별 매수·매도 각각 ${applied.quiet}억원 미만`} → 하루 순매수 {applied.net}억원 이상 · 기준일 {p.asOf}</p>
    <div className="quick-filters tracking-views" aria-label="추적 빠른 보기">{views.map(([v,label,description])=><button key={v} aria-pressed={view===v} className={view===v?'active':''} title={description} onClick={()=>presetView(v)}>{label} <span>{counts[v]??0}</span></button>)}</div>
    <p className="filter-guidance">{views.find(([v])=>v===view)?.[2]} · 버튼 종목 수는 등록 조건과 매도 조건 기준이며, 검색·시장·추가 금액 필터 적용 전입니다.</p>

@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-quiet-volume-condition',date:'2026-10-30',title:'신규 순매수 추적·전략 검증 조건을 3개월 무매수 + 거래량 3배 이하로 변경',
+  targets:[{tab:'cases',label:'신규 순매수 추적'},{tab:'simulation',label:'전략 검증'}],
+  changes:['기본 신호 가운데 직전 3개월(62거래일) 연기금 매수 0원이고, 신호일 거래량이 20일 평균의 3배 이하인 신호만 신규 순매수 추적과 전략 검증에 씁니다.','같은 날 오전에 기본 신호 전체로 바꿨던 설정을 바로잡은 것입니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-rsi-wilder',date:'2026-10-30',title:'RSI 기준을 HTS·MTS와 같은 Wilder 방식으로 변경',
   targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수·시총 상위 RSI'},{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만'}],
   changes:['RSI 값, 30 미만 상태, 30 하향 진입을 모두 Wilder 방식(전일 평균×13 + 당일 변동, ÷14)으로 계산합니다. 증권사 HTS·MTS 기본 RSI와 같은 방식입니다.','이전 Cutler 값(직전 14일 단순평균)은 ‘Cutler 참고’ 열로 함께 보여 줍니다.','Wilder는 계산 시작점에 따라 값이 달라, 지수는 3년, 국내 종목은 1년 이상 과거 종가로 미리 계산해 값을 안정화합니다. 재시작 뒤 60거래일 미만은 ‘안정화 전’으로 표시합니다.'],
@@ -21,7 +25,7 @@ export const RELEASES:Release[]=[
  {id:'2026-10-30-tracking-views',date:'2026-10-30',title:'연구 조건 정리와 추적 보기 순서 변경',
   targets:[{tab:'cases',label:'신규 순매수 추적'},{tab:'simulation',label:'전략 검증'}],
   changes:['신규 순매수 추적과 전략 검증에서 연구 조건 선택(직전 3개월 연기금 매수 0원, 3개월 무매수 + 거래량 3배 이하)을 없앴습니다. 두 화면 모두 기본 신호 전체를 사용합니다.','추적 보기 버튼을 전체 이력 · 신규 발견 · 최근 등록 · 매수 지속 순서로 바꾸고 관심 종목 버튼을 없앴습니다. 처음 열면 신규 발견이 선택됩니다.','검증 결과 3개월 무매수 신호의 승률이 다른 기본 신호와 통계적으로 다르지 않아 연구 조건을 정리했습니다.'],
-  verified:'운영 확인 2026-10-30'},
+  verified:'운영 확인 2026-10-30',superseded:'같은 날 3개월 무매수 + 거래량 3배 이하 조건으로 다시 바꿨습니다.'},
  {id:'2026-10-30-detail-volume-investors',date:'2026-10-30',title:'종목 상세에 거래량과 기관합계·연기금·사모펀드 전환',
   targets:[{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'},{tab:'cases',label:'신규 순매수 추적 · 종목 상세'}],
   changes:['일봉 차트 아래에 같은 날짜 축의 거래량 막대를 표시합니다. 양봉일은 붉은색, 음봉일은 푸른색입니다.','수급 차트에 기관합계 · 연기금 · 사모펀드 버튼을 추가했습니다. 처음에는 연기금이 표시되고, 버튼을 누르면 그 주체의 일별·누적 순매수로 바뀝니다.','기관합계에는 연기금과 사모가 포함된다는 안내를 함께 표시합니다. 위쪽 지표와 연기금 조건 검색은 계속 연기금 기준입니다.'],

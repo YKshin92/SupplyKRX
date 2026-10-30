@@ -13,7 +13,7 @@ const won=(v:number|null|undefined)=>v==null?'미확인':`${v.toLocaleString('ko
 const pct=(v:number|null|undefined)=>v==null?'—':`${v>0?'+':''}${v.toFixed(2)}%`;
 const days=(v:number|null)=>v==null?'—':`${v.toFixed(1)}거래일`;
 const labels:Record<Status,string>={take:'익절',stop:'손절',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
-const initial:Settings={mode:'capital',initial:20e6,budget:3e6,take:30,stop:10,start:''};
+const initial:Settings={mode:'capital',initial:20e6,budget:3e6,take:30,stop:10,start:'',filter:'quiet3m-volume'};
 export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;watch:string[];toggle:(code:string)=>void;metadata:Stock[]}){
  const [input,setInput]=useState<SimInput|null>(null),[settings,setSettings]=useState<Settings>(initial),[result,setResult]=useState<SimResult|null>(null);
  const [error,setError]=useState(''),[busy,setBusy]=useState(true),[attempt,setAttempt]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState('all'),[order,setOrder]=useState('signal'),[page,setPage]=useState(1);
@@ -43,7 +43,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>익절 · %<input type="number" min="1" max="100" value={settings.take} onChange={e=>change('take',Number(e.target.value))}/></label>
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
-  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · ${capital?`초기 ${won(s.initial)} · `:''}종목당 ${won(s.budget)} · 익절 +${s.take}% / 손절 −${s.stop}%`:'데이터 준비 중'}</p>
+  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}종목당 ${won(s.budget)} · 익절 +${s.take}% / 손절 −${s.stop}%`:'데이터 준비 중'}</p>
   <ScoreResearchStatus asOf={asOf}/>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
