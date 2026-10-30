@@ -2,6 +2,9 @@ import {ResponsiveContainer,ComposedChart,Bar,XAxis,YAxis,Tooltip,CartesianGrid}
 import {Candle} from './ChartPrimitives';
 import VolumeChart from './VolumeChart';
 import RsiChart,{zoneEntries} from './RsiChart';
+import {useMemo,useState} from 'react';
+import {rsiTrendlines} from './rsi-trend';
+import {TrendNote} from './StockRsiPanel';
 import type {RsiPoint} from './rsi-data';
 
 const Y=70;
@@ -10,6 +13,7 @@ export default function RsiStockDetail({name,sub,series,currency,onClose}:{name:
  const money=(v:number|null|undefined)=>v==null?'—':currency==='USD'?`$${v.toFixed(2)}`:`${Math.round(v).toLocaleString('ko-KR')}원`;
  const data=series.map((r,i)=>({...r,wick:r.low!=null&&r.high!=null?[r.low,r.high]:null,previousClose:series[i-1]?.close??null}));
  const z=zoneEntries(series);
+ const [trend,setTrend]=useState(false);const lines=useMemo(()=>rsiTrendlines(series),[series]);
  const hasCandles=data.some(r=>r.wick);
  const sync=`rsi-detail-${sub}`;
  return <div className="rsi-stock-detail">
@@ -24,8 +28,9 @@ export default function RsiStockDetail({name,sub,series,currency,onClose}:{name:
   </ComposedChart></ResponsiveContainer></div>:<p className="micro-warning">일봉 시가·고가·저가 미수집 · 다음 수집 뒤 표시</p>}
   <h5>거래량</h5>
   <div className="rsi-detail-volume"><VolumeChart data={data} syncId={sync} yWidth={Y} margin={{left:0,right:10}}/></div>
-  <h5>RSI(14) <small>Wilder · 30 미만 파랑 · 70 이상 빨강</small></h5>
-  <div className="rsi-detail-rsi"><RsiChart series={series} syncId={sync} yWidth={Y}/></div>
+  <h5>RSI(14) <small>Wilder · 30 미만 파랑 · 70 이상 빨강</small> <button type="button" className="button small rsi-trend-toggle" aria-pressed={trend} onClick={()=>setTrend(v=>!v)}>{trend?'추세선 지우기':'추세선 그리기'}</button></h5>
+  <div className="rsi-detail-rsi"><RsiChart series={series} syncId={sync} yWidth={Y} trendlines={trend?lines:undefined}/></div>
+  {trend&&<TrendNote count={lines.length}/>}
   <p className="rsi-detail-zones"><b className="low">30 미만 진입</b> {z.low.length?z.low.map(d=>d.slice(5)).join(', '):'없음'} <span>(구간 내 {z.lowDays}일)</span> · <b className="high">70 이상 진입</b> {z.high.length?z.high.map(d=>d.slice(5)).join(', '):'없음'} <span>(구간 내 {z.highDays}일)</span></p>
  </div>;
 }

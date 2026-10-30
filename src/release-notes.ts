@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-rsi-trendlines',date:'2026-10-30',title:'종목 RSI 차트 추세선 그리기 버튼',
+  targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 · 종목 상세'},{tab:'market',selector:'.index-rsi',label:'시장 현황 · 시총 상위 30 종목 차트'}],
+  changes:['종목 상세의 RSI 차트에 ‘추세선 그리기’ 버튼을 추가했습니다. 누르면 상승 추세(높아지는 저점끼리)는 빨간 선, 하락 추세(낮아지는 고점끼리)는 파란 선으로 연결하고 오른쪽으로 늘려 그립니다.','RSI가 선을 뚫은 날까지는 점선으로 표시합니다. 저점·고점은 앞뒤 3거래일보다 낮은(높은) 날입니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-signal-lab',date:'2026-10-30',title:'신호 성과 검증 탭 추가 (연기금 · 8항목 수급 상위 20 · RSI 30 하향 진입)',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['연기금 신호, 8항목 수급 점수 상위 20위 신규 진입, RSI 30 하향 진입과 두 가지 조합(RSI+수급 상위, RSI+연기금)을 같은 규칙으로 비교합니다.','매수는 신호 다음 거래일 시가, 성과는 5·10·20·60거래일 수익률과 지수 대비 초과수익, +30%/−10% 먼저 도달(기본)과 RSI 비교용 +10%/−5%로 봅니다.','과거에 규칙을 적용한 ‘사후 계산’과, 신호가 나온 날 장 마감 뒤 바꿀 수 없게 기록한 ‘사전 기록’을 나눠 보여 줍니다. 사전 기록은 10-30부터 매일 16시 수집 때 쌓입니다.','최근 20거래일 신호 목록에서 종목을 누르면 최근 60거래일 일봉·거래량·RSI 상세가 열립니다.'],
