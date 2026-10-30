@@ -44,7 +44,13 @@ for months in (1,2,3):
 from collector.rsi import publish_rsi
 index_path=args.root/'data/live/simulation-indices.json'
 us_path=args.root/'data/live/us-market.json'
-rsi=publish_rsi(rows,calendar,json.loads(index_path.read_text(encoding='utf-8')) if index_path.exists() else {},args.target,metadata_dir=args.root/'data/live/metadata/daily',us=json.loads(us_path.read_text(encoding='utf-8')) if us_path.exists() else None)
+# Wilder RSI depends on where it starts: use the 3-year index history, overlaid by the live index file.
+rsi_indices={'indices':{}}
+for path in (args.root/'data/history-indices.json',index_path):
+    if path.exists():
+        for name,value in json.loads(path.read_text(encoding='utf-8')).get('indices',{}).items():
+            rsi_indices['indices'].setdefault(name,{'prices':{}})['prices'].update(value.get('prices',{}))
+rsi=publish_rsi(rows,calendar,rsi_indices,args.target,metadata_dir=args.root/'data/live/metadata/daily',us=json.loads(us_path.read_text(encoding='utf-8')) if us_path.exists() else None,warmup=args.root/'data/live/rsi-warmup.json.gz')
 print(f"RSI: {rsi['computed']}/{rsi['population']} computed, {rsi['below30']} below 30, {rsi['entries_today']} entries. Private/local only.")
 from collector.publish_flow_ranks import publish_ranks
 rank_report=publish_ranks(args.root,args.target)

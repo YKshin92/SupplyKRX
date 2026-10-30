@@ -1,7 +1,9 @@
-"""Cutler RSI (simple moving average of gains and losses) for monitoring only.
+"""RSI(14) for monitoring only. Main value: Wilder smoothing (the HTS/MTS standard). Cutler (SMA) is kept as a secondary value.
 
-Differences from the earlier local research code: that code used Wilder smoothing. This module
-uses Cutler's SMA, so values differ and must not be compared as the same experiment.
+Wilder: the first value is the simple mean of the first 14 changes after a (re)start; afterwards
+avg = (prev_avg * 13 + today) / 14. The value depends on where the series starts, so longer warm-up
+history (rsi-warmup) is merged in front of the live rows when available. Cutler uses the plain mean of
+the last 14 changes and does not depend on the start.
 
 Rules (also published in the output so the UI can state them):
 - Input is the raw daily close. A session is valid when close > 0 and, for stocks, volume > 0
@@ -19,44 +21,55 @@ from .simulation import price_break
 
 PERIOD = 14
 LOW, HIGH = 30, 70
-RULES = dict(method='Cutler RSI (SMA)', period=PERIOD, low=LOW, high=HIGH, price='raw close',
+RULES = dict(method='Wilder RSI (표준, HTS/MTS 기본값)', secondary='Cutler RSI (단순평균)', period=PERIOD, low=LOW, high=HIGH, price='raw close',
              invalid='close 미수집·0, 거래량 0(거래정지 추정)', reset='결측·거래량 0·가격 단절(기업행사 포함) 다음부터 warm-up 재시작',
              flat='14일 모두 보합이면 값 없음', event='전일 RSI 30 이상 → 당일 30 미만일 때만 하향 진입 사건')
 
 
+def _value(gain, loss):
+    if gain == 0 and loss == 0:
+        return None
+    return 100.0 if loss == 0 else 100 - 100 / (1 + gain / loss)
+
+
 def cutler_series(rows, sessions, period=PERIOD, require_volume=True):
-    """rows: date -> row with close (and volume/open/change_pct for stocks). Returns one entry per session."""
+    """rows: date -> row with close (and volume/open/change_pct for stocks). One entry per session.
+    rsi = Wilder (main), cutler = Cutler SMA, since_reset = changes accumulated since the last restart."""
     out = []
-    changes = []  # consecutive close-to-close changes since the last reset
+    changes = []  # last `period` changes since the last reset (for the seed and Cutler)
     previous = None
+    wg = wl = None  # Wilder running averages
+    count = 0
     for day in sessions:
         r = rows.get(day)
         valid = bool(r and r.get('close') and r['close'] > 0 and (not require_volume or (r.get('volume') or 0) > 0))
         if not valid:
-            changes, previous = [], None
-            out.append(dict(date=day, close=r.get('close') if r else None, rsi=None, reason='invalid'))
+            changes, previous, wg, wl, count = [], None, None, None, 0
+            out.append(dict(date=day, close=r.get('close') if r else None, rsi=None, cutler=None, since_reset=0, reason='invalid'))
             continue
+        reason = None
         if previous is not None and price_break(previous, r):
-            changes, previous = [], None
+            changes, previous, wg, wl, count = [], None, None, None, 0
             reason = 'break'
-        else:
-            reason = None
         if previous is not None:
-            changes.append(r['close'] - previous['close'])
+            c = r['close'] - previous['close']
+            changes.append(c)
+            count += 1
             if len(changes) > period:
                 changes.pop(0)
+            if wg is not None:
+                wg = (wg * (period - 1) + max(c, 0)) / period
+                wl = (wl * (period - 1) + max(-c, 0)) / period
+            elif count == period:
+                wg = sum(x for x in changes if x > 0) / period
+                wl = -sum(x for x in changes if x < 0) / period
         previous = r
-        if len(changes) < period:
-            out.append(dict(date=day, close=r['close'], rsi=None, reason=reason or 'warmup'))
+        if count < period:
+            out.append(dict(date=day, close=r['close'], rsi=None, cutler=None, since_reset=count, reason=reason or 'warmup'))
             continue
-        gain = sum(c for c in changes if c > 0) / period
-        loss = -sum(c for c in changes if c < 0) / period
-        if gain == 0 and loss == 0:
-            out.append(dict(date=day, close=r['close'], rsi=None, reason='flat'))
-        elif loss == 0:
-            out.append(dict(date=day, close=r['close'], rsi=100.0, reason=None))
-        else:
-            out.append(dict(date=day, close=r['close'], rsi=100 - 100 / (1 + gain / loss), reason=None))
+        cutler = _value(sum(x for x in changes if x > 0) / period, -sum(x for x in changes if x < 0) / period)
+        wilder = _value(wg, wl)
+        out.append(dict(date=day, close=r['close'], rsi=wilder, cutler=cutler, since_reset=count, reason=None if wilder is not None else 'flat'))
     return out
 
 
@@ -78,15 +91,35 @@ def summarize(series):
             last_entry = b['date']
     state = None if rsi is None else 'below30' if rsi < LOW else 'above70' if rsi >= HIGH else 'neutral'
     return dict(rsi=rsi, prev_rsi=prev['rsi'] if prev else None, state=state, entry_today=entry,
-                below_streak=streak, last_entry_date=last_entry, reason=last['reason'] if last else 'missing')
+                below_streak=streak, last_entry_date=last_entry, reason=last['reason'] if last else 'missing',
+                cutler=last.get('cutler') if last else None, since_reset=last.get('since_reset', 0) if last else 0)
+
+
+def _r(v):
+    return None if v is None else round(v, 2)
 
 
 def _series_out(series, chart_sessions):
-    return [dict(date=x['date'], close=x['close'], rsi=None if x['rsi'] is None else round(x['rsi'], 2)) for x in series[-chart_sessions:]]
+    return [dict(date=x['date'], close=x['close'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]]
 
 
 def _rounded(summary):
-    return {k: (round(v, 2) if k in ('rsi', 'prev_rsi') and v is not None else v) for k, v in summary.items()}
+    return {k: (round(v, 2) if k in ('rsi', 'prev_rsi', 'cutler') and v is not None else v) for k, v in summary.items()}
+
+
+def load_warmup(path):
+    """Optional older closes merged in front of the live rows: {sessions, stocks:{code:[[close, volume]|null,...]}}."""
+    import gzip, json
+    from pathlib import Path
+    p = Path(path) if path else None
+    if not p or not p.exists():
+        return [], {}
+    data = json.loads(gzip.decompress(p.read_bytes()).decode('utf-8'))
+    sessions = data['sessions']
+    out = {}
+    for code, values in data['stocks'].items():
+        out[code] = {d: dict(close=v[0], volume=v[1]) for d, v in zip(sessions, values) if v}
+    return sessions, out
 
 
 def latest_caps(metadata_dir, as_of):
@@ -127,15 +160,27 @@ def us_rsi(us, chart_sessions=62, top=30):
                 price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)
 
 
-def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30):
+def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30, warmup=None):
     """rows: collector rows (pension rows carry the stock's daily OHLCV). Writes target/rsi/latest.json."""
     from .core import save_json
     pension = [r for r in rows if r['investor'] == '연기금 등']
     as_of = max(r['date'] for r in pension)
-    sessions = [d for d in calendar['sessions'] if min(r['date'] for r in pension) <= d <= as_of]
+    first_live = min(r['date'] for r in pension)
+    warm_sessions, warm = load_warmup(warmup)
+    warm_sessions = [d for d in warm_sessions if d < first_live]
+    krx_days = sorted((indices or {}).get('indices', {}).get('KOSPI', {}).get('prices', {}))
+    after = next((d for d in krx_days if warm_sessions and d > warm_sessions[-1]), None)
+    warmup_status = 'none' if not warm_sessions else 'joined' if after == first_live else 'gap'
+    if warmup_status == 'gap':  # a missing stretch between warm-up and live rows would fake consecutive changes
+        warm_sessions, warm = [], {}
+    sessions = warm_sessions + [d for d in calendar['sessions'] if first_live <= d <= as_of]
     by_code = {}
     for r in pension:
         by_code.setdefault(r['code'], {})[r['date']] = r
+    for code, history in by_code.items():
+        for d, w in warm.get(code, {}).items():
+            if d < first_live:
+                history.setdefault(d, w)
     stocks = []
     series_by_code = {}
     for code, history in by_code.items():
@@ -153,11 +198,11 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
         prices = value.get('prices', {})
         if not prices:
             continue
-        days = [d for d in calendar['sessions'] if min(prices) <= d <= min(max(prices), as_of)]
+        days = sorted(d for d in prices if d <= as_of)
         series = cutler_series(prices, days, require_volume=False)
         index_out[name] = dict(summary=_rounded(summarize(series)), series=_series_out(series, chart_sessions))
     for s in stocks:
-        for k in ('rsi', 'prev_rsi'):
+        for k in ('rsi', 'prev_rsi', 'cutler'):
             if s[k] is not None:
                 s[k] = round(s[k], 2)
     cap_date, caps = latest_caps(metadata_dir, as_of)
@@ -165,7 +210,7 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
     domestic = dict(cap_date=cap_date, cap_source='KRX 시가총액 스냅샷(기준일 이하 최신)', items=[
         dict(rank=i + 1, market_cap=caps[s['code']], series=_series_out(series_by_code[s['code']], chart_sessions), **s) for i, s in enumerate(ranked)]) if ranked else None
     computed = [s for s in stocks if s['rsi'] is not None]
-    result = dict(schema_version=1, as_of=as_of, rules=RULES, population=len(stocks), computed=len(computed),
+    result = dict(schema_version=1, as_of=as_of, rules=RULES, warmup_from=sessions[0] if sessions else None, warmup_status=warmup_status, population=len(stocks), computed=len(computed),
                   below30=sum(s['state'] == 'below30' for s in computed), entries_today=sum(s['entry_today'] for s in computed),
                   missing=dict(warmup=sum(s['reason'] == 'warmup' for s in stocks), flat=sum(s['reason'] == 'flat' for s in stocks),
                                invalid=sum(s['reason'] == 'invalid' for s in stocks), break_reset=sum(s['reason'] == 'break' for s in stocks)),

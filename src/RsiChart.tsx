@@ -1,6 +1,6 @@
 import {ResponsiveContainer,LineChart,Line,XAxis,YAxis,ReferenceLine,ReferenceArea,Tooltip,CartesianGrid} from 'recharts';
 type Point={date:string;close:number|null;rsi:number|null};
-/** Cutler RSI path with the signal zones shaded: below 30 blue, 70 and above red. */
+/** Wilder RSI path with the signal zones shaded: below 30 blue, 70 and above red. */
 export default function RsiChart({series,compact=false}:{series:Point[];compact?:boolean}){
  return <ResponsiveContainer width="100%" height="100%"><LineChart data={series} margin={{top:6,right:8,left:0,bottom:0}}>
   <ReferenceArea y1={0} y2={30} fill="var(--rsi-low-zone)" fillOpacity={1} stroke="none" ifOverflow="hidden"/>

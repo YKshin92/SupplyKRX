@@ -6,7 +6,7 @@ def rows(closes, volume=100):
     return {d: (None if c is None else dict(close=c, volume=volume, open=c, change_pct=None)) for d, c in zip(days, closes)}, days
 
 
-class CutlerRsiTests(unittest.TestCase):
+class RsiTests(unittest.TestCase):
     def test_sma_definition_matches_hand_calculation(self):
         closes = [100 + (i % 2) * 2 - (i // 2) * 0 for i in range(15)]  # alternating +2/-2 changes
         r, d = rows(closes)
@@ -15,17 +15,20 @@ class CutlerRsiTests(unittest.TestCase):
         self.assertEqual(s[PERIOD]['reason'], None)
         gains = sum(max(b - a, 0) for a, b in zip(closes, closes[1:])) / 14
         losses = sum(max(a - b, 0) for a, b in zip(closes, closes[1:])) / 14
-        self.assertAlmostEqual(s[PERIOD]['rsi'], 100 - 100 / (1 + gains / losses))
+        self.assertAlmostEqual(s[PERIOD]['rsi'], 100 - 100 / (1 + gains / losses))  # Wilder seed = SMA of the first 14 changes
+        self.assertAlmostEqual(s[PERIOD]['cutler'], s[PERIOD]['rsi'])
 
-    def test_cutler_differs_from_wilder_after_window(self):
+    def test_main_value_is_wilder_and_cutler_is_secondary(self):
         closes = [100, 101, 103, 102, 104, 103, 101, 100, 99, 101, 103, 104, 102, 101, 100, 97, 95, 96]
         r, d = rows(closes)
-        cutler = cutler_series(r, d)[-1]['rsi']
+        last = cutler_series(r, d)[-1]
+        wilder, cutler = last['rsi'], last['cutler']
         ch = [b - a for a, b in zip(closes, closes[1:])]
         g = sum(max(c, 0) for c in ch[:14]) / 14; l = sum(max(-c, 0) for c in ch[:14]) / 14
         for c in ch[14:]:
             g = (g * 13 + max(c, 0)) / 14; l = (l * 13 + max(-c, 0)) / 14
-        self.assertNotAlmostEqual(cutler, 100 - 100 / (1 + g / l), places=3)
+        self.assertAlmostEqual(wilder, 100 - 100 / (1 + g / l))
+        self.assertNotAlmostEqual(wilder, cutler, places=3)
         last = ch[-14:]
         self.assertAlmostEqual(cutler, 100 - 100 / (1 + (sum(max(c, 0) for c in last) / 14) / (sum(max(-c, 0) for c in last) / 14)))
 
@@ -59,6 +62,18 @@ class CutlerRsiTests(unittest.TestCase):
 
 
 class RsiReferenceTests(unittest.TestCase):
+    def test_warmup_history_is_merged_before_live_rows(self):
+        import gzip, json, tempfile
+        from pathlib import Path
+        from collector.rsi import load_warmup
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d, 'w.json.gz')
+            p.write_bytes(gzip.compress(json.dumps(dict(sessions=['2026-01-02', '2026-01-05'], stocks={'005930': [[100, 5], None]})).encode()))
+            sessions, stocks = load_warmup(p)
+            self.assertEqual(sessions, ['2026-01-02', '2026-01-05'])
+            self.assertEqual(stocks['005930'], {'2026-01-02': dict(close=100, volume=5)})
+            self.assertEqual(load_warmup(Path(d, 'missing.json.gz')), ([], {}))
+
     def test_latest_caps_never_uses_a_later_snapshot(self):
         import json, tempfile
         from pathlib import Path

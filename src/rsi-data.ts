@@ -1,9 +1,11 @@
-/** Protected Cutler RSI monitoring snapshot produced at build time (collector/rsi.py). */
+/** Protected RSI(14) monitoring snapshot (main: Wilder, secondary: Cutler) produced at build time (collector/rsi.py). */
 export type RsiState='below30'|'neutral'|'above70'|null;
-export type RsiSummary={rsi:number|null;prev_rsi:number|null;state:RsiState;entry_today:boolean;below_streak:number;last_entry_date:string|null;reason:string|null};
+export type RsiSummary={rsi:number|null;prev_rsi:number|null;state:RsiState;entry_today:boolean;below_streak:number;last_entry_date:string|null;reason:string|null;cutler?:number|null;since_reset?:number};
 export type RsiStock=RsiSummary&{code:string;name:string;market:string;close:number|null;change_pct:number|null;observed:number};
 export type RsiIndex={summary:RsiSummary;series:{date:string;close:number|null;rsi:number|null}[]};
-export type RsiPoint={date:string;close:number|null;rsi:number|null};
+export type RsiPoint={date:string;close:number|null;rsi:number|null;cutler?:number|null};
+/** Wilder depends on its start: fewer than 60 changes since a restart is shown as not yet settled. */
+export const unsettled=(s:{since_reset?:number;rsi:number|null})=>s.rsi!=null&&(s.since_reset??0)<60;
 export type DomesticTop=RsiStock&{rank:number;market_cap:number;series:RsiPoint[]};
 export type UsTop=RsiSummary&{rank:number;symbol:string;name:string;market_cap_usd:number|null;close:number|null;last_date:string|null;series:RsiPoint[]};
 export type UsBlock={as_of:string|null;collected_at:string|null;cap_date:string|null;cap_source:string|null;price_source:string|null;currency:'USD';price_basis:string;indices:Record<string,RsiIndex&{symbol?:string}>;top30:UsTop[]};

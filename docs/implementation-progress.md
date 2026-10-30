@@ -354,3 +354,11 @@ D1 운영 확인(2026-10-30 07:5x KST): 공개 4e5e97d를 private 241ce0b로 pin
 - RSI: 30 미만 파란 음영, 70 이상 빨간 음영(ReferenceArea)을 지수 차트와 표 스파크라인에 넣었다.
 - 국내 시총 상위 30: 기준일 이하 최신 시총 스냅샷(metadata/daily)으로 순위를 매긴다. 이후 날짜의 스냅샷은 쓰지 않는다. 수집 대상이 보통주라 우선주는 빠진다.
 - 미국: scripts/collect-us-market.py가 private collect.yml에서 수집 뒤 실행된다(continue-on-error). 순위는 companiesmarketcap.com 미국 목록(수집 시점), 가격은 Yahoo chart API 분할 조정 종가(배당 미조정)·USD, 지수는 ^GSPC·^IXIC이다. 미국 거래일 달력은 두 지수 날짜를 쓴다. 뉴욕 17시 전의 당일 봉은 버린다. 신호·점수·시뮬레이션에는 쓰지 않는다. GitHub Actions에서 Stooq는 차단되었고 Yahoo·companiesmarketcap은 응답했다(2026-10-30 probe).
+
+### D3 RSI 주 지표를 Wilder로 변경 (2026-10-30)
+
+사용자 HTS/MTS 값(알파벳 22.08, 삼성전자 10-29 46.45·10-15 27.11)과 비교했다. Wilder(14)가 일치하고(알파벳 22.08 정확히 일치, 삼성 46.79·27.55), Cutler(14.87, 38.46·20.09)는 맞지 않았다. 그래서 주 값·30 미만 상태·하향 진입을 Wilder로 바꾸고 Cutler는 참고값(cutler 필드)으로 남겼다.
+- Wilder 시드: 재시작 뒤 첫 14개 변동의 단순평균. 이후 avg=(prev×13+오늘)/14.
+- 시작점 영향: 삼성 74거래일 자료로 시작일을 바꾸면 10-29 값이 46.8~47.6, 시드를 0.3~3배 바꾸면 45.5~48.1로 움직였다. 그래서 지수는 history-indices(3년)를 겹쳐 쓰고, 국내 종목은 scripts/backfill-rsi-warmup.py(private rsi-warmup.yml, pykrx 원 종가·거래량, 실데이터 직전 250거래일)로 data/live/rsi-warmup.json.gz를 만든다. 미국은 Yahoo 범위를 2년으로 늘렸다.
+- 워밍업 마지막 거래일 다음 KRX 거래일이 실데이터 첫날이 아니면(중간 공백) 워밍업을 쓰지 않는다(warmup_status='gap').
+- 재시작 뒤 60개 변동 미만은 화면에 '안정화 전'으로 표시한다.

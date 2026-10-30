@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 CAP_URL = 'https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/?download=csv'
-CHART = 'https://query1.finance.yahoo.com/v8/finance/chart/{}?range=6mo&interval=1d&includePrePost=false'
+CHART = 'https://query1.finance.yahoo.com/v8/finance/chart/{}?range=2y&interval=1d&includePrePost=false'
 INDICES = {'S&P500': '^GSPC', 'NASDAQ': '^IXIC'}
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'}
 NY = ZoneInfo('America/New_York')
