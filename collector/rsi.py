@@ -128,7 +128,10 @@ def load_warmup(path):
     sessions = data['sessions']
     out = {}
     for code, values in data['stocks'].items():
-        out[code] = {d: dict(close=v[0], volume=v[1]) for d, v in zip(sessions, values) if v}
+        if data.get('schema_version') == 2:
+            out[code] = {d: dict(open=v[0], high=v[1], low=v[2], close=v[3], volume=v[4]) for d, v in zip(sessions, values) if v}
+        else:
+            out[code] = {d: dict(close=v[0], volume=v[1]) for d, v in zip(sessions, values) if v}
     return sessions, out
 
 
