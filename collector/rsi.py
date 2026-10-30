@@ -103,6 +103,15 @@ def _series_out(series, chart_sessions):
     return [dict(date=x['date'], close=x['close'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]]
 
 
+def _series_ohlcv(series, prices, chart_sessions):
+    """Chart rows for the stock detail: OHLCV from the source rows next to the RSI values. Missing stays None."""
+    out = []
+    for x in _series_out(series, chart_sessions):
+        r = prices.get(x['date']) or {}
+        out.append(dict(x, open=r.get('open'), high=r.get('high'), low=r.get('low'), volume=r.get('volume')))
+    return out
+
+
 def _rounded(summary):
     return {k: (round(v, 2) if k in ('rsi', 'prev_rsi', 'cutler') and v is not None else v) for k, v in summary.items()}
 
@@ -153,8 +162,9 @@ def us_rsi(us, chart_sessions=62, top=30):
     for item in sorted(us.get('stocks', []), key=lambda x: x['rank'])[:top]:
         prices = item.get('prices', {})
         s, series = one(prices, True)
+        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=True)
         stocks.append(dict(rank=item['rank'], symbol=item['symbol'], name=item['name'], market_cap_usd=item.get('market_cap_usd'),
-                           close=series[-1]['close'] if series else None, last_date=series[-1]['date'] if series else None, series=series, **s))
+                           close=series[-1]['close'] if series else None, last_date=series[-1]['date'] if series else None, series=_series_ohlcv(full, prices, chart_sessions), **s))
     return dict(as_of=calendar[-1] if calendar else None, collected_at=us.get('collected_at'), cap_date=us.get('cap_date'),
                 cap_source=us.get('cap_source'), price_source=us.get('price_source'), currency='USD',
                 price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)
@@ -208,7 +218,7 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
     cap_date, caps = latest_caps(metadata_dir, as_of)
     ranked = sorted((s for s in stocks if caps.get(s['code'])), key=lambda s: (-caps[s['code']], s['code']))[:top]
     domestic = dict(cap_date=cap_date, cap_source='KRX 시가총액 스냅샷(기준일 이하 최신)', items=[
-        dict(rank=i + 1, market_cap=caps[s['code']], series=_series_out(series_by_code[s['code']], chart_sessions), **s) for i, s in enumerate(ranked)]) if ranked else None
+        dict(rank=i + 1, market_cap=caps[s['code']], series=_series_ohlcv(series_by_code[s['code']], by_code[s['code']], chart_sessions), **s) for i, s in enumerate(ranked)]) if ranked else None
     computed = [s for s in stocks if s['rsi'] is not None]
     result = dict(schema_version=1, as_of=as_of, rules=RULES, warmup_from=sessions[0] if sessions else None, warmup_status=warmup_status, population=len(stocks), computed=len(computed),
                   below30=sum(s['state'] == 'below30' for s in computed), entries_today=sum(s['entry_today'] for s in computed),

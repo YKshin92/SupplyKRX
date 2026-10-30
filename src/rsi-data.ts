@@ -3,7 +3,7 @@ export type RsiState='below30'|'neutral'|'above70'|null;
 export type RsiSummary={rsi:number|null;prev_rsi:number|null;state:RsiState;entry_today:boolean;below_streak:number;last_entry_date:string|null;reason:string|null;cutler?:number|null;since_reset?:number};
 export type RsiStock=RsiSummary&{code:string;name:string;market:string;close:number|null;change_pct:number|null;observed:number};
 export type RsiIndex={summary:RsiSummary;series:{date:string;close:number|null;rsi:number|null}[]};
-export type RsiPoint={date:string;close:number|null;rsi:number|null;cutler?:number|null};
+export type RsiPoint={date:string;close:number|null;rsi:number|null;cutler?:number|null;open?:number|null;high?:number|null;low?:number|null;volume?:number|null};
 /** Wilder depends on its start: fewer than 60 changes since a restart is shown as not yet settled. */
 export const unsettled=(s:{since_reset?:number;rsi:number|null})=>s.rsi!=null&&(s.since_reset??0)<60;
 export type DomesticTop=RsiStock&{rank:number;market_cap:number;series:RsiPoint[]};
