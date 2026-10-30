@@ -1,7 +1,11 @@
 /** Public release history shown in the app. No private quotes, account values or credentials. */
-export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
+export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-new-highs',date:'2026-10-30',title:'종목 발굴에 3년 신고가 보기 추가',
+  targets:[{tab:'explore',discovery:'highs',selector:'.highs-explorer',label:'종목 발굴 · 3년 신고가'}],
+  changes:['오늘 장중 고가가 직전 3년(약 735거래일) 최고가를 넘은 종목, 종가 신고가 종목, 직전 최고가 5% 이내 근접 종목을 보여 줍니다.','직전 최고가와 그 날짜, 고점 간격(오래된 고점 돌파인지), 최근 20일 신고가 횟수, 연기금 오늘·5일 순매수, RSI를 함께 표시하고 ‘신고가 + 연기금 순매수’만 따로 볼 수 있습니다.','액면분할·병합은 수정주가로 보정하고, 3년치 자료가 없는 종목은 ‘보유 자료 기준’으로 구분합니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['3년치 과거 자료 보강 수집이 끝나기 전에는 모든 종목이 보유 자료 기준(2024-06~)으로 표시됨','모니터링 지표이며 매매 규칙에는 반영하지 않음']},
  {id:'2026-10-30-rsi-price-basis',date:'2026-10-30',title:'RSI 가격 기준 안내 (KRX 공식 종가)',
   targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수·시총 상위 RSI'}],
   changes:['국내 RSI와 차트는 KRX 정규장 공식 종가를 씁니다. 증권사 HTS·MTS의 통합 시세(KRX+넥스트레이드 장후 거래 포함)와는 RSI가 0.3~0.5 정도 다를 수 있어 화면에 표시했습니다.','과거 500거래일 시가·고가·저가·종가·등락률을 다시 받아, 1년 이전 구간의 수정주가 보정과 RSI 신호 성과 계산에 반영했습니다.'],

@@ -33,3 +33,4 @@
 .stock-rsi{margin-top:14px}.stock-rsi-chart{height:220px}
 .rsi-trend-toggle{margin-left:8px;vertical-align:middle}.rsi-trend-toggle[aria-pressed=true]{background:var(--blue);color:#fff;border-color:var(--blue)}
 .rsi-trend-note{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11px;color:var(--muted);margin:6px 0 0}.rsi-trend-note i{display:inline-block;width:16px;height:0;border-top:2px solid}.rsi-trend-note i.up{border-color:var(--rsi-high-line)}.rsi-trend-note i.down{border-color:var(--rsi-low-line);margin-left:6px}
+.rsi-event.high{background:var(--rsi-high-line)}

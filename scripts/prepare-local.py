@@ -55,6 +55,10 @@ print(f"RSI: {rsi['computed']}/{rsi['population']} computed, {rsi['below30']} be
 from collector.signal_lab import publish_signal_lab
 lab=publish_signal_lab(args.root,args.target,rsi_keep,{k:v['prices'] for k,v in rsi_indices['indices'].items()},rsi['as_of'])
 print('Signal lab: '+', '.join(f"{s['key']} {s['backtest']['signals']}+{s['forward']['signals']}" for s in lab['strategies'])+f" · today {len(lab['today'])}. Private/local only.")
+from collector.new_highs import publish_new_highs
+from collector.signal_lab import rank_entries
+highs=publish_new_highs(rows,rsi_keep,rsi['as_of'],args.target,rsi_stocks=rsi['stocks'],rank_top=rank_entries(args.root)[1].get(rsi['as_of']))
+print(f"New highs: {highs['counts']}. Private/local only.")
 from collector.publish_flow_ranks import publish_ranks
 rank_report=publish_ranks(args.root,args.target)
 print(f"Flow ranks: {rank_report['state']}. Private/local only.")
