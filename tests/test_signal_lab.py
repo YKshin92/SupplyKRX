@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
+from collector.signal_lab import pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -78,6 +78,15 @@ class SignalLabTests(unittest.TestCase):
         self.assertNotIn(days[-1], [h['signal_date'] for h in co_buy_signals(rows, prices, days, caps)])
         rows = [r for r in rows if r['investor'] == '연기금 등']
         self.assertEqual(co_buy_signals(rows, prices, days, caps), [])
+
+    def test_pension_signal_matches_tracking_default(self):
+        e = dict(prior={'10': dict(max_buy=5e7, max_sell=0)}, signal_net=3e8, quiet_3m=True, volume_ratio_20=2.5)
+        self.assertTrue(pension_signal(e))
+        self.assertFalse(pension_signal(dict(e, signal_net=2.9e8)))  # 1억~3억 history events are not the base signal
+        self.assertFalse(pension_signal(dict(e, prior={'10': dict(max_buy=1e8, max_sell=0)})))
+        self.assertFalse(pension_signal(dict(e, quiet_3m=False)))
+        self.assertFalse(pension_signal(dict(e, volume_ratio_20=3.1)))
+        self.assertFalse(pension_signal(dict(e, prior={'20': dict(max_buy=0, max_sell=0)})))
 
 
 if __name__ == '__main__':

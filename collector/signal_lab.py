@@ -31,8 +31,10 @@ TRACK_SESSIONS = 60
 RANK_BANDS = ((1, 20, '1~20위'), (21, 100, '21~100위'), (101, 300, '101~300위'), (301, 10**9, '301위 이하'))
 SCORE_BANDS = ((70, 101, '70점 이상'), (50, 70, '50~70점'), (0, 50, '50점 미만'))
 KST = timezone(timedelta(hours=9))
+MIN_NET = 3e8     # 기본 신호: 당일 연기금 순매수 3억 이상 (추적 화면 기본값과 동일)
+QUIET_CAP = 1e8   # 직전 10거래일 연기금 매수·매도 각각 1억 미만
 STRATEGIES = [
-    dict(key='pension', label='연기금 신호', description='기본 신호 + 직전 3개월 연기금 매수 0원 + 신호일 거래량 20일 평균 3배 이하'),
+    dict(key='pension', label='연기금 신호', description='기본 신호(직전 10거래일 연기금 매수·매도 각각 1억 미만, 당일 순매수 3억 이상) + 직전 3개월 연기금 매수 0원 + 신호일 거래량 20일 평균 3배 이하 · 신규 순매수 추적 기본 조건과 같은 신호'),
     dict(key='rank8', label='8항목 수급 상위 20 신규 진입', description='날짜별로 고정 기록한 8항목 수급 점수 상위 20위에 전 거래일에는 없다가 새로 들어온 종목 (2026-10-29부터 기록)'),
     dict(key='rsi', label='RSI 30 하향 진입', description='Wilder RSI(14)가 전일 30 이상에서 당일 30 미만으로 내려온 날 (재시작 후 60거래일 이상 안정화된 값만)'),
     dict(key='rsi_pension', label='RSI 진입 + 연기금 신호', description='RSI 30 하향 진입과 연기금 신호가 5거래일 안에 함께 나온 경우 (둘 중 늦은 날을 신호일로)'),
@@ -316,6 +318,16 @@ def co_buy_signals(rows, prices, sessions, caps, flow_min=0.001, chase=5.0, spik
     return out
 
 
+def pension_signal(e):
+    """Same registration as the 신규 순매수 추적 default: prior 10 sessions pension buy and sell each < 1억, signal-day net >= 3억,
+    no pension buying in the prior 3 months, signal-day volume <= 3x the 20-day average. The 3-year history keeps events from 1억,
+    so the 3억 floor must be applied here (without it 1억~3억 events were counted too)."""
+    prior = (e.get('prior') or {}).get('10')
+    return (prior is not None and prior.get('max_buy') is not None and prior.get('max_sell') is not None
+            and prior['max_buy'] < QUIET_CAP and prior['max_sell'] < QUIET_CAP and (e.get('signal_net') or 0) >= MIN_NET
+            and e.get('quiet_3m') is True and e.get('volume_ratio_20') is not None and e['volume_ratio_20'] <= 3)
+
+
 def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
     from .core import save_json
     live_rows = rows or []  # keep: `rows` is reused below for per-stock history files
@@ -337,7 +349,7 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
         for part in json.loads((hw / 'tracking-history.json').read_text(encoding='utf-8'))['files']:
             events += json.loads((hw / part).read_text(encoding='utf-8'))
         for e in events:
-            if e.get('quiet_3m') is True and e.get('volume_ratio_20') is not None and e['volume_ratio_20'] <= 3:
+            if pension_signal(e):
                 pension.append(dict(code=e['code'], signal_date=e['signal_date'], name=e['name'], market=e['market'], net=e.get('signal_net')))
                 names.setdefault(e['code'], e['name'])
                 markets.setdefault(e['code'], e['market'])

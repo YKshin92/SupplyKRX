@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-31-pension-signal-floor',date:'2026-10-31',title:'신호 성과 검증의 연기금 신호를 신규 순매수 추적과 같은 기준으로 수정',
+  targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['신호 성과 검증의 연기금 신호가 당일 순매수 1억~3억 신호까지 포함해 190건으로 집계되던 오류를 고쳤습니다. 이제 신규 순매수 추적 기본 조건(직전 10거래일 매수·매도 각각 1억 미만, 당일 순매수 3억 이상, 직전 3개월 매수 0원, 거래량 3배 이하)과 같은 57건을 씁니다.','RSI 진입 + 연기금 조합과 통합 추적도 같은 기준으로 다시 계산됩니다.'],
+  verified:'로컬 재계산으로 57건 일치 확인 2026-10-31'},
  {id:'2026-10-31-drop-rsi-rank',date:'2026-10-31',title:'신호 성과 검증에서 ‘RSI 진입 + 수급 상위 20’ 조합 제외',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['RSI 30 하향 진입일에 8항목 수급 점수 상위 20위인 종목을 따로 보는 조합을 목록과 통합 추적에서 뺐습니다. RSI 단독, 8항목 상위 20 신규 진입, RSI+연기금, 동반 매집은 그대로 비교합니다.'],
