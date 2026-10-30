@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
+from collector.signal_lab import co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -63,6 +63,21 @@ class SignalLabTests(unittest.TestCase):
         self.assertEqual((top['observations'], top['horizons'][5]['count']), (2, 2))
         self.assertEqual(next(b for b in bands['bands'] if b['label'] == '50점 미만')['observations'], 1)
         self.assertEqual(score_bands({'d05': [('A', 80.0)]}, set(), {'A': p}, self.days, self.pos, {}, {})['days'], [])
+
+    def test_co_buy_requires_both_flows_and_skips_chase_days(self):
+        days = [f'2026-{m:02}-{d:02}' for m in (7, 8, 9, 10) for d in range(1, 29)][:90]
+        prices = {'A': {d: dict(open=10000, high=10100, low=9900, close=10000, volume=200000, change_pct=0.0, turnover=2e9) for d in days}}
+        rows = []
+        for d in days[-10:]:
+            rows.append(dict(code='A', date=d, investor='연기금 등', net=3e7))
+            rows.append(dict(code='A', date=d, investor='외국인', net=3e7))
+        caps = {d: {'A': 1e11} for d in days}
+        hits = co_buy_signals(rows, prices, days, caps)
+        self.assertEqual(hits[0]['signal_date'], days[-6])  # first day with five live sessions: 1.5억/1,000억 = 0.15% each
+        prices['A'][days[-1]] = dict(open=10000, high=10600, low=9900, close=10550, volume=200000, change_pct=5.5, turnover=2e9)
+        self.assertNotIn(days[-1], [h['signal_date'] for h in co_buy_signals(rows, prices, days, caps)])
+        rows = [r for r in rows if r['investor'] == '연기금 등']
+        self.assertEqual(co_buy_signals(rows, prices, days, caps), [])
 
 
 if __name__ == '__main__':

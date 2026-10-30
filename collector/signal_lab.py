@@ -37,6 +37,7 @@ STRATEGIES = [
     dict(key='rsi', label='RSI 30 하향 진입', description='Wilder RSI(14)가 전일 30 이상에서 당일 30 미만으로 내려온 날 (재시작 후 60거래일 이상 안정화된 값만)'),
     dict(key='rsi_rank', label='RSI 진입 + 수급 상위 20', description='RSI 30 하향 진입일에 8항목 수급 점수 상위 20위인 종목'),
     dict(key='rsi_pension', label='RSI 진입 + 연기금 신호', description='RSI 30 하향 진입과 연기금 신호가 5거래일 안에 함께 나온 경우 (둘 중 늦은 날을 신호일로)'),
+    dict(key='co_buy', label='연기금·외국인 동반 매집 (추격 제외)', description='최근 5거래일 연기금·외국인 순매수가 각각 시총의 0.1% 이상 · 당일 +5% 이상 급등, 거래량 20일 평균 5배 이상, 52주 신고가 돌파일은 제외 · 종가 1,000원·20일 평균 거래대금 10억·시총 500억 이상 (2026-10-30 전략 연구의 가장 일관된 후보, 사전 기록으로 검증 중)'),
 ]
 
 
@@ -191,7 +192,7 @@ def frozen_log(root):
 def integrated_tracking(counted, sessions, prices, as_of, window=TRACK_SESSIONS):
     """One row per stock with every signal it had in the last `window` sessions; outcome from its first signal."""
     since = sessions[-window] if len(sessions) >= window else sessions[0]
-    base = {'pension', 'rank8', 'rsi'}
+    base = {'pension', 'rank8', 'rsi', 'co_buy'}
     groups = {}
     for s in counted:
         if s['signal_date'] >= since:
@@ -247,8 +248,78 @@ def score_bands(rankings, frozen_days, prices, sessions, pos, index_prices, mark
     return dict(days=observed, bands=out, note='같은 날 장 마감 뒤 고정 기록한 8항목 점수만 사용 · 다음 거래일 시가 진입 · 기간이 지나야 결과가 채워짐')
 
 
-def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
+def load_caps(root):
+    """Point-in-time market caps by date from the daily metadata snapshots."""
+    out = {}
+    for path in sorted((Path(root) / 'data/live/metadata/daily').glob('????-??-??.json')):
+        data = json.loads(path.read_text(encoding='utf-8'))
+        out[path.stem] = {c: v.get('market_cap') for c, v in data.get('instruments', {}).items() if v.get('market_cap')}
+    return out
+
+
+def _valid_bar(r):
+    return bool(r and r.get('close') and r['close'] > 0 and (r.get('volume') or 0) > 0 and r.get('high') and r.get('low')
+                and r['low'] <= min(r.get('open') or r['close'], r['close']) and max(r.get('open') or r['close'], r['close']) <= r['high'])
+
+
+def co_buy_signals(rows, prices, sessions, caps, flow_min=0.001, chase=5.0, spike=5.0):
+    """연기금·외국인 동반 매집, 추격 제외 (pre-registered research candidate C5 with chase/breakout exclusions).
+    Uses only information up to the signal day's close; flows from the live collector rows."""
+    pen, fo = {}, {}
+    for r in rows:
+        if r.get('net') is None:
+            continue
+        if r['investor'] == '연기금 등':
+            pen.setdefault(r['code'], {})[r['date']] = r['net']
+        elif r['investor'] == '외국인':
+            fo.setdefault(r['code'], {})[r['date']] = r['net']
+    live = sorted({d for f in pen.values() for d in f})
+    if not live:
+        return []
+    pos = {d: i for i, d in enumerate(sessions)}
+    out = []
+    for code, pmap in pen.items():
+        fmap = fo.get(code, {})
+        hist = prices.get(code, {})
+        for d in live:
+            i = pos.get(d)
+            if i is None or i < 5:
+                continue
+            last5 = sessions[i - 4:i + 1]
+            if any(x not in pmap or x not in fmap for x in last5):
+                continue
+            cap = caps.get(d, {}).get(code)
+            if not cap:
+                continue
+            p5, f5 = sum(pmap[x] for x in last5), sum(fmap[x] for x in last5)
+            if p5 / cap < flow_min or f5 / cap < flow_min:
+                continue
+            row = hist.get(d)
+            if not _valid_bar(row) or row['close'] < 1000 or cap < 5e10 or (row.get('change_pct') or 0) >= chase:
+                continue
+            if len([x for x in (hist.get(y) for y in sessions[:i]) if _valid_bar(x)]) < 60:
+                continue
+            last20 = [hist.get(x) for x in sessions[i - 19:i + 1]]
+            turn = [(x.get('turnover') or x['close'] * x['volume']) for x in last20 if _valid_bar(x)]
+            if len(turn) < 15 or sum(turn) / len(turn) < 1e9:
+                continue
+            vols = [x['volume'] for x in (hist.get(y) for y in sessions[i - 20:i]) if _valid_bar(x)]
+            if len(vols) >= 15 and row['volume'] >= spike * (sum(vols) / len(vols)):
+                continue
+            window = [(j, hist.get(sessions[j])) for j in range(max(0, i - 250), i)]
+            window = [(j, x) for j, x in window if _valid_bar(x)]
+            if len(window) >= 245:
+                j_max, top = max(window, key=lambda t: (t[1]['high'], -t[0]))
+                if row['high'] > top['high'] and i - j_max >= 60:
+                    continue  # 52-week breakout day: excluded (negative in all three research periods)
+            out.append(dict(code=code, signal_date=d, pen5_cap=round(p5 / cap * 100, 3), for5_cap=round(f5 / cap * 100, 3),
+                            score=round((p5 + f5) / cap * 100, 3)))
+    return out
+
+
+def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
     from .core import save_json
+    live_rows = rows or []  # keep: `rows` is reused below for per-stock history files
     root = Path(root)
     histories = rsi_keep['history']  # code -> date -> row (warm-up + live)
     rsi_series = rsi_keep['series']
@@ -296,7 +367,8 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of):
                 rsi_pension.append(dict(code=p['code'], signal_date=max(p['signal_date'], s['signal_date']), rsi=s['rsi'], pension_date=p['signal_date']))
 
     logged = frozen_log(root)
-    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_rank=rsi_rank, rsi_pension=rsi_pension)
+    co_buy = co_buy_signals(live_rows, prices, sessions, load_caps(root)) if live_rows else []
+    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_rank=rsi_rank, rsi_pension=rsi_pension, co_buy=co_buy)
     strategies, recent, today, all_counted = [], [], [], []
     recent_from = sessions[-RECENT_SESSIONS] if len(sessions) >= RECENT_SESSIONS else sessions[0]
     for spec in STRATEGIES:

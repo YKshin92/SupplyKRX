@@ -99,3 +99,7 @@ table{font-variant-numeric:tabular-nums}
  :root .stock-rsi .chart-header{flex-wrap:wrap;align-items:flex-start}
  :root .stock-rsi .chart-header h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 }
+:root .chase-warning{margin:10px 0 0;padding:8px 11px;border-radius:7px;background:#fff4de;border:1px solid #f2deb7;color:#7d5d1f;font-size:12px;line-height:1.55}
+:root .chase-warning b{margin-right:6px;color:#b25c00}
+[data-theme=dark] .chase-warning{background:#3a2e14;border-color:#5c4719;color:#f0d9a8}
+[data-theme=dark] .chase-warning b{color:#ffb35c}

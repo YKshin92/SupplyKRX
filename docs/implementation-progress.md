@@ -435,3 +435,15 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **Actions 버전:** checkout, setup-python, upload-artifact, setup-node를 v6(node24)로 올려 Node 20 경고를 없앴다. 1회성 연구 작업 2개는 삭제했다.
 - **휴대폰 화면:** 375px 폭에서 모든 탭의 가로 넘침이 없음을 확인했다. 상단 버튼은 한 줄로, 탭과 보기 버튼은 가로 스크롤로 바꿨고, RSI 차트 제목 줄바꿈도 정리했다.
 - **속도:** TrackingCases와 HistoryEventDetail을 lazy 로딩으로 바꿨다. vite manualChunks로 charts, react, icons, csv 공용 라이브러리를 분리했다.
+
+### D11 동반 매집 전략 사전 기록, 추격 주의, 보안 업데이트 (2026-10-30)
+
+- **co_buy 전략(signal_lab):** 3년 전략 연구의 C5 계열이다. 조건은 다음과 같다.
+  - 연기금·외국인 5일 순매수/시총이 각각 0.1% 이상
+  - 당일 +5% 이상, 거래량 20일 평균 5배 이상, 52주 돌파일(직전 고점이 60거래일 이상 전)은 제외
+  - 종가 1,000원 이상, 20일 평균 거래대금 10억 이상, 시총 500억 이상, 유효 봉 60개 이상
+  - 수급은 live 행, 시총은 metadata/daily 시점값을 쓴다. signal-log로 사전 기록된다. 사이트 안 사후 계산(3개월)은 298건, 20일 초과 +2.6%p다.
+- **추격 주의(src/chase.ts):** 최근 거래일이 +5% 이상이고 거래량이 직전 20일 평균의 5배 이상이면 종목 상세에 표시한다.
+- **보안:** 공개 앱에서 쓰지 않는 vitest를 제거하고 vite를 7.3.7로 올렸다. 앱과 서버 모두 zod를 ^4.6.6으로 고정했다(@vercel/oidc→cli-config 체인). npm audit 결과는 공개 앱과 서버 모두 0건이다.
+- **정리:** 임시 브랜치(probe-us, deps-fix)와 1회성 작업 파일을 삭제했다.
+- **저장소 용량:** 재측정 결과 history-web의 하루 증가분은 git 압축 후 약 0.5MB, 전체는 약 2MB다. 구조는 바꾸지 않고, 16시 예약 보고에 저장소 크기를 넣어 모니터링한다.

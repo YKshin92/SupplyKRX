@@ -80,7 +80,7 @@ export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
 function IntegratedTracking({lab,label,overlapOnly,setOverlapOnly,page,setPage,onOpen}:{lab:Lab;label:Record<string,string>;overlapOnly:boolean;setOverlapOnly:(v:boolean)=>void;page:number;setPage:(n:number)=>void;onOpen:(code:string)=>void}){
  const all=lab.tracking??[];const rows=overlapOnly?all.filter(t=>t.overlap>=2):all;
  const pages=Math.max(1,Math.ceil(rows.length/20)),current=Math.min(page,pages);
- const short:Record<string,string>={pension:'연기금',rank8:'수급 상위',rsi:'RSI',rsi_rank:'RSI+수급',rsi_pension:'RSI+연기금'};
+ const short:Record<string,string>={pension:'연기금',rank8:'수급 상위',rsi:'RSI',rsi_rank:'RSI+수급',rsi_pension:'RSI+연기금',co_buy:'동반 매집'};
  return <div className="signal-recent signal-tracking">
   <div className="signal-recent-head"><h3>통합 추적 <small>최근 60거래일 · 종목별 신호 묶음 · {all.filter(t=>t.overlap>=2).length}종목이 2가지 이상 신호</small></h3>
    <div className="signal-lab-toggles"><div role="group" aria-label="통합 추적 범위"><button type="button" aria-pressed={overlapOnly} onClick={()=>setOverlapOnly(true)}>2가지 이상 겹침</button><button type="button" aria-pressed={!overlapOnly} onClick={()=>setOverlapOnly(false)}>전체 {all.length}종목</button></div></div></div>
