@@ -428,3 +428,10 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - score_bands: 같은 날 고정 기록한 8항목 점수 스냅샷만 쓴다. 순위·점수 구간별로 다음날 시가 진입 5·10·20일 수익률, 지수 대비 초과, 상승 비율을 낸다.
 
 점수 체계(tracking v2, 시뮬레이션 진입 점수, 8항목)는 섞지 않는다. 10-29 기준 통합 추적은 934종목이고, 그중 2가지 이상 겹친 종목은 5개다(인바디: 수급 상위와 RSI, 현대퓨처넷 등: 연기금과 RSI).
+
+### D10 운영 정리 (2026-10-30)
+
+- **수집 예약:** Claude 예약 작업이 평일 16:00에 collect.yml을 실행하는 것을 기본으로 한다. GitHub cron은 20:10 백업 하나만 남겼다. 이미 수집된 날에는 freshness skip으로 미국 자료 갱신을 포함해 아무것도 커밋하지 않는다(수동 실행에서는 미국 자료를 갱신한다). 공개 저장소의 collect는 수동 전용이다.
+- **Actions 버전:** checkout, setup-python, upload-artifact, setup-node를 v6(node24)로 올려 Node 20 경고를 없앴다. 1회성 연구 작업 2개는 삭제했다.
+- **휴대폰 화면:** 375px 폭에서 모든 탭의 가로 넘침이 없음을 확인했다. 상단 버튼은 한 줄로, 탭과 보기 버튼은 가로 스크롤로 바꿨고, RSI 차트 제목 줄바꿈도 정리했다.
+- **속도:** TrackingCases와 HistoryEventDetail을 lazy 로딩으로 바꿨다. vite manualChunks로 charts, react, icons, csv 공용 라이브러리를 분리했다.

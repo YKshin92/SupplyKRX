@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-mobile-speed',date:'2026-10-30',title:'휴대폰 화면 정리와 첫 화면 속도 개선',
+  targets:[{tab:'market',selector:'.market-flow',label:'모든 화면(휴대폰)'}],
+  changes:['휴대폰 폭에서 상단 버튼이 한 줄에 들어가도록 줄이고, 탭과 종목 발굴 보기 버튼은 여러 줄로 쌓이는 대신 옆으로 밀어 볼 수 있게 했습니다.','종목 상세 RSI 차트 제목과 추세선 버튼이 겹치지 않게 했습니다.','신규 순매수 추적 화면은 그 탭을 열 때 불러오고, 차트·아이콘 같은 공용 라이브러리는 따로 나눠 브라우저에 남도록 해 첫 화면을 가볍게 했습니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-design-polish',date:'2026-10-30',title:'글자 간격·크기·여백 등 화면 디자인 정리',
   targets:[{tab:'market',selector:'.market-flow',label:'시장 현황'},{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 / 3년 신고가'},{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['한글이 단어 중간에서 줄바꿈되지 않도록 하고, 글자 간격과 줄 간격을 조금 다듬었습니다.','9~10px로 작던 안내 문구·표 하단·차트 설명 글자를 11~12px로 키웠습니다.','RSI 30 미만·3년 신고가 화면을 연기금 조건 검색과 같은 여백·입력창 모양으로 맞추고, 신호 성과 검증 탭이 옆으로 넘치던 문제를 고쳤습니다.','수급 차트 금액 축을 ‘9,000.00억원’ 대신 ‘9,000억’ ‘1.5조’처럼 짧게 표시하고, 시총 상위 30 표의 숫자를 오른쪽 정렬했습니다.','상단 ‘조회 기간’ 표시가 제목과 붙어 보이던 간격을 넓혔습니다.'],
