@@ -367,3 +367,22 @@ D1 운영 확인(2026-10-30 07:5x KST): 공개 4e5e97d를 private 241ce0b로 pin
 
 전날 밤 '기존 저거래 조건을 없애라'는 요청을 반대로 적용해 3개월 무매수 옵션을 지웠다. 사용자 확인 후 신규 순매수 추적과 전략 검증 모두 '기본 신호 + 직전 3개월 연기금 매수 0원(quiet_3m) + 신호일 거래량 20일 평균 3배 이하(volume_ratio_20≤3)'로 고정했다(TrackingCases quietVolume, Simulation 기본 filter 'quiet3m-volume'). 이력 자료 기준 4,160 이벤트 중 190건이 조건을 충족한다.
 RSI 워밍업(rsi-warmup.json.gz, 2025-07-02~2026-07-09 250거래일) 적용 후 삼성전자 10-29 46.88·10-15 27.74 (사용자 HTS 46.45·27.11).
+
+### D5 신호 성과 검증 탭 (2026-10-30)
+
+collector/signal_lab.py가 빌드 때 signal-lab/latest.json을 만든다. 신호는 다섯 가지다.
+- 연기금: tracking-history 중 quiet_3m 및 거래량 3배 이하. 가격은 history-stock.
+- rank8: 날짜별 8항목 점수 스냅샷 상위 20의 신규 진입. 10-29부터, 같은 날 기록분은 사전 기록.
+- RSI: Wilder 30 하향 진입. 재시작 후 60변동 이상만 센다.
+- RSI+rank8, RSI+연기금: 연기금과 RSI는 5거래일 이내, 늦은 날을 신호일로 한다.
+
+평가 규칙은 다음과 같다.
+- 다음날 시가에 진입한다. 5·10·20·60 보유 수익률과 지수 시가→종가 대비 초과수익을 낸다.
+- +30/−10과 +10/−5 선도달을 본다. 갭은 시가 체결, 동시 도달은 손절, 가격 단절이면 중단한다.
+- 같은 종목은 20거래일 쿨다운을 둔다.
+
+사전 기록은 다음과 같다.
+- collect.yml의 freeze-signals.py가 data/live/signal-log/<날짜>.json을 한 번만 쓴다.
+- capture_kind가 same_day_after_close인 신호만 forward로 센다.
+
+RSI 성과 계산을 위해 워밍업을 OHLCV(schema 2)·500거래일로 다시 수집한다.

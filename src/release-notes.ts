@@ -1,7 +1,11 @@
 /** Public release history shown in the app. No private quotes, account values or credentials. */
-export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
+export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-signal-lab',date:'2026-10-30',title:'신호 성과 검증 탭 추가 (연기금 · 8항목 수급 상위 20 · RSI 30 하향 진입)',
+  targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['연기금 신호, 8항목 수급 점수 상위 20위 신규 진입, RSI 30 하향 진입과 두 가지 조합(RSI+수급 상위, RSI+연기금)을 같은 규칙으로 비교합니다.','매수는 신호 다음 거래일 시가, 성과는 5·10·20·60거래일 수익률과 지수 대비 초과수익, +30%/−10% 먼저 도달(기본)과 RSI 비교용 +10%/−5%로 봅니다.','과거에 규칙을 적용한 ‘사후 계산’과, 신호가 나온 날 장 마감 뒤 바꿀 수 없게 기록한 ‘사전 기록’을 나눠 보여 줍니다. 사전 기록은 10-30부터 매일 16시 수집 때 쌓입니다.','최근 20거래일 신호 목록에서 종목을 누르면 최근 60거래일 일봉·거래량·RSI 상세가 열립니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30',limits:['8항목 점수는 과거를 다시 계산할 수 없어 10-29 이후 기록분만 집계','RSI 사후 계산은 현재 상장 종목만 대상(상장폐지 종목 제외)이라 좋게 나올 수 있음','수수료·세금·배당 미반영']},
  {id:'2026-10-30-rsi-stock-detail',date:'2026-10-30',title:'RSI 30 미만 종목 상세에 최근 60거래일 일봉·거래량·RSI 추세',
   targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만'}],
   changes:['RSI 30 미만 목록에서 종목을 누르면 오른쪽 종목 상세에 최근 60거래일 일봉, 거래량, RSI(14) 추세가 같은 날짜 축으로 차례로 표시됩니다. 연기금 수급 차트는 그 아래에 있습니다.','RSI 차트에는 30 미만·70 이상 음영과 도달일 점, 진입일 목록이 함께 나옵니다.'],

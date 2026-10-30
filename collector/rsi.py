@@ -174,7 +174,7 @@ def us_rsi(us, chart_sessions=62, top=30):
                 price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)
 
 
-def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30, warmup=None):
+def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30, warmup=None, keep=None):
     """rows: collector rows (pension rows carry the stock's daily OHLCV). Writes target/rsi/latest.json."""
     from .core import save_json
     pension = [r for r in rows if r['investor'] == '연기금 등']
@@ -230,6 +230,9 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
                                invalid=sum(s['reason'] == 'invalid' for s in stocks), break_reset=sum(s['reason'] == 'break' for s in stocks)),
                   indices=index_out, domestic_top30=domestic, us=us_rsi(us, chart_sessions, top), stocks=stocks)
     save_json(target / 'rsi' / 'latest.json', result)
+    if keep is not None:  # full series for the signal lab (not published)
+        keep.update(history=by_code, series=series_by_code, sessions=sessions,
+                    names={s['code']: s['name'] for s in stocks}, markets={s['code']: s['market'] for s in stocks})
     # Per-stock RSI path for the stock detail panel (last chart_sessions sessions, Wilder + Cutler reference).
     for code, series in series_by_code.items():
         if by_code[code].get(as_of):
