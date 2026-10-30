@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-10-30-rsi-price-basis',date:'2026-10-30',title:'RSI 가격 기준 안내 (KRX 공식 종가)',
+  targets:[{tab:'market',selector:'.index-rsi',label:'시장 현황 · 지수·시총 상위 RSI'}],
+  changes:['국내 RSI와 차트는 KRX 정규장 공식 종가를 씁니다. 증권사 HTS·MTS의 통합 시세(KRX+넥스트레이드 장후 거래 포함)와는 RSI가 0.3~0.5 정도 다를 수 있어 화면에 표시했습니다.','과거 500거래일 시가·고가·저가·종가·등락률을 다시 받아, 1년 이전 구간의 수정주가 보정과 RSI 신호 성과 계산에 반영했습니다.'],
+  verified:'Vercel 빌드 확인 2026-10-30'},
  {id:'2026-10-30-adjusted-prices',date:'2026-10-30',title:'수정주가 반영 (액면분할·병합 등)과 거래정지일 처리',
   targets:[{tab:'explore',discovery:'rsi',selector:'.rsi-explorer',label:'종목 발굴 · RSI 30 미만 · 종목 상세'},{tab:'market',selector:'.index-rsi',label:'시장 현황 · 시총 상위 30'}],
   changes:['액면분할·병합처럼 거래소 등락률로 설명되는 가격 단절은 증권사 차트처럼 이전 가격을 수정주가로 보정합니다(예: 중앙첨단소재 2026-10-02 10:1 병합). 종목 상세 일봉 아래에 보정 날짜와 비율을 표시합니다.','RSI도 수정주가로 계산해 기업행사 뒤에 값을 처음부터 다시 쌓지 않습니다.','거래정지로 거래량이 0인 날은 봉이 없는 날로 건너뛰고, RSI 계산을 이어 갑니다.'],

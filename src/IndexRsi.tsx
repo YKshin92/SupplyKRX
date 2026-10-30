@@ -60,6 +60,6 @@ export default function IndexRsi(){
    <TopTable currency="USD" title="미국 시가총액 상위 30" note={`시총 기준일 ${us.cap_date??'—'} · ${us.cap_source??''} · ${us.price_basis} · USD`} rows={us.top30.map(s=>({...s,key:s.symbol,sub:s.symbol,cap:usCap(s.market_cap_usd),close:s.close==null?'—':`$${s.close.toFixed(2)}`}))}/>
    <p className="source-note">가격 {us.price_source??'—'} · 수집 {us.collected_at??'—'} · 미국 장 마감(한국시간 다음날 새벽) 뒤 수집분까지 반영</p>
   </>:<p className="notice">미국 자료가 아직 수집되지 않았습니다. 다음 수집 뒤 표시됩니다.</p>}
-  <p className="source-note">원 종가 기준(미국은 분할 조정) · 증권사 HTS·MTS 기본 RSI와 같은 Wilder 방식(전일 평균×13 + 당일 변동, ÷14) · 1년 이상 과거 종가로 미리 계산해 값을 안정화 · 재시작 뒤 60거래일 미만은 ‘안정화 전’ · Cutler(직전 14일 단순평균)는 참고값 · 결측·가격 단절 뒤에는 다시 계산 · 투자 권유 아님</p>
+  <p className="source-note">원 종가 기준(미국은 분할 조정) · 국내는 KRX 정규장 공식 종가 기준 · 증권사 HTS·MTS의 통합 시세(KRX+넥스트레이드 장후 거래 포함)와는 RSI가 0.3~0.5 정도 다를 수 있음 · 증권사 HTS·MTS 기본 RSI와 같은 Wilder 방식(전일 평균×13 + 당일 변동, ÷14) · 1년 이상 과거 종가로 미리 계산해 값을 안정화 · 재시작 뒤 60거래일 미만은 ‘안정화 전’ · Cutler(직전 14일 단순평균)는 참고값 · 결측·가격 단절 뒤에는 다시 계산 · 투자 권유 아님</p>
  </section>;
 }

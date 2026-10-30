@@ -28,6 +28,6 @@ export default function RsiExplorer({open}:{open:(code:string,element?:HTMLEleme
    <td>{s.last_entry_date??'—'}</td></tr>)}</tbody></table></div>
   {!rows.length&&<p className="no-results">조건에 맞는 종목이 없습니다.</p>}
   <div className="table-footer"><span>{integer(rows.length)}종목 · 20종목씩</span><span><button disabled={current<=1} onClick={()=>setPage(current-1)}>이전</button> {current}/{pages} <button disabled={current>=pages} onClick={()=>setPage(current+1)}>다음</button></span></div>
-  <p className="source-note">원 종가 기준 Wilder RSI(14) — 증권사 HTS·MTS 기본 RSI와 같은 방식입니다. 참고용 Cutler(직전 14일 단순평균) 값도 함께 표시합니다. Wilder는 계산 시작점에 따라 값이 달라 1년 이상 과거 종가로 미리 계산하며, 재시작 뒤 60거래일 미만은 ‘안정화 전’으로 표시합니다. 거래량 0·결측·가격 단절(기업행사 포함) 이후에는 다시 15거래일을 모아 계산하고 값을 채우지 않습니다. 기존 연기금 신호·점수·매매 규칙에는 반영하지 않은 모니터링 지표입니다.</p>
+  <p className="source-note">원 종가 기준 Wilder RSI(14) — 증권사 HTS·MTS 기본 RSI와 같은 방식입니다. 국내는 KRX 정규장 공식 종가 기준 · 증권사 HTS·MTS의 통합 시세(KRX+넥스트레이드 장후 거래 포함)와는 RSI가 0.3~0.5 정도 다를 수 있음. 참고용 Cutler(직전 14일 단순평균) 값도 함께 표시합니다. Wilder는 계산 시작점에 따라 값이 달라 1년 이상 과거 종가로 미리 계산하며, 재시작 뒤 60거래일 미만은 ‘안정화 전’으로 표시합니다. 거래량 0·결측·가격 단절(기업행사 포함) 이후에는 다시 15거래일을 모아 계산하고 값을 채우지 않습니다. 기존 연기금 신호·점수·매매 규칙에는 반영하지 않은 모니터링 지표입니다.</p>
  </section>;
 }
