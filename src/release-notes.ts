@@ -2,10 +2,14 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-detail-six-months-all',date:'2026-11-01',title:'모든 종목 상세에서 최근 6개월 보기',
+  targets:[{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'}],
+  changes:['삼성전자처럼 연기금이 늘 거래해 3년 신호 이력 파일이 없던 약 1,590종목도 ‘최근 6개월’을 볼 수 있습니다. 7월 9일 이전 구간은 비공개 3년 보관본의 같은 KRX 원자료(체크섬 확인)로 채웠고, 매일 수집 자료가 쌓이면 그쪽을 우선 씁니다.'],
+  verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['연기금·외국인 수급과 일봉만 6개월이며 기관합계·사모는 최근 3달']},
  {id:'2026-11-01-detail-six-months',date:'2026-11-01',title:'종목 상세 3개월/6개월 선택과 과거 신호는 신호 시점으로 열기',
   targets:[{tab:'cases',selector:'.tracking-table',label:'신규 순매수 추적 · 과거 신호 분석'},{tab:'simulation',selector:'.simulation-results',label:'시뮬레이션 · 종목별 결과'},{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'}],
   changes:['신규 순매수 추적과 시뮬레이션에서 신호를 누르면 이제 ‘신호 시점’으로 열립니다. 신호 전 3개월(무매수 확인 구간, 연한 초록)부터 신호 뒤 최소 3개월, 청산이 더 늦으면 청산 뒤 10거래일까지, 합쳐서 최소 6개월을 보여 줍니다. 시뮬레이션에서 연 경우 모의 매수~매도 기간을 연한 보라로 표시합니다. ‘최근 6달’ 버튼으로 바꿔 볼 수 있습니다.','종목 상세(종목 발굴·RSI·신호 성과 검증에서 여는 화면)는 기본이 최근 3개월이고, ‘최근 6개월’ 버튼을 누르면 3년 자료가 있는 종목은 6개월을 보여 줍니다. 수급·일봉·거래량·RSI가 같은 날짜 축을 씁니다.','과거 신호 분석 화면의 수급·일봉·거래량 차트도 같은 날짜에 마우스를 올리면 함께 표시됩니다.'],
-  verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['3년 자료는 연기금 신규 순매수 신호가 있었던 약 1,020종목만 있어, 나머지 종목(삼성전자 등)은 수집 자료가 있는 최근 약 3달만 표시','기관합계·사모 수급은 최근 3달 자료만 있음']},
+  verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['기관합계·사모 수급은 최근 3달 자료만 있음']},
  {id:'2026-11-01-candle-tag',date:'2026-11-01',title:'신호일 음봉·양봉 표시',
   targets:[{tab:'cases',selector:'.tracking-table',label:'신규 순매수 추적'},{tab:'simulation',selector:'.simulation-results',label:'시뮬레이션 · 종목별 결과'},{tab:'signals',selector:'.signal-recent',label:'신호 성과 검증 · 최근 신호'}],
   changes:['신규 순매수 추적, 시뮬레이션 종목별 결과, 신호 성과 검증의 최근 신호 목록에서 신호일 옆에 그날 캔들(양봉 빨강 · 음봉 파랑)을 표시합니다. 신호일 종가가 시가보다 높으면 양봉, 낮으면 음봉입니다.','매수할 때 보는 참고 표시이며 점수·신호 조건·시뮬레이션 매매에는 쓰지 않습니다. 과거 3년 탐색에서는 음봉 신호의 거래당 성과가 더 좋았지만(현재 조건 13건 +14.6% vs 양봉 44건 +5.7%), 2019~2023년 검증 전입니다.'],
