@@ -2,9 +2,9 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
- {id:'2026-11-01-detail-six-months',date:'2026-11-01',title:'종목 상세 6개월 표시와 과거 신호는 신호 시점으로 열기',
+ {id:'2026-11-01-detail-six-months',date:'2026-11-01',title:'종목 상세 3개월/6개월 선택과 과거 신호는 신호 시점으로 열기',
   targets:[{tab:'cases',selector:'.tracking-table',label:'신규 순매수 추적 · 과거 신호 분석'},{tab:'simulation',selector:'.simulation-results',label:'시뮬레이션 · 종목별 결과'},{tab:'explore',discovery:'pension',label:'종목 발굴 · 종목 상세'}],
-  changes:['신규 순매수 추적과 시뮬레이션에서 신호를 누르면 이제 ‘신호 시점’으로 열립니다. 신호 전 3개월(무매수 확인 구간, 연한 초록)부터 신호 뒤 최소 3개월, 청산이 더 늦으면 청산 뒤 10거래일까지, 합쳐서 최소 6개월을 보여 줍니다. 시뮬레이션에서 연 경우 모의 매수~매도 기간을 연한 보라로 표시합니다. ‘최근 6달’ 버튼으로 바꿔 볼 수 있습니다.','종목 상세(종목 발굴·RSI·신호 성과 검증에서 여는 화면)는 3년 자료가 있는 종목이면 최근 6개월을 보여 줍니다. 수급·일봉·거래량·RSI가 같은 6개월 날짜 축을 씁니다.','과거 신호 분석 화면의 수급·일봉·거래량 차트도 같은 날짜에 마우스를 올리면 함께 표시됩니다.'],
+  changes:['신규 순매수 추적과 시뮬레이션에서 신호를 누르면 이제 ‘신호 시점’으로 열립니다. 신호 전 3개월(무매수 확인 구간, 연한 초록)부터 신호 뒤 최소 3개월, 청산이 더 늦으면 청산 뒤 10거래일까지, 합쳐서 최소 6개월을 보여 줍니다. 시뮬레이션에서 연 경우 모의 매수~매도 기간을 연한 보라로 표시합니다. ‘최근 6달’ 버튼으로 바꿔 볼 수 있습니다.','종목 상세(종목 발굴·RSI·신호 성과 검증에서 여는 화면)는 기본이 최근 3개월이고, ‘최근 6개월’ 버튼을 누르면 3년 자료가 있는 종목은 6개월을 보여 줍니다. 수급·일봉·거래량·RSI가 같은 날짜 축을 씁니다.','과거 신호 분석 화면의 수급·일봉·거래량 차트도 같은 날짜에 마우스를 올리면 함께 표시됩니다.'],
   verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['3년 자료는 연기금 신규 순매수 신호가 있었던 약 1,020종목만 있어, 나머지 종목(삼성전자 등)은 수집 자료가 있는 최근 약 3달만 표시','기관합계·사모 수급은 최근 3달 자료만 있음']},
  {id:'2026-11-01-candle-tag',date:'2026-11-01',title:'신호일 음봉·양봉 표시',
   targets:[{tab:'cases',selector:'.tracking-table',label:'신규 순매수 추적'},{tab:'simulation',selector:'.simulation-results',label:'시뮬레이션 · 종목별 결과'},{tab:'signals',selector:'.signal-recent',label:'신호 성과 검증 · 최근 신호'}],
