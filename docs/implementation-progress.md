@@ -453,3 +453,4 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **기관합계·사모 3년 원장:** 비공개 `codex/history-three-years` 브랜치 `data/history/investors`에 731/731거래일을 적재했다. 실시간 자료와 겹치는 30.5만 행이 100% 일치한다.
 - **8항목 3년 재구성 검증:** 사전 등록 프로토콜(비공개 `outputs/research/rank8-2026-10-30`)로 계산했다. 1~20위 묶음만 통과했다(20거래일 초과 +1.5/+3.5/+2.6%p). 개별 종목·점수 구간·신규 진입·동반 매집 조합은 근거가 없었다.
 - **화면:** 수급 순위 8항목에 '과거 3년 검증 결과'(`src/Rank8Research.tsx`)를 추가하고, 시뮬레이션의 8항목 전진 검증 안내 문구를 고쳤다.
+- **RSI 상승 다이버전스(2026-11-01):** 신호 성과 검증에 `rsi_div`를 추가했다(`collector/signal_lab.py` `rsi_divergence_signals`). RSI 30 하향 뒤 구간 최저 종가 ①, RSI 30 위 반등 뒤 40거래일 안에 종가 < ① 이면서 RSI > ①의 RSI인 ②, 그 뒤 RSI가 처음 오른 날이 신호일이다. 기존 RSI 30 하향 진입은 비교용으로 유지하고, 통합 추적에서는 RSI 계열을 한 가지로 센다.

@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
+from collector.signal_lab import rsi_divergence_signals, pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -57,6 +57,8 @@ class SignalLabTests(unittest.TestCase):
             return dict(r, strategy=strategy, code='A', name='에이', market='KOSPI', signal_date=day, forward=False)
         rows = integrated_tracking([item('rsi', 'd20'), item('pension', 'd22'), item('rsi_pension', 'd22')], self.days, {'A': p}, 'd29')
         self.assertEqual(rows[0]['kinds'], ['pension', 'rsi']); self.assertEqual(rows[0]['combos'], ['rsi_pension'])
+        div = integrated_tracking([item('rsi', 'd10'), item('rsi_div', 'd20')], self.days, {'A': p}, 'd29')
+        self.assertEqual((div[0]['kinds'], div[0]['combos'], div[0]['overlap']), (['rsi'], [], 1))  # same indicator family counts once
         self.assertEqual((rows[0]['entry_date'], rows[0]['ret']), ('d21', 10.0))
         bands = score_bands({'d05': [('A', 80.0), ('B', 40.0)]}, {'d05'}, {'A': p, 'B': p}, self.days, self.pos, {}, {})
         top = next(b for b in bands['bands'] if b['label'] == '1~20위')
@@ -88,6 +90,27 @@ class SignalLabTests(unittest.TestCase):
         self.assertFalse(pension_signal(dict(e, volume_ratio_20=3.1)))
         self.assertFalse(pension_signal(dict(e, prior={'20': dict(max_buy=0, max_sell=0)})))
 
+
+    def test_rsi_bullish_divergence(self):
+        def series(points, settled=60):
+            return [dict(date=f'd{i:02}', close=c, rsi=r, since_reset=settled) for i, (c, r) in enumerate(points)]
+        # cross below 30, lowest close ① 90 @ RSI 22, bounce above 30, lower close 88 @ RSI 31 (②), then RSI turns up
+        base = [(100, 40), (95, 28), (90, 22), (92, 27), (96, 33), (93, 30), (88, 31), (91, 36), (95, 45)]
+        out = rsi_divergence_signals(series(base))
+        self.assertEqual(len(out), 1)
+        self.assertEqual((out[0]['signal_date'], out[0]['low1_date'], out[0]['low2_date']), ('d07', 'd02', 'd06'))
+        self.assertEqual((out[0]['low1_rsi'], out[0]['low2_rsi'], out[0]['rsi']), (22, 31, 36))
+        # a further lower close before the upturn moves ② when RSI still stays above ①'s RSI
+        moved = rsi_divergence_signals(series(base[:7] + [(86, 29), (89, 34)]))
+        self.assertEqual((moved[0]['low2_date'], moved[0]['signal_date']), ('d07', 'd08'))
+        # lower close with RSI at or below ①'s RSI: no divergence; that day becomes the new ①
+        self.assertEqual(rsi_divergence_signals(series(base[:6] + [(85, 21), (87, 25)])), [])
+        # no rebound to RSI 30 between the lows: still the same oversold run, ① just moves lower
+        self.assertEqual(rsi_divergence_signals(series([(100, 40), (95, 28), (90, 22), (92, 27), (88, 25), (91, 29)])), [])
+        # second low later than the window, or unsettled RSI: nothing
+        late = base[:6] + [(94, 35)] * 40 + [(88, 31), (91, 36)]
+        self.assertEqual(rsi_divergence_signals(series(late)), [])
+        self.assertEqual(rsi_divergence_signals(series(base, settled=59)), [])
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,10 +2,14 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-rsi-divergence',date:'2026-11-01',title:'신호 성과 검증에 ‘RSI 30 미만 뒤 상승 다이버전스’ 추가',
+  targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['RSI가 30 아래로 내려간 구간의 최저 종가(①) 뒤 RSI가 30 위로 반등했다가, 40거래일 안에 종가는 ①보다 낮은데 RSI는 ①보다 높은 날(②)이 나오면 상승 다이버전스로 봅니다. 그 뒤 RSI가 전일보다 처음 오른 날이 신호일이고, 다음 거래일 시가 진입으로 다른 신호와 같은 규칙에 따라 성과를 계산합니다.','기존 ‘RSI 30 하향 진입’은 비교용으로 그대로 둡니다. 신호 목록에 ①·② 저점의 RSI를 함께 표시하고, 통합 추적에서는 RSI 계열을 한 가지로 셉니다.','매일 16시 수집 때 사전 기록에도 남겨 실제 성과를 따로 쌓습니다.'],
+  verified:'로컬 재계산 2026-11-01',limits:['사후 계산은 현재 상장 종목 기준','투자 권유 아님']},
  {id:'2026-11-01-rank8-backtest',date:'2026-11-01',title:'수급 순위 8항목에 과거 3년 검증 결과 추가',
   targets:[{tab:'explore',discovery:'ranks',selector:'.rank-research',label:'종목 발굴 · 수급 순위 8항목'},{tab:'simulation',selector:'.score-research',label:'시뮬레이션 · 8항목 전진 검증'}],
   changes:['기관합계·사모 3년치를 적재해 2024년 1월부터 8항목 점수를 매일 다시 만들고, 사이트 점수와 상위 20위가 같은지 확인했습니다.','수급 순위 8항목 화면에 ‘과거 3년 검증 결과’를 추가했습니다. 1~20위 묶음은 20거래일 동안 시장보다 2024년 +1.5%p, 2025년 +3.5%p, 2026년 +2.6%p 더 올라 사전 기준을 통과했습니다. 종목 하나씩은 반반이고 대형주 쏠림이 있어, 개별 종목 선택이나 점수 구간·신규 진입·동반 매집 조합에는 근거가 없었습니다.','시뮬레이션 화면의 8항목 전진 검증 안내에서 ‘과거 점수는 검증할 수 없다’는 문구를 고쳤습니다.'],
-  verified:'Vercel 빌드 확인 예정',limits:['사후 계산이며 투자 권유 아님','세부 수치는 비공개 연구 문서']},
+  verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['사후 계산이며 투자 권유 아님','세부 수치는 비공개 연구 문서']},
  {id:'2026-10-31-pension-signal-floor',date:'2026-10-31',title:'신호 성과 검증의 연기금 신호를 신규 순매수 추적과 같은 기준으로 수정',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['신호 성과 검증의 연기금 신호가 당일 순매수 1억~3억 신호까지 포함해 190건으로 집계되던 오류를 고쳤습니다. 이제 신규 순매수 추적 기본 조건(직전 10거래일 매수·매도 각각 1억 미만, 당일 순매수 3억 이상, 직전 3개월 매수 0원, 거래량 3배 이하)과 같은 57건을 씁니다.','RSI 진입 + 연기금 조합과 통합 추적도 같은 기준으로 다시 계산됩니다.'],
