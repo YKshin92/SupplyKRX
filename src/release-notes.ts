@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-sim-monthly-signals',date:'2026-11-01',title:'시뮬레이션 손익 차트 아래 월별 신호 건수 막대',
+  targets:[{tab:'simulation',selector:'.simulation-signal-chart',label:'전략 검증 시뮬레이션 · 손익 차트'}],
+  changes:['운용 손익과 KOSPI 비교 차트 바로 아래에 월별 신호 발생 건수를 막대로 보여 줍니다. 막대는 위 차트와 같은 일별 날짜 축에서 그 달의 첫 거래일부터 마지막 거래일까지 걸쳐 그려 손익선과 기간이 정확히 겹칩니다. 진한 부분은 그중 실제로 매수한 건수입니다.','두 차트는 함께 움직여, 한쪽에 마우스를 올리면 같은 날짜의 손익과 그 달 신호 수가 같이 표시됩니다.'],
+  verified:'Vercel 빌드·운영 화면 확인 2026-11-01'},
  {id:'2026-11-01-sim-sizing',date:'2026-11-01',title:'시뮬레이션에 자금 비율 매수와 최소 매수금액 추가',
   targets:[{tab:'simulation',selector:'.simulation-settings',label:'전략 검증 시뮬레이션 · 설정'}],
   changes:['‘매수 금액 기준’에서 종목당 고정 금액 대신 ‘평가자산 대비 비율’을 고를 수 있습니다. 매수일 아침에 전일 종가 기준 평가자산(현금 + 보유 종목)의 N%만큼 사므로, 수익이 쌓이면 매수 금액도 커지고 손실이 나면 작아집니다.','‘최소 매수금액’을 넣으면 한 번에 그 금액 이상만 삽니다. 현금이 매수 금액보다 적으면 남은 현금으로 사고, 남은 현금이 최소 금액보다 적으면 매도 대금이 들어올 때까지 기다립니다. 비율로 계산한 금액이 최소보다 작으면 최소 금액으로 삽니다.','기본값(종목당 300만 원, 최소 300만 원)의 결과는 이전과 같습니다.'],
