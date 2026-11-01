@@ -9,7 +9,10 @@ export type Signal={index:number;net:number;score:number|null;absent:number;quie
 /** sells: [session index, 연기금 net sell amount] for days with a pension net sell of at least 3억 (the smallest signal). */
 export type Candidate={code:string;name:string;market:string;signals:Signal[];prices:(Price|null)[];sells?:[number,number][]};
 export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_files?:string[];corporate_reconciliation?:CorporateContext|null;corporate_assets?:Record<string,(Price|null)[]>;indices:Record<string,(Price|null)[]>;source:{stocks:number;rows:number;collected_at:string;repaired_rows:number;index_as_of:string|null;price_source:string}};
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean};
+/** sizing (capital mode): 'fixed' buys `budget` per signal; 'percent' buys `percent`% of the previous close's equity (cash + holdings).
+ *  minBuy (capital mode): every order is at least this much; when cash is short the order uses the remaining cash, and it waits
+ *  when even that is below minBuy. Left out, minBuy equals the target amount (wait for the full amount, the original rule). */
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number};
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
 export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;flow_exit_signal?:string;horizons:Record<string,Horizon>;corporate_phase?:SplitPosition['phase']|CorporatePosition['phase'];adjusted_basis?:number;corporate_evidence_on?:string;corporate_reference_value?:number|null;fractional_claim?:{numerator:number;denominator:number};fractional_forfeit?:Forfeit[];corporate_legs?:Leg[];held_value?:number|null};
@@ -31,6 +34,8 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  const days=data.sessions;
  if(!days.length||!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||s.start<days[0]||s.start>days[days.length-1]||new Date(s.start).toISOString().slice(0,10)!==s.start)throw Error('시작일은 보유 데이터 기간 안에서 선택해 주세요.');
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
+ if(s.sizing==='percent'&&(!Number.isFinite(s.percent)||s.percent!<1||s.percent!>100))throw Error('자금 비율은 1~100% 사이로 입력해 주세요.');
+ if(s.minBuy!=null&&(!Number.isFinite(s.minBuy)||s.minBuy<0||s.minBuy>1e8))throw Error('최소 매수금액 범위를 확인해 주세요.');
  const start=days.findIndex(d=>d>=s.start),byCode=new Map(data.stocks.map(c=>[c.code,c]));
  const sells=new Map(data.stocks.map(c=>[c.code,new Map(c.sells??[])]));
  const trades:SimTrade[]=data.stocks.flatMap(c=>{return c.signals.filter((e,j,all)=>e.index>=start&&(s.filter==null||s.filter==='standard'||e.quiet_3m===true&&(s.filter!=='quiet3m-volume'||e.volume_ratio_20!=null&&e.volume_ratio_20<=3))&&all.findIndex(x=>x.index===e.index)===j).map(signal=>({code:c.code,name:c.name,market:c.market,event_id:`${c.code}:${days[signal.index]}`,signal_index:signal.index,signal_date:days[signal.index],signal_net:signal.net,score:signal.score,status:s.mode==='capital'&&signal.score==null?'score_missing':'pending',reason:signal.score==null?'신호일 수급 점수 자료 부족':'다음 거래일 매수 대기',entry_index:null,entry_date:null,entry_price:null,shares:0,invested:0,exit_date:null,exit_price:null,pnl:null,return_pct:null,trading_days:null,calendar_days:null,wait_days:0,ambiguous:false,horizons:{}} as SimTrade));}).sort((a,b)=>a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code));
@@ -40,6 +45,10 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   const heldCodes=new Set(trades.filter(t=>t.status==='open'||t.status==='unresolved').map(t=>t.code));
   for(const t of trades)if(t.status==='pending'&&t.signal_index===i-1&&heldCodes.has(t.code)){t.status='skipped';t.reason='신호 확인 시 이미 보유 중 · 추가 매수 제외';}
   const morning=cash;let buys=0,sales=0;
+  // Order size is fixed before the open from what is known at the previous close (no same-day information).
+  const percentMode=s.mode==='capital'&&s.sizing==='percent';
+  const base=percentMode?(ledger.at(-1)?.equity??cash+sum(trades.filter(t=>t.status==='open'||t.status==='unresolved').map(t=>t.held_value??t.invested+(t.pnl??0)))):0;
+  const target=percentMode?base*s.percent!/100:s.budget,partial=s.mode==='capital'&&s.minBuy!=null;
   const pending=trades.filter(t=>t.status==='pending'&&t.signal_index<i).sort((a,b)=>s.mode==='capital'?((b.score??-1)-(a.score??-1)||a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code)):a.code.localeCompare(b.code));
   for(const t of pending){
    if(heldCodes.has(t.code)){t.status='skipped';t.reason='동일 종목 중복 대기 신호 제외';continue;}
@@ -47,9 +56,15 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    if(s.mode==='unlimited'&&i!==t.signal_index+1)continue;
    const problem=s.mode==='unlimited'?priceProblem(previous,r):!positive(r?.open)?'시가 미확인':positive(previous?.close)&&Math.abs(r!.open!/previous.close-1)>.35?'시가 단절':null;
    if(problem){t.reason=problem+' · 다음 거래일 재검토';if(s.mode==='unlimited')t.status='excluded';continue;}
-   const opening=r!.open!,shares=Math.floor(s.budget/opening),cost=shares*opening;
+   // The full order is bought when its whole shares fit in cash (the original rule). Otherwise, with a minimum set, the
+   // remaining cash buys what it can as long as it is at least the minimum; without one the signal waits for cash.
+   const opening=r!.open!,want=partial?Math.max(target,s.minBuy!):target;let shares=Math.floor(want/opening);
+   if(s.mode==='capital'&&shares*opening>cash+1e-7){
+    if(!partial||cash<s.minBuy!-1e-7||cash<opening){t.reason=!partial?'현금 부족 · 매도 대금 재사용 대기':cash<s.minBuy!-1e-7?'현금이 최소 매수금액보다 적음 · 매도 대금 재사용 대기':'남은 현금으로 1주도 살 수 없음 · 대기';continue;}
+    shares=Math.floor(cash/opening);
+   }
+   const cost=shares*opening;
    if(!shares){t.reason='1주 가격이 매수 한도 초과 · 대기';if(s.mode==='unlimited')t.status='excluded';continue;}
-   if(s.mode==='capital'&&cost>cash+1e-7){t.reason='현금 부족 · 매도 대금 재사용 대기';continue;}
    heldCodes.add(t.code);
    if(s.mode==='capital')cash-=cost;buys+=cost;
    Object.assign(t,{status:'open',reason:'최신 종가 평가',entry_index:i,entry_date:days[i],entry_price:opening,shares,invested:cost});

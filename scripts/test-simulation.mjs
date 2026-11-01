@@ -43,3 +43,25 @@ test('optional pension net-sell exit sells at the next open only when switched o
  assert.equal(r.trades[0].exit_price,104*scale);assert.equal(r.summary.flow,1);assert.equal(r.account.cash,3*104*scale);
  c.sells=[[1,2.9e8]];r=run([c],{flowExit:true});assert.equal(r.trades[0].status,'open');  // smaller than the signal buy: keep
 });
+
+test('percent sizing buys a share of the previous close equity, fixed within the day',()=>{
+ const a=candidate('A',90,sessions.map(()=>price())),b=candidate('B',70,sessions.map(()=>price()));
+ let r=run([a,b]);assert.equal(r.trades[0].shares,3);assert.equal(r.trades[1].entry_date,null);  // fixed 300: B waits
+ r=run([a,b],{sizing:'percent',percent:34});  // 34% of 300 = 102 -> one 100 share each, same day
+ assert.deepEqual(r.trades.map(t=>[t.entry_date,t.shares]),[[sessions[1],1],[sessions[1],1]]);
+ // compounding: A closes day 1 at +20%, so B (signal day 1, bought day 2) sizes from 300 - 120 + 144 = 324 equity
+ const c=candidate('A',90,[price(10,10.5,9.5,10),price(10,12.5,9.5,12),price(12,12.5,11.5,12),price(12,12.5,11.5,12),price(12,12.5,11.5,12)]);
+ const d={...candidate('B',70,sessions.map(()=>price(5,5.2,4.8,5))),signals:[{index:1,net:3e8,score:70,absent:0}]};
+ r=run([c,d],{sizing:'percent',percent:40});
+ assert.equal(r.trades.find(t=>t.code==='A').shares,12);assert.equal(r.trades.find(t=>t.code==='B').shares,25);  // 0.4*324=129.6 -> 25 x 5
+ assert.throws(()=>run([c],{sizing:'percent',percent:0}),/1~100%/);
+});
+test('minimum order: uses the remaining cash down to the minimum, and lifts a smaller target up to it',()=>{
+ const a=candidate('A',90,sessions.map(()=>price())),b=candidate('B',70,sessions.map(()=>price()));
+ const four={initial:400*scale};  // A takes 300, 100 cash left
+ assert.equal(run([a,b],four).trades[1].entry_date,null);  // no minimum: wait for the full 300
+ let r=run([a,b],{...four,minBuy:100*scale});assert.equal(r.trades[1].entry_date,sessions[1]);assert.equal(r.trades[1].invested,100*scale);
+ r=run([a,b],{...four,minBuy:150*scale});assert.equal(r.trades[1].entry_date,null);assert.match(r.trades[1].reason,/최소 매수금액/);
+ r=run([a],{sizing:'percent',percent:10});assert.equal(r.trades[0].entry_date,null);  // 10% of 300 = 30 < one 100 share
+ r=run([a],{sizing:'percent',percent:10,minBuy:100*scale});assert.equal(r.trades[0].shares,1);  // lifted to the 100 minimum
+});

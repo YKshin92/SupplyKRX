@@ -12,7 +12,9 @@ const won=(v:number|null|undefined)=>v==null?'미확인':`${v.toLocaleString('ko
 const pct=(v:number|null|undefined)=>v==null?'—':`${v>0?'+':''}${v.toFixed(2)}%`;
 const days=(v:number|null)=>v==null?'—':`${v.toFixed(1)}거래일`;
 const labels:Record<Status,string>={take:'익절',stop:'손절',flow:'수급 이탈 매도',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
-const initial:Settings={mode:'capital',initial:20e6,budget:3e6,take:30,stop:10,start:'',filter:'quiet3m-volume',flowExit:false};
+const initial:Settings={mode:'capital',initial:20e6,budget:3e6,take:30,stop:10,start:'',filter:'quiet3m-volume',flowExit:false,sizing:'fixed',percent:15,minBuy:3e6};
+/** How much one signal buys, in words (capital mode can size by % of equity and has a minimum order). */
+function sizeText(s:Settings){const percent=s.mode==='capital'&&s.sizing==='percent';const base=percent?`평가자산의 ${s.percent}%`:`종목당 ${won(s.budget)}`;return s.mode==='capital'&&s.minBuy!=null?`${base} · 최소 ${won(s.minBuy)}`:base;}
 export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;watch:string[];toggle:(code:string)=>void;metadata:Stock[]}){
  const [input,setInput]=useState<SimInput|null>(null),[settings,setSettings]=useState<Settings>(initial),[result,setResult]=useState<SimResult|null>(null);
  const [error,setError]=useState(''),[busy,setBusy]=useState(true),[attempt,setAttempt]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState('all'),[order,setOrder]=useState('signal'),[page,setPage]=useState(1);
@@ -42,7 +44,8 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
     <li>신호일 거래량이 <b>20일 평균의 3배 이하</b></li>
    </ol></div>
    <div><h3>매매 규칙</h3><ol>
-    <li>매수: 신호 다음 거래일 <b>시가</b> · 종목당 {won(settings.budget)}</li>
+    <li>매수: 신호 다음 거래일 <b>시가</b> · {settings.mode==='capital'&&settings.sizing==='percent'?<>전일 종가 기준 평가자산의 <b>{settings.percent}%</b></>:<>종목당 <b>{won(settings.budget)}</b></>}</li>
+    {settings.mode==='capital'&&settings.minBuy!=null&&<li>한 번에 최소 <b>{won(settings.minBuy)}</b> 이상 매수 · 현금이 모자라면 남은 현금으로 사고, 그마저 최소 금액보다 적으면 매도 대금이 들어올 때까지 대기</li>}
     <li>매도: 매수가 대비 <b>+{settings.take}% 익절 / −{settings.stop}% 손절</b> · 같은 날 둘 다 닿으면 손절로 계산</li>
     <li>자금이 모자라면 신호일 수급 점수(연기금 35 + 외국인 15점 → 100점 환산)가 높은 종목부터 · 이미 보유한 종목은 다시 사지 않음</li>
     {settings.flowExit&&<li>보유 중 연기금 순매도가 신호일 순매수보다 큰 날이 나오면 다음 거래일 시가에 전량 매도</li>}
@@ -53,12 +56,16 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>운용 방식<select value={settings.mode} onChange={e=>change('mode',e.target.value as Settings['mode'])}><option value="capital">초기자금 내 운용</option><option value="unlimited">모든 신호 매수 · 자금 제한 없음</option></select></label>
    <label>시작일<input type="date" value={settings.start} min={input?.sessions[0]} max={input?.sessions[input.sessions.length-1]} onChange={e=>change('start',e.target.value)}/></label>
    <label>초기자금 · 만원<input type="number" min="1" max="100000" step="100" disabled={settings.mode==='unlimited'} value={settings.initial/1e4} onChange={e=>change('initial',Number(e.target.value)*1e4)}/></label>
-   <label>종목당 매수 · 만원<input type="number" min="1" max="10000" step="10" value={settings.budget/1e4} onChange={e=>change('budget',Number(e.target.value)*1e4)}/></label>
+   <label>매수 금액 기준<select value={settings.mode==='capital'?settings.sizing??'fixed':'fixed'} disabled={settings.mode==='unlimited'} onChange={e=>change('sizing',e.target.value as Settings['sizing'])}><option value="fixed">종목당 고정 금액</option><option value="percent">평가자산 대비 비율</option></select></label>
+   {settings.mode==='capital'&&settings.sizing==='percent'
+    ?<label>평가자산 대비 · %<input type="number" min="1" max="100" step="1" value={settings.percent} onChange={e=>change('percent',Number(e.target.value))}/></label>
+    :<label>종목당 매수 · 만원<input type="number" min="1" max="10000" step="10" value={settings.budget/1e4} onChange={e=>change('budget',Number(e.target.value)*1e4)}/></label>}
+   <label>최소 매수 · 만원<input type="number" min="0" max="10000" step="10" disabled={settings.mode==='unlimited'} value={settings.minBuy==null?'':settings.minBuy/1e4} onChange={e=>change('minBuy',e.target.value===''?undefined:Number(e.target.value)*1e4)}/></label>
    <label>익절 · %<input type="number" min="1" max="100" value={settings.take} onChange={e=>change('take',Number(e.target.value))}/></label>
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.flowExit} onChange={e=>change('flowExit',e.target.checked)}/><span><b>연기금 순매도 이탈 매도</b><small>매수 후 어느 하루 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가에 전량 매도 (익절·손절은 그대로 적용)</small></span></label>
-  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}종목당 ${won(s.budget)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}`:'데이터 준비 중'}</p>
+  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}`:'데이터 준비 중'}</p>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
    <section className="simulation-metrics" aria-label="시뮬레이션 요약">

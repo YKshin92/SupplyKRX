@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-sim-sizing',date:'2026-11-01',title:'시뮬레이션에 자금 비율 매수와 최소 매수금액 추가',
+  targets:[{tab:'simulation',selector:'.simulation-settings',label:'전략 검증 시뮬레이션 · 설정'}],
+  changes:['‘매수 금액 기준’에서 종목당 고정 금액 대신 ‘평가자산 대비 비율’을 고를 수 있습니다. 매수일 아침에 전일 종가 기준 평가자산(현금 + 보유 종목)의 N%만큼 사므로, 수익이 쌓이면 매수 금액도 커지고 손실이 나면 작아집니다.','‘최소 매수금액’을 넣으면 한 번에 그 금액 이상만 삽니다. 현금이 매수 금액보다 적으면 남은 현금으로 사고, 남은 현금이 최소 금액보다 적으면 매도 대금이 들어올 때까지 기다립니다. 비율로 계산한 금액이 최소보다 작으면 최소 금액으로 삽니다.','기본값(종목당 300만 원, 최소 300만 원)의 결과는 이전과 같습니다.'],
+  verified:'로컬 엔진 재계산·Vercel 운영 화면 확인 2026-11-01',limits:['57건 한 경로의 사후 결과라 비율 간 우열은 확정할 수 없음','수수료·세금 미반영, 투자 권유 아님']},
  {id:'2026-11-01-sim-method',date:'2026-11-01',title:'시뮬레이션 첫 화면에 연기금 매매법 설명, 8항목 점수 관측은 수급 순위 화면으로 이동',
   targets:[{tab:'simulation',selector:'.simulation-method',label:'전략 검증 시뮬레이션'},{tab:'explore',discovery:'ranks',selector:'.score-research',label:'종목 발굴 · 수급 순위 8항목'}],
   changes:['시뮬레이션 맨 위에 실제로 계산하는 연기금 신규 순매수 매매법(신호 조건 4가지, 다음 날 시가 매수, 익절·손절, 자금 부족 시 우선순위)을 정리했습니다. 익절·손절·종목당 금액을 바꾸면 설명도 함께 바뀝니다.','시뮬레이션 설정 아래에 있던 ‘8항목 수급 점수 · 전진 검증’은 이 매매법과 별개 연구라 수급 순위 8항목 화면(과거 3년 검증 결과 아래)으로 옮겼습니다.','‘연기금 순매도 이탈 매도’ 체크박스가 세로로 깨져 보이던 배치를 고쳤습니다.'],
