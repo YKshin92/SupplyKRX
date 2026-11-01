@@ -353,7 +353,7 @@ D1 운영 확인(2026-10-30 07:5x KST): 공개 4e5e97d를 private 241ce0b로 pin
 - 요약 카드: 기관합계·연기금·사모 데이터셋을 App에서 한 번만 불러(useInvestorDatasets) 흐름 패널과 카드가 같은 자료를 쓴다. 카드의 투자자 버튼이나 패널 제목을 누르면 카드 4장(기간 누적, 최근일 순매수·순매도 종목 수, 수집 범위)이 그 투자자 기준으로 바뀐다. 기본값은 연기금이다. 기관합계는 연기금·사모를 포함하므로 합산하지 않는다.
 - RSI: 30 미만 파란 음영, 70 이상 빨간 음영(ReferenceArea)을 지수 차트와 표 스파크라인에 넣었다.
 - 국내 시총 상위 30: 기준일 이하 최신 시총 스냅샷(metadata/daily)으로 순위를 매긴다. 이후 날짜의 스냅샷은 쓰지 않는다. 수집 대상이 보통주라 우선주는 빠진다.
-- 미국: scripts/collect-us-market.py가 private collect.yml에서 수집 뒤 실행된다(continue-on-error). 순위는 companiesmarketcap.com 미국 목록(수집 시점), 가격은 Yahoo chart API 분할 조정 종가(배당 미조정)·USD, 지수는 ^GSPC·^IXIC이다. 미국 거래일 달력은 두 지수 날짜를 쓴다. 뉴욕 17시 전의 당일 봉은 버린다. 신호·점수·시뮬레이션에는 쓰지 않는다. GitHub Actions에서 Stooq는 차단되었고 Yahoo·companiesmarketcap은 응답했다(2026-10-30 probe).
+- 미국: scripts/collect-us-market.py가 private collect.yml에서 수집 뒤 실행된다(continue-on-error). 순위는 companiesmarketcap.com 미국 목록(수집 시점), 가격은 Yahoo chart API 분할 조정 종가(배당 미조정)·USD, 지수는 ^GSPC·^IXIC이다. 미국 거래일 달력은 두 지수 날짜를 쓴다. 뉴욕 16:20 전의 당일 봉은 버린다(2026-11-01 변경, 이전 17시). 신호·점수·시뮬레이션에는 쓰지 않는다. GitHub Actions에서 Stooq는 차단되었고 Yahoo·companiesmarketcap은 응답했다(2026-10-30 probe).
 
 ### D3 RSI 주 지표를 Wilder로 변경 (2026-10-30)
 
@@ -454,3 +454,4 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **8항목 3년 재구성 검증:** 사전 등록 프로토콜(비공개 `outputs/research/rank8-2026-10-30`)로 계산했다. 1~20위 묶음만 통과했다(20거래일 초과 +1.5/+3.5/+2.6%p). 개별 종목·점수 구간·신규 진입·동반 매집 조합은 근거가 없었다.
 - **화면:** 수급 순위 8항목에 '과거 3년 검증 결과'(`src/Rank8Research.tsx`)를 추가하고, 시뮬레이션의 8항목 전진 검증 안내 문구를 고쳤다.
 - **RSI 상승 다이버전스(2026-11-01):** 신호 성과 검증에 `rsi_div`를 추가했다(`collector/signal_lab.py` `rsi_divergence_signals`). RSI 30 하향 뒤 구간 최저 종가 ①, RSI 30 위 반등 뒤 40거래일 안에 종가 < ① 이면서 RSI > ①의 RSI인 ②, 그 뒤 RSI가 처음 오른 날이 신호일이다. 기존 RSI 30 하향 진입은 비교용으로 유지하고, 통합 추적에서는 RSI 계열을 한 가지로 센다.
+- **미국 자료 아침 갱신(2026-11-01):** 비공개 `us-market.yml`(workflow_dispatch 전용)을 Claude 예약 작업 "SupplyKRX 미국 자료 06:30 갱신"이 화~토 06:30 KST에 실행한다. 새 미국 거래일 종가가 있을 때만 커밋(`data: US reference data through <날짜>`)해 재배포한다. 국내 휴장일과 무관하다. 16시 국내 수집의 미국 단계는 백업으로 남아 마감 직후 값의 수정분을 같은 날 덮어쓴다. 겨울(EST)에는 06:30 KST가 뉴욕 16:30이므로 장 마감 인정 시각을 16:20으로 당겼다.
