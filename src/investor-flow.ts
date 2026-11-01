@@ -28,6 +28,8 @@ export function investorRows(code:string,key:Exclude<FlowInvestorKey,'pension'>,
 export function withInvestorFlow<T extends {date:string}>(rows:T[],alt:Row[]|null){
  if(!alt)return null;
  const byDate=new Map(alt.map(r=>[r.date,r.net]));let sum=0,broken=false;
- return rows.map(r=>{const net=byDate.get(r.date)??null;if(net==null)broken=true;else sum+=net;return {...r,net,cumulative:broken?null:sum};});
+ // Dates before the investor series starts stay empty without breaking the running total; a gap after it starts breaks it.
+ let started=false;
+ return rows.map(r=>{const net=byDate.get(r.date)??null;if(net==null){if(started)broken=true;}else{started=true;sum+=net;}return {...r,net,cumulative:broken||!started?null:sum};});
 }
 export const compactVolume=(v:number)=>v>=1e8?`${(v/1e8).toFixed(1)}억`:v>=1e4?`${Math.round(v/1e4).toLocaleString('ko-KR')}만`:v.toLocaleString('ko-KR');

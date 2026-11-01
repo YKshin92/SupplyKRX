@@ -22,3 +22,7 @@ test('loader validates manifest investor, generation and code before use',async(
  await assert.rejects(investorRows('../x','institution','live','3m',read),/invalid/);
 });
 test('volume labels stay compact',()=>{assert.equal(compactVolume(123456789),'1.2억');assert.equal(compactVolume(55000),'6만');assert.equal(compactVolume(900),'900');});
+test('cumulative starts where the investor series starts (older dates left empty)',()=>{
+ const base=[{date:'d0',net:1,cumulative:1},{date:'d1',net:5,cumulative:6},{date:'d2',net:7,cumulative:13}];
+ assert.deepEqual(withInvestorFlow(base,[row('d1',2),row('d2',4)]).map(r=>r.cumulative),[null,2,6]);
+});

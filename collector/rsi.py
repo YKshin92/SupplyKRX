@@ -19,6 +19,7 @@ Rules (also published in the output so the UI can state them):
 """
 from .simulation import price_break
 from .price_adjust import adjust_history
+STOCK_DETAIL_SESSIONS = 130  # ~6 calendar months of sessions for the per-stock detail file
 
 PERIOD = 14
 LOW, HIGH = 30, 70
@@ -242,10 +243,11 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
     if keep is not None:  # full series for the signal lab (not published)
         keep.update(history=by_code, series=series_by_code, sessions=sessions,
                     names={s['code']: s['name'] for s in stocks}, markets={s['code']: s['market'] for s in stocks})
-    # Per-stock RSI path for the stock detail panel (last chart_sessions sessions, Wilder + Cutler reference).
+    # Per-stock RSI path for the stock detail panel (at least 6 months so it spans the detail charts; Wilder + Cutler reference).
+    detail_sessions = max(chart_sessions, STOCK_DETAIL_SESSIONS)
     for code, series in series_by_code.items():
         if by_code[code].get(as_of):
             save_json(target / 'rsi' / 'stocks' / f'{code}.json', dict(schema_version=1, code=code, as_of=as_of, series=[
-                dict(date=x['date'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-chart_sessions:]],
+                dict(date=x['date'], rsi=_r(x['rsi']), cutler=_r(x.get('cutler'))) for x in series[-detail_sessions:]],
                 adjustments=adjustments.get(code, [])))
     return result

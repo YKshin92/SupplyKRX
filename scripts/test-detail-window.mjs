@@ -27,3 +27,11 @@ test('recent window matches the published 3-month boundary and reports an out-of
  const w=recentWindow(days,'2026-10-29','2026-08-03');assert.deepEqual(w.rows.map(r=>r.date),['2026-07-29','2026-08-03','2026-10-29']);assert.equal(w.signalFound,true);
  assert.equal(recentWindow(days,'2026-10-29','2024-01-02').signalFound,false);
 });
+import {signalWindow} from '../src/detail-window.ts';
+const cal=[];for(let t=Date.UTC(2025,0,1);t<=Date.UTC(2026,9,30);t+=864e5){const d=new Date(t);if(d.getUTCDay()%6)cal.push({date:d.toISOString().slice(0,10)});}
+test('signal window shows the 3 months before the signal and at least 3 months after, 6 months in all',()=>{
+ const w=signalWindow(cal,'2025-06-02');assert.equal(w.quietStart,'2025-03-02');assert.equal(w.rows[0].date,'2025-03-03');assert.equal(w.rows.at(-1).date,'2025-09-02');
+ const late=signalWindow(cal,'2025-06-02','2025-11-03');assert.equal(late.rows.at(-1).date,cal[cal.findIndex(r=>r.date==='2025-11-03')+10].date);
+ const recent=signalWindow(cal,'2026-10-01');assert.equal(recent.rows.at(-1).date,'2026-10-30');assert.equal(recent.rows[0].date,'2026-04-30');  // end cut by data: start moves back to keep 6 months
+ assert.equal(signalWindow(cal,'2030-01-01').signalFound,false);
+});
