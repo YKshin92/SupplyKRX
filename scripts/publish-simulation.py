@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from collector.simulation import load_histories
+from collector.simulation import load_histories, pension_sells
 from collector.simulation_portfolio import entry_score
 from collector.corporate_context import published_reconciliation, corporate_assets
 
@@ -25,7 +25,7 @@ def publish(root, target):
             signals.append(dict(index=i,net=r['net'],score=entry_score(r,f.get(code,{}).get(days[i],{}))['total'],absent=sum(p.get('flow_status')=='absent_zero' for p in before)))
         if signals:
             r=hist[days[signals[0]['index']]]
-            candidates.append(dict(code=code,name=r['name'],market=r['market'],signals=signals,
+            candidates.append(dict(code=code,name=r['name'],market=r['market'],signals=signals,sells=pension_sells(hist,days),
                 prices=[{k:hist.get(d,{}).get(k) for k in ('open','high','low','close','volume','change_pct')} for d in days]))
     p=root/'data/live/simulation-indices.json'
     indices=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}

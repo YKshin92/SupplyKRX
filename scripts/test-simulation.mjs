@@ -35,3 +35,11 @@ if(process.env.SIMULATION_PARITY==='1')test('real private data matches Python re
  if(f.account)for(const k of ['cash','equity','pnl','return_pct'])close(r.account[k],f.account[k],k);close(r.summary.invested,f.summary.invested,'invested');close(r.benchmark.pnl,f.benchmark.index_pnl,'benchmark');}
 });
 
+test('optional pension net-sell exit sells at the next open only when switched on and larger than the signal buy',()=>{
+ const c=candidate('A',90,[price(),price(),price(104,106,101,105),price(),price()]);
+ c.sells=[[1,3.5e8]];  // entry day: 연기금 net sell 3.5억 > signal-day net buy 3억
+ let r=run([c]);assert.equal(r.trades[0].status,'open');
+ r=run([c],{flowExit:true});assert.equal(r.trades[0].status,'flow');assert.equal(r.trades[0].exit_date,sessions[2]);
+ assert.equal(r.trades[0].exit_price,104*scale);assert.equal(r.summary.flow,1);assert.equal(r.account.cash,3*104*scale);
+ c.sells=[[1,2.9e8]];r=run([c],{flowExit:true});assert.equal(r.trades[0].status,'open');  // smaller than the signal buy: keep
+});

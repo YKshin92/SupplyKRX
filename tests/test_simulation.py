@@ -1,5 +1,5 @@
 import unittest
-from collector.simulation import first_signals, trade, simulate, summarize
+from collector.simulation import first_signals, trade, simulate, summarize, pension_sells
 
 
 def row(d, **kw):
@@ -89,3 +89,10 @@ class SimulationTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+
+
+class PensionSellsTests(unittest.TestCase):
+    def test_only_large_net_sell_days_with_session_index(self):
+        days = ['d0', 'd1', 'd2', 'd3']
+        rows = {'d0': dict(net=-5e8), 'd1': dict(net=-2.9e8), 'd2': dict(net=4e8), 'd3': dict(net=None)}
+        self.assertEqual(pension_sells(rows, days), [[0, 500000000]])

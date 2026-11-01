@@ -38,6 +38,18 @@ def all_signals(histories, sessions, lookback=10, quiet_cap=100_000_000, minimum
     return sorted(result, key=lambda r: (r['signal_date'], r['code']))
 
 
+def pension_sells(by_date, sessions, floor=300_000_000):
+    """[session index, net sell amount] for days whose 연기금 net sell is at least `floor` (the smallest signal-day buy),
+    used by the simulation's optional exit: sell at the next open when a day's net sell exceeds the signal-day net buy."""
+    out = []
+    for i, day in enumerate(sessions):
+        r = by_date.get(day)
+        net = r.get('net') if r else None
+        if net is not None and -net >= floor:
+            out.append([i, round(-net)])
+    return out
+
+
 def first_signals(histories, sessions, **kwargs):
     """Legacy first-registration helper; repeat-event simulations use all_signals."""
     return all_signals(histories, sessions, first_only=True, **kwargs)

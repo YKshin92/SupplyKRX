@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-sim-flow-exit',date:'2026-11-01',title:'시뮬레이션에 ‘연기금 순매도 이탈 매도’ 옵션 추가',
+  targets:[{tab:'simulation',selector:'.simulation-option',label:'시뮬레이션 · 설정'}],
+  changes:['매수 후 어느 하루 연기금 순매도 금액이 그 신호일의 순매수 금액보다 크면, 장 마감 뒤 확인해 다음 거래일 시가에 전량 매도하는 옵션을 추가했습니다. 기본은 꺼져 있고, 켜면 결과에 ‘수급 이탈 매도’가 따로 표시됩니다. 익절·손절은 그대로 적용됩니다.','현재 조건(57건, 초기 2천만 원·종목당 300만 원)에서 켜면 익절 25→22, 손절 30→27, 수급 이탈 매도 7건(모두 수익)이 되고 초기자금 대비 수익률은 +66.2%→+69.3%입니다.'],
+  verified:'로컬 엔진 재계산 2026-11-01',limits:['영향받은 거래가 7건뿐이라 개선 여부는 확정할 수 없음','수수료·세금 미반영, 투자 권유 아님']},
  {id:'2026-11-01-rsi-divergence-variants',date:'2026-11-01',title:'상승 다이버전스 변형 두 가지 전진 검증 시작',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['상승 다이버전스 중 두 번째 저점의 RSI도 30 미만인 경우(‘두 저점 모두 RSI 30 미만’)와, RSI가 30 위로 반등하지 않은 채 두 번째 저점이 나온 경우(‘RSI 30 아래에서만’)를 별도 항목으로 추가했습니다.','11월 2일 16시 수집부터 매일 사전 기록으로 쌓아 실제 성과로 검증합니다. 판정 기준은 기록 시작 전에 정했습니다: 거래 가능 종목 기준으로 ‘두 저점 모두 30 미만’은 150건, ‘30 아래에서만’은 30건이 쌓이면 20거래일 초과수익으로 판단합니다.'],

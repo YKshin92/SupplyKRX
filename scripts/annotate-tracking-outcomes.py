@@ -9,6 +9,7 @@ from collector.touch_outcome import touch_outcome
 from collector.foreign_record import foreign_record
 from collector.price_comparison import price_comparison
 from collector.corporate_context import published_reconciliation, corporate_assets
+from collector.simulation import pension_sells
 
 
 def enrich(target, shard_limit=1_500_000):
@@ -75,6 +76,21 @@ def enrich(target, shard_limit=1_500_000):
             if not stock.is_file():return {}
             return {r['date']:r for r in json.loads(stock.read_text(encoding='utf-8')).get('pension',[])}
         simulation['corporate_assets']=corporate_assets(simulation['corporate_reconciliation'],simulation['sessions'],lookup)
+        # Optional net-sell exit: attach each candidate's large 연기금 net sell days (history projection lacks them).
+        def attach(stocks):
+            for stock in stocks:
+                rows = lookup(stock['code'])
+                if rows:
+                    stock['sells'] = pension_sells(rows, simulation['sessions'])
+            return stocks
+        attach(simulation.get('stocks', []))
+        for part in simulation.get('stock_files') or []:
+            if not re.fullmatch(r'simulation-stocks-[0-9]{3}\.json', part):
+                raise ValueError('Invalid simulation shard')
+            path = target/part
+            if not path.exists():
+                continue
+            path.write_text(json.dumps(attach(json.loads(path.read_text(encoding='utf-8'))), ensure_ascii=False, separators=(',', ':'), allow_nan=False), encoding='utf-8')
         simulation_path.write_text(json.dumps(simulation,ensure_ascii=False,separators=(',',':'),allow_nan=False),encoding='utf-8')
     return count
 
