@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-rsi-divergence-variants',date:'2026-11-01',title:'상승 다이버전스 변형 두 가지 전진 검증 시작',
+  targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
+  changes:['상승 다이버전스 중 두 번째 저점의 RSI도 30 미만인 경우(‘두 저점 모두 RSI 30 미만’)와, RSI가 30 위로 반등하지 않은 채 두 번째 저점이 나온 경우(‘RSI 30 아래에서만’)를 별도 항목으로 추가했습니다.','11월 2일 16시 수집부터 매일 사전 기록으로 쌓아 실제 성과로 검증합니다. 판정 기준은 기록 시작 전에 정했습니다: 거래 가능 종목 기준으로 ‘두 저점 모두 30 미만’은 150건, ‘30 아래에서만’은 30건이 쌓이면 20거래일 초과수익으로 판단합니다.'],
+  verified:'로컬 재계산 2026-11-01',limits:['과거 3년 탐색에서는 두 변형 모두 시장 대비 우위가 확인되지 않음','투자 권유 아님']},
  {id:'2026-11-01-rsi-divergence',date:'2026-11-01',title:'신호 성과 검증에 ‘RSI 30 미만 뒤 상승 다이버전스’ 추가',
   targets:[{tab:'signals',selector:'.signal-lab',label:'신호 성과 검증'}],
   changes:['RSI가 30 아래로 내려간 구간의 최저 종가(①) 뒤 RSI가 30 위로 반등했다가, 40거래일 안에 종가는 ①보다 낮은데 RSI는 ①보다 높은 날(②)이 나오면 상승 다이버전스로 봅니다. 그 뒤 RSI가 전일보다 처음 오른 날이 신호일이고, 다음 거래일 시가 진입으로 다른 신호와 같은 규칙에 따라 성과를 계산합니다.','기존 ‘RSI 30 하향 진입’은 비교용으로 그대로 둡니다. 신호 목록에 ①·② 저점의 RSI를 함께 표시하고, 통합 추적에서는 RSI 계열을 한 가지로 셉니다.','매일 16시 수집 때 사전 기록에도 남겨 실제 성과를 따로 쌓습니다.'],

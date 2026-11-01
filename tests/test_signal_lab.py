@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import rsi_divergence_signals, pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
+from collector.signal_lab import rsi_divergence_signals, rsi_inzone_divergence_signals, pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -111,6 +111,20 @@ class SignalLabTests(unittest.TestCase):
         late = base[:6] + [(94, 35)] * 40 + [(88, 31), (91, 36)]
         self.assertEqual(rsi_divergence_signals(series(late)), [])
         self.assertEqual(rsi_divergence_signals(series(base, settled=59)), [])
+
+    def test_rsi_inzone_divergence(self):
+        def series(points, settled=60):
+            return [dict(date=f'd{i:02}', close=c, rsi=r, since_reset=settled) for i, (c, r) in enumerate(points)]
+        # RSI stays below 30: ① 90 @ 18, rebound inside the zone, lower close 88 @ 24 five sessions later, then RSI rises
+        pts = [(100, 35), (95, 28), (90, 18), (92, 22), (94, 26), (93, 25), (91, 23), (88, 24), (90, 28)]
+        out = rsi_inzone_divergence_signals(series(pts))
+        self.assertEqual((out[0]['low1_date'], out[0]['low2_date'], out[0]['signal_date']), ('d02', 'd07', 'd08'))
+        # lower close fewer than 5 sessions after ① just moves ①
+        self.assertEqual(rsi_inzone_divergence_signals(series([(100, 35), (95, 28), (90, 18), (92, 22), (88, 24), (90, 28)])), [])
+        # RSI back above 30 before ② ends the run (that case belongs to the main rule)
+        self.assertEqual(rsi_inzone_divergence_signals(series(pts[:4] + [(96, 31)] + pts[5:])), [])
+        # lower close with RSI at or below ①'s: no divergence
+        self.assertEqual(rsi_inzone_divergence_signals(series(pts[:7] + [(88, 17), (90, 20)])), [])
 
 if __name__ == '__main__':
     unittest.main()

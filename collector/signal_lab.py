@@ -34,12 +34,15 @@ KST = timezone(timedelta(hours=9))
 MIN_NET = 3e8     # 기본 신호: 당일 연기금 순매수 3억 이상 (추적 화면 기본값과 동일)
 QUIET_CAP = 1e8   # 직전 10거래일 연기금 매수·매도 각각 1억 미만
 DIV_WINDOW = 40   # RSI 상승 다이버전스: 첫 저점에서 두 번째 저점까지 최대 거래일
-FAMILY = {'rsi_div': 'rsi'}  # 통합 추적에서 같은 지표 계열은 한 가지로 센다
+DIV_GAP = 5       # 30 아래에서만 생긴 다이버전스: 두 저점 사이 최소 거래일
+FAMILY = {'rsi_div': 'rsi', 'rsi_div_os': 'rsi', 'rsi_div_in': 'rsi'}  # 통합 추적에서 같은 지표 계열은 한 가지로 센다
 STRATEGIES = [
     dict(key='pension', label='연기금 신호', description='기본 신호(직전 10거래일 연기금 매수·매도 각각 1억 미만, 당일 순매수 3억 이상) + 직전 3개월 연기금 매수 0원 + 신호일 거래량 20일 평균 3배 이하 · 신규 순매수 추적 기본 조건과 같은 신호'),
     dict(key='rank8', label='8항목 수급 상위 20 신규 진입', description='날짜별로 고정 기록한 8항목 수급 점수 상위 20위에 전 거래일에는 없다가 새로 들어온 종목 (2026-10-29부터 기록)'),
     dict(key='rsi', label='RSI 30 하향 진입', description='Wilder RSI(14)가 전일 30 이상에서 당일 30 미만으로 내려온 날 (재시작 후 60거래일 이상 안정화된 값만)'),
     dict(key='rsi_div', label='RSI 30 미만 뒤 상승 다이버전스', description='RSI가 30 아래로 내려간 구간의 최저 종가(①) 뒤 RSI가 30 위로 반등했다가, 40거래일 안에 종가는 ①보다 낮은데 RSI는 ①보다 높은 날(②)이 나오고, 그 뒤 RSI가 전일보다 처음 오른 날 (종가 기준 · 안정화된 RSI만)'),
+    dict(key='rsi_div_os', label='상승 다이버전스 · 두 저점 모두 RSI 30 미만', description='위 상승 다이버전스 중 두 번째 저점(②)의 RSI도 30 미만인 경우만 (2026-11-02부터 사전 기록으로 검증)'),
+    dict(key='rsi_div_in', label='상승 다이버전스 · RSI 30 아래에서만', description='RSI가 30 아래에 머무는 동안 구간 최저 종가(①)보다 5거래일 이상 뒤에 종가는 더 낮고 RSI는 ①보다 높은 날(②)이 나오고, 그 뒤 RSI가 전일보다 처음 오른 날 (종가 기준 · 2026-11-02부터 사전 기록으로 검증)'),
     dict(key='rsi_pension', label='RSI 진입 + 연기금 신호', description='RSI 30 하향 진입과 연기금 신호가 5거래일 안에 함께 나온 경우 (둘 중 늦은 날을 신호일로)'),
     dict(key='co_buy', label='연기금·외국인 동반 매집 (추격 제외)', description='최근 5거래일 연기금·외국인 순매수가 각각 시총의 0.1% 이상 · 당일 +5% 이상 급등, 거래량 20일 평균 5배 이상, 52주 신고가 돌파일은 제외 · 종가 1,000원·20일 평균 거래대금 10억·시총 500억 이상 (2026-10-30 전략 연구의 가장 일관된 후보, 사전 기록으로 검증 중)'),
 ]
@@ -360,6 +363,41 @@ def rsi_divergence_signals(series, window=DIV_WINDOW, settled=SETTLED):
     return out
 
 
+def rsi_inzone_divergence_signals(series, gap=DIV_GAP, settled=SETTLED):
+    """상승 다이버전스 formed entirely below RSI 30 (not caught by rsi_divergence_signals, which needs a bounce >= 30).
+    ① = lowest close of the oversold run; ② = a close below ① at least `gap` sessions later with RSI above ①'s while RSI has
+    stayed below 30; signal = first later session whose RSI rises. A further lower close moves ② (RSI still above ①'s) or
+    restarts ① (RSI at or below ①'s). RSI back >= 30 before ② ends the run."""
+    out, state, one, two, prev = [], 'idle', None, None, None
+    for i, r in enumerate(series):
+        rsi, close = r.get('rsi'), r.get('close')
+        if rsi is None or not close or (r.get('since_reset') or 0) < settled:
+            state, prev = 'idle', None
+            continue
+        if state == 'idle':
+            if prev is not None and prev['rsi'] >= 30 > rsi:
+                state, one = 'run', (i, r)
+        elif state == 'run':
+            if rsi >= 30:
+                state = 'idle'
+            elif close < one[1]['close']:
+                if i - one[0] >= gap and rsi > one[1]['rsi']:
+                    state, two = 'div', (i, r)
+                else:
+                    one = (i, r)
+        elif rsi > prev['rsi']:
+            out.append(dict(signal_date=r['date'], rsi=round(rsi, 2), low1_date=one[1]['date'], low1_close=one[1]['close'],
+                            low1_rsi=round(one[1]['rsi'], 2), low2_date=two[1]['date'], low2_close=two[1]['close'], low2_rsi=round(two[1]['rsi'], 2)))
+            state = 'idle'
+        elif close < two[1]['close']:
+            if rsi > one[1]['rsi']:
+                two = (i, r)
+            else:
+                state, one, two = 'run', (i, r), None
+        prev = r
+    return out
+
+
 def pension_signal(e):
     """Same registration as the 신규 순매수 추적 default: prior 10 sessions pension buy and sell each < 1억, signal-day net >= 3억,
     no pension buying in the prior 3 months, signal-day volume <= 3x the 20-day average. The 3-year history keeps events from 1억,
@@ -410,6 +448,8 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
             if a['rsi'] is not None and b['rsi'] is not None and a['rsi'] >= 30 > b['rsi'] and (b.get('since_reset') or 0) >= SETTLED:
                 rsi.append(dict(code=code, signal_date=b['date'], rsi=round(b['rsi'], 2)))
     rsi_div = [dict(s, code=code) for code, series in rsi_series.items() for s in rsi_divergence_signals(series)]
+    rsi_div_os = [s for s in rsi_div if s['low2_rsi'] < 30]
+    rsi_div_in = [dict(s, code=code) for code, series in rsi_series.items() for s in rsi_inzone_divergence_signals(series)]
     rsi_by_code = {}
     for s in rsi:
         rsi_by_code.setdefault(s['code'], []).append(s)
@@ -421,7 +461,7 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
 
     logged = frozen_log(root)
     co_buy = co_buy_signals(live_rows, prices, sessions, load_caps(root)) if live_rows else []
-    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_div=rsi_div, rsi_pension=rsi_pension, co_buy=co_buy)
+    raw = dict(pension=pension, rank8=ranks, rsi=rsi, rsi_div=rsi_div, rsi_div_os=rsi_div_os, rsi_div_in=rsi_div_in, rsi_pension=rsi_pension, co_buy=co_buy)
     strategies, recent, today, all_counted = [], [], [], []
     recent_from = sessions[-RECENT_SESSIONS] if len(sessions) >= RECENT_SESSIONS else sessions[0]
     for spec in STRATEGIES:
