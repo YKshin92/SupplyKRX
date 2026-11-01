@@ -10,7 +10,7 @@ type Outcome={status:string;date:string|null;days:number|null;ret:number|null};
 type Signal={strategy:string;code:string;name:string;market:string|null;signal_date:string;forward:boolean;entry_date:string|null;entry_price:number|null;status:string;horizons:Record<string,{status:string;ret?:number;excess?:number|null}>;rules:Record<string,Outcome>;rank?:number;score?:number;rsi?:number;low1_date?:string;low1_rsi?:number;low2_date?:string;low2_rsi?:number};
 type Track={code:string;name:string;market:string|null;kinds:string[];overlap:number;combos:string[];signals:{strategy:string;date:string;forward:boolean}[];first_date:string;last_date:string;entry_date:string|null;entry_price:number|null;last_close:number|null;ret:number|null;status:string};
 type Band={kind:'rank'|'score'|'all';label:string;observations:number;horizons:Record<string,{count:number;mean:number|null;excess:number|null;positive:number|null}>};
-type Lab={tracking?:Track[];score_bands?:{days:string[];bands:Band[];note:string};schema_version:1;as_of:string;period:{first:string;last:string};rules:{entry:string;horizons:number[];barriers:{name:string;take:number;stop:number}[];cooldown:number;same_day:string;costs:string;universe:string;rsi_settled:number};strategies:Strategy[];recent:Signal[];today:{strategy:string;code:string}[]};
+type Lab={tracking?:Track[];score_bands?:{days:string[];bands:Band[];note:string};schema_version:1;as_of:string;period:{first:string;last:string};rules:{entry:string;horizons:number[];barriers:{name:string;take:number;stop:number}[];cooldown:number;same_day:string;costs:string;universe:string;rsi_settled:number;exclusion?:string};strategies:Strategy[];excluded?:{key:string;label:string;win_rate:number;decided:number}[];recent:Signal[];today:{strategy:string;code:string}[]};
 
 const pct=(v:number|null|undefined,d=1)=>v==null?'—':`${v>0?'+':''}${v.toFixed(d)}%`;
 const cls=(v:number|null|undefined)=>v==null?'':v>0?'positive':v<0?'negative':'';
@@ -44,6 +44,7 @@ export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
    <div className="signal-card-row"><span>20일 평균 <b className={cls(h20?.mean)}>{pct(h20?.mean)}</b></span><span>지수 대비 <b className={cls(h20?.excess)}>{pct(h20?.excess)}</b></span></div>
    {s.forward_only&&scope==='backtest'&&<p className="signal-card-note">과거 점수를 다시 만들 수 없어 사전 기록만 집계합니다.</p>}
   </button>;})}</div>
+   {!!lab.excluded?.length&&<p className="signal-excluded" role="note"><b>손익분기 미만 제외</b> {lab.excluded.map(e=>`${e.label} 승률 ${e.win_rate.toFixed(1)}% (${e.decided.toLocaleString('ko-KR')}건)`).join(' · ')} — +30% / −10%에서는 승률 25%가 본전이라 목록과 통합 추적에서 뺐습니다. 승률이 다시 25%를 넘으면 자동으로 돌아옵니다.</p>}
 
   <div className="signal-detail">
    <h3>{strategy.label} <small>{scope==='backtest'?'사후 계산':'사전 기록'} · +{barrier.take}% / −{barrier.stop}% · 첫 신호 {strategy.first_signal??'—'}</small></h3>

@@ -4,6 +4,7 @@ import {amountLabel,integer,sign} from './data';
 import {compareRanks,loadRanks,rankInvestors,type RankComponent,type RankStock} from './flow-rank-data';
 import DetailDrawer from './DetailDrawer';
 import Rank8Research from './Rank8Research';
+import ScoreResearchStatus from './ScoreResearchStatus';
 import './flow-ranks.css';
 
 const investorName=(name:string)=>name==='연기금 등'?'연기금':name;
@@ -31,6 +32,7 @@ export default function FlowRankExplorer({asOf,revision,watch,toggle,open}:{asOf
    {complete< m.population&&<p className="notice">기간 내 수급 자료가 부족한 항목은 금액·순위·총점을 보류합니다. 미수집을 0원으로 채우지 않습니다.{m.warmup_coverage!=='complete'?' 요청 기간의 거래일 달력도 일부 부족합니다.':''}</p>}
    {m.universe.classification_status!=='asof_observed'&&<p className="notice">과거 시점의 종목 분류를 확인하지 못했습니다. 현재 분류를 활용한 비교 자료입니다.</p>}
    <Rank8Research/>
+   <ScoreResearchStatus asOf={asOf}/>
    <div className="results-toolbar"><div><h2>{integer(list.length)}종목</h2><p>필터를 바꿔도 순위의 전체 모집단은 유지됩니다.</p></div><div className="rank-sort"><label>정렬<select value={order} onChange={e=>{setOrder(e.target.value);setPage(1);}}><option value="score">수급 강도 점수</option><option value="market_cap">시가총액</option>{rankInvestors.flatMap(i=>[<option key={`${i}:absolute`} value={`${i}:absolute`}>{investorName(i)} 순매수 금액</option>,<option key={`${i}:relative`} value={`${i}:relative`}>{investorName(i)} 시총 대비 비중</option>])}</select></label><button className="button small" onClick={()=>{setAscending(v=>!v);setPage(1);}}>{ascending?'낮은 순 ↑':'높은 순 ↓'}</button></div></div>
    <div className="rank-table-wrap"><table className="rank-table"><thead><tr><th>관심</th><th>종목</th>{heading('score','수급 강도')}{heading('market_cap','시가총액')}{rankInvestors.map(i=><th key={i} aria-sort={order===`${i}:absolute`?(ascending?'ascending':'descending'):'none'}><button onClick={()=>sort(`${i}:absolute`)}>{investorName(i)} 순매수{order===`${i}:absolute`?(ascending?' ↑':' ↓'):''}</button></th>)}</tr></thead><tbody>{list.slice((page-1)*30,page*30).map(s=><tr key={s.code}><td><button className="star" aria-label={`${s.name} 관심 전환`} aria-pressed={watch.includes(s.code)} onClick={()=>toggle(s.code)}><Star size={17} fill={watch.includes(s.code)?'currentColor':'none'}/></button></td><td><button className="rank-stock-name" onClick={e=>{opener.current=e.currentTarget;setSelected(s);}}>{s.name||s.code}<small>{s.code} · {s.market}</small></button></td><td><strong className="rank-score">{s.score==null?'—':s.score.toFixed(1)}</strong><small>{s.score==null?'8항목 미확보':'/ 100점'}</small></td><td>{amountLabel(s.market_cap)}</td>{rankInvestors.map(i=><td key={i}><RankCell c={s.components[`${i}:absolute`]}/></td>)}</tr>)}</tbody></table></div>
    {!list.length&&<div className="chart-empty">해당 조건의 종목이 없습니다. 검색·시장·관심 조건을 완화해 주세요.</div>}

@@ -34,6 +34,8 @@ KST = timezone(timedelta(hours=9))
 MIN_NET = 3e8     # 기본 신호: 당일 연기금 순매수 3억 이상 (추적 화면 기본값과 동일)
 QUIET_CAP = 1e8   # 직전 10거래일 연기금 매수·매도 각각 1억 미만
 DIV_WINDOW = 40   # RSI 상승 다이버전스: 첫 저점에서 두 번째 저점까지 최대 거래일
+BREAKEVEN_WIN = 25.0  # +30%/-10%: 4번 중 1번 익절이 손익분기 (30p = 10(1-p) -> p = 25%)
+MIN_DECIDED = 20      # 승률로 제외하려면 익절·손절로 끝난 사후 거래가 이만큼 있어야 함
 DIV_GAP = 5       # 30 아래에서만 생긴 다이버전스: 두 저점 사이 최소 거래일
 FAMILY = {'rsi_div': 'rsi', 'rsi_div_os': 'rsi', 'rsi_div_in': 'rsi'}  # 통합 추적에서 같은 지표 계열은 한 가지로 센다
 STRATEGIES = [
@@ -398,6 +400,17 @@ def rsi_inzone_divergence_signals(series, gap=DIV_GAP, settled=SETTLED):
     return out
 
 
+def below_breakeven(strategies, rule='30/10', threshold=BREAKEVEN_WIN, min_decided=MIN_DECIDED):
+    """Strategies whose post-hoc win rate under the default barrier is below the break-even rate (enough decided trades)."""
+    out = []
+    for s in strategies:
+        r = s['backtest']['rules'].get(rule) or {}
+        decided = (r.get('take') or 0) + (r.get('stop') or 0)
+        if r.get('win_rate') is not None and decided >= min_decided and r['win_rate'] < threshold:
+            out.append(dict(key=s['key'], label=s['label'], win_rate=r['win_rate'], decided=decided))
+    return out
+
+
 def pension_signal(e):
     """Same registration as the 신규 순매수 추적 default: prior 10 sessions pension buy and sell each < 1억, signal-day net >= 3억,
     no pension buying in the prior 3 months, signal-day volume <= 3x the 20-day average. The 3-year history keeps events from 1억,
@@ -487,14 +500,22 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
         recent += [s for s in counted if s['signal_date'] >= recent_from]
         all_counted += counted
         today += [dict(strategy=key, code=s['code']) for s in counted if s['signal_date'] == as_of]
+    # 손익분기(25%) 미만 신호는 화면 대상에서 제외. 사전 검증 중인 신호의 비공개 기록(log_today)은 계속 남긴다.
+    excluded = below_breakeven(strategies)
+    hidden = {e['key'] for e in excluded}
+    log_today = today
+    strategies = [s for s in strategies if s['key'] not in hidden]
+    recent = [s for s in recent if s['strategy'] not in hidden]
+    today = [s for s in today if s['strategy'] not in hidden]
     recent.sort(key=lambda s: (s['signal_date'], s['strategy'], s['code']), reverse=True)
-    tracking = integrated_tracking(all_counted, sessions, prices, as_of)
+    tracking = integrated_tracking([s for s in all_counted if s['strategy'] not in hidden], sessions, prices, as_of)
     bands = score_bands(rankings, frozen_days, prices, sessions, pos, index_prices, markets)
     result = dict(schema_version=1, as_of=as_of, period=dict(first=sessions[0] if sessions else None, last=as_of),
                   rules=dict(entry='신호 다음 거래일 시가', horizons=list(HORIZONS), barriers=[dict(name=n, take=t, stop=s) for n, t, s in RULES],
                              cooldown=COOLDOWN, top=TOP, rsi_settled=SETTLED, same_day='익절·손절 동시 도달은 손절(시가 갭은 시가 체결)',
-                             costs='수수료·세금·배당 미반영', universe='RSI는 현재 상장 보통주(상장폐지 종목 제외), 연기금은 3년 추적 이력'),
-                  strategies=strategies, recent=recent, today=today, tracking=tracking, score_bands=bands)
+                             costs='수수료·세금·배당 미반영', universe='RSI는 현재 상장 보통주(상장폐지 종목 제외), 연기금은 3년 추적 이력',
+                             exclusion=f'+30%/−10% 사후 승률이 손익분기 {BREAKEVEN_WIN:g}% 미만(익절·손절 {MIN_DECIDED}건 이상)인 신호는 목록·통합 추적에서 제외'),
+                  strategies=strategies, excluded=excluded, recent=recent, today=today, log_today=log_today, tracking=tracking, score_bands=bands)
     save_json(Path(target) / 'signal-lab' / 'latest.json', result)
     return result
 
@@ -513,6 +534,6 @@ def freeze_signal_log(root, projection, now=None):
     kind = 'same_day_after_close' if day == local.date().isoformat() and local.hour >= 16 else 'late_capture'
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(schema_version=1, as_of=day, captured_at=now.isoformat(timespec='seconds'), capture_kind=kind,
-                   signals=sorted(data['today'], key=lambda s: (s['strategy'], s['code'])))
+                   signals=sorted(data.get('log_today', data['today']), key=lambda s: (s['strategy'], s['code'])))
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding='utf-8')
     return dict(state='created', as_of=day, capture_kind=kind, signals=len(payload['signals']))

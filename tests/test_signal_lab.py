@@ -1,5 +1,5 @@
 import unittest
-from collector.signal_lab import rsi_divergence_signals, rsi_inzone_divergence_signals, pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
+from collector.signal_lab import below_breakeven, rsi_divergence_signals, rsi_inzone_divergence_signals, pension_signal, co_buy_signals, barrier, evaluate, summarize, wilson, integrated_tracking, score_bands
 
 
 def bar(o, h, l, c, v=100):
@@ -125,6 +125,12 @@ class SignalLabTests(unittest.TestCase):
         self.assertEqual(rsi_inzone_divergence_signals(series(pts[:4] + [(96, 31)] + pts[5:])), [])
         # lower close with RSI at or below ①'s: no divergence
         self.assertEqual(rsi_inzone_divergence_signals(series(pts[:7] + [(88, 17), (90, 20)])), [])
+
+    def test_below_breakeven_needs_enough_decided_trades(self):
+        def spec(key, take, stop):
+            return dict(key=key, label=key, backtest=dict(rules={'30/10': dict(take=take, stop=stop, win_rate=round(take / (take + stop) * 100, 1) if take + stop else None)}))
+        out = below_breakeven([spec('a', 18, 82), spec('b', 25, 75), spec('c', 2, 15), spec('d', 0, 0)])
+        self.assertEqual([e['key'] for e in out], ['a'])  # b is exactly break-even, c too few trades, d none
 
 if __name__ == '__main__':
     unittest.main()

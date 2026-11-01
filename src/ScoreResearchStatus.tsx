@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import './score-research.css';
 type Report={schema_version:number;rule_version:string;state:string;as_of:string;population:number;snapshot_days:number;snapshot_versions:number;same_day_capture_days:number;first_capture_as_of:string|null;latest_captured_at:string|null;mature_20_session_days:number;observation_horizon:number;performance_evaluated:boolean;strategy_applied:boolean;note:string};
 export default function ScoreResearchStatus({asOf}:{asOf:string}){
  const [data,setData]=useState<Report|null>(null),[error,setError]=useState(false),[attempt,setAttempt]=useState(0);

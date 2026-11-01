@@ -18,3 +18,4 @@
 .signal-status.take{color:var(--red);font-weight:700}.signal-status.stop{color:#3574c5;font-weight:700}.signal-status.open{color:var(--muted)}.signal-forward{font-size:11px;font-weight:700;color:var(--blue)}
 .signal-chips{white-space:normal!important}.signal-chips .signal-badge{margin:1px 3px 1px 0}
 .signal-badge.co_buy{background:#2866bd26}
+.signal-excluded{font-size:12px;line-height:1.7;color:var(--muted);margin:10px 2px 0}.signal-excluded b{color:inherit;font-weight:600;margin-right:6px}

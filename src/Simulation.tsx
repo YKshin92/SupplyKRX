@@ -1,6 +1,5 @@
 import SimulationIssues from './SimulationIssues';
 import CorporateReconciliation from './CorporateReconciliation';
-import ScoreResearchStatus from './ScoreResearchStatus';
 import type {Stock} from './data';
 import HistoryEventDetail,{type DetailEvent} from './HistoryEventDetail';
 import {sessionData,parallelParts} from './history-cache';
@@ -34,7 +33,22 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
  function openDetail(t:SimTrade,element:HTMLElement){detailOpener.current=element;setDetailTrade(t);}
  function closeDetail(){setDetailTrade(null);requestAnimationFrame(()=>detailOpener.current?.isConnected&&detailOpener.current.focus({preventScroll:true}));}
  return <div className="simulation">
-  <div className="simulation-heading"><div><div className="eyebrow">STRATEGY LAB</div><h2>신규 순매수 시뮬레이션</h2><p>신규·재발생 신호별 매수 · 보유 중 중복 매수 제외 · 실제 일봉으로 자금 운용과 성과 비교</p></div><span className="simulation-badge">모의 계산 · 비용 차감 전</span></div>
+  <div className="simulation-heading"><div><div className="eyebrow">STRATEGY LAB</div><h2>연기금 매매법 시뮬레이션</h2><p>연기금 신규 순매수 신호를 아래 규칙대로 사고팔았을 때의 결과 · 실제 일봉으로 자금 운용과 성과 비교</p></div><span className="simulation-badge">모의 계산 · 비용 차감 전</span></div>
+  <section className="simulation-method" aria-label="연기금 신규 순매수 매매법">
+   <div><h3>매수 신호 · 연기금 신규 순매수</h3><ol>
+    <li>신호일 연기금 순매수 <b>3억원 이상</b></li>
+    <li>직전 10거래일 연기금 매수·매도가 매일 <b>1억원 미만</b> (조용하던 종목)</li>
+    <li>직전 3개월 연기금 매수 <b>0원</b> (3개월 무매수)</li>
+    <li>신호일 거래량이 <b>20일 평균의 3배 이하</b></li>
+   </ol></div>
+   <div><h3>매매 규칙</h3><ol>
+    <li>매수: 신호 다음 거래일 <b>시가</b> · 종목당 {won(settings.budget)}</li>
+    <li>매도: 매수가 대비 <b>+{settings.take}% 익절 / −{settings.stop}% 손절</b> · 같은 날 둘 다 닿으면 손절로 계산</li>
+    <li>자금이 모자라면 신호일 수급 점수(연기금 35 + 외국인 15점 → 100점 환산)가 높은 종목부터 · 이미 보유한 종목은 다시 사지 않음</li>
+    {settings.flowExit&&<li>보유 중 연기금 순매도가 신호일 순매수보다 큰 날이 나오면 다음 거래일 시가에 전량 매도</li>}
+   </ol></div>
+   <p className="simulation-method-note">8항목 수급 점수(네 투자자 순위)는 이 매매법과 별개인 연구로, 수급 순위 화면에서 전진 검증 중입니다. 여기 매수·매도에는 쓰지 않습니다.</p>
+  </section>
   <div className="simulation-settings">
    <label>운용 방식<select value={settings.mode} onChange={e=>change('mode',e.target.value as Settings['mode'])}><option value="capital">초기자금 내 운용</option><option value="unlimited">모든 신호 매수 · 자금 제한 없음</option></select></label>
    <label>시작일<input type="date" value={settings.start} min={input?.sessions[0]} max={input?.sessions[input.sessions.length-1]} onChange={e=>change('start',e.target.value)}/></label>
@@ -45,7 +59,6 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
   </div>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.flowExit} onChange={e=>change('flowExit',e.target.checked)}/><span><b>연기금 순매도 이탈 매도</b><small>매수 후 어느 하루 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가에 전량 매도 (익절·손절은 그대로 적용)</small></span></label>
   <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}종목당 ${won(s.budget)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}`:'데이터 준비 중'}</p>
-  <ScoreResearchStatus asOf={asOf}/>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
    <section className="simulation-metrics" aria-label="시뮬레이션 요약">
