@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import './signal-lab.css';
+import CandleTag,{type Candle} from './CandleTag';
 
 type RuleStat={take:number;stop:number;open:number;missing:number;win_rate:number|null;ci:[number,number]|null;avg_return:number|null;avg_days:number|null};
 type HorizonStat={count:number;mean:number|null;median:number|null;excess:number|null;positive:number|null};
@@ -7,7 +8,7 @@ type Summary={signals:number;entered:number;rules:Record<string,RuleStat>;horizo
 type Month={month:string;signals:number;take:number;stop:number;win_rate:number|null;excess20:number|null;excess20_count:number};
 type Strategy={key:string;label:string;description:string;first_signal:string|null;forward_only:boolean;backtest:Summary;forward:Summary;monthly:Month[]};
 type Outcome={status:string;date:string|null;days:number|null;ret:number|null};
-type Signal={strategy:string;code:string;name:string;market:string|null;signal_date:string;forward:boolean;entry_date:string|null;entry_price:number|null;status:string;horizons:Record<string,{status:string;ret?:number;excess?:number|null}>;rules:Record<string,Outcome>;rank?:number;score?:number;rsi?:number;low1_date?:string;low1_rsi?:number;low2_date?:string;low2_rsi?:number};
+type Signal={candle?:Candle|null;strategy:string;code:string;name:string;market:string|null;signal_date:string;forward:boolean;entry_date:string|null;entry_price:number|null;status:string;horizons:Record<string,{status:string;ret?:number;excess?:number|null}>;rules:Record<string,Outcome>;rank?:number;score?:number;rsi?:number;low1_date?:string;low1_rsi?:number;low2_date?:string;low2_rsi?:number};
 type Track={code:string;name:string;market:string|null;kinds:string[];overlap:number;combos:string[];signals:{strategy:string;date:string;forward:boolean}[];first_date:string;last_date:string;entry_date:string|null;entry_price:number|null;last_close:number|null;ret:number|null;status:string};
 type Band={kind:'rank'|'score'|'all';label:string;observations:number;horizons:Record<string,{count:number;mean:number|null;excess:number|null;positive:number|null}>};
 type Lab={tracking?:Track[];score_bands?:{days:string[];bands:Band[];note:string};schema_version:1;as_of:string;period:{first:string;last:string};rules:{entry:string;horizons:number[];barriers:{name:string;take:number;stop:number}[];cooldown:number;same_day:string;costs:string;universe:string;rsi_settled:number;exclusion?:string};strategies:Strategy[];excluded?:{key:string;label:string;win_rate:number;decided:number}[];recent:Signal[];today:{strategy:string;code:string}[]};
@@ -65,7 +66,7 @@ export default function SignalLab({onOpen}:{onOpen:(code:string)=>void}){
     <select aria-label="신호 종류" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">전체 신호</option>{lab.strategies.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}</select></div>
    <div className="lab-scroll"><table className="signal-table"><thead><tr><th>신호일</th><th>종목</th><th>신호</th><th>진입(다음날 시가)</th><th>5일</th><th>20일</th><th>+{barrier.take}% / −{barrier.stop}%</th><th>기록</th></tr></thead>
    <tbody>{rows.slice((current-1)*25,current*25).map(s=>{const o=s.rules[rule];return <tr key={`${s.strategy}:${s.code}:${s.signal_date}`} tabIndex={0} onClick={()=>onOpen(s.code)} onKeyDown={e=>{if(e.key==='Enter')onOpen(s.code);}}>
-    <td>{s.signal_date}</td><td><strong>{s.name}</strong><small>{s.code} · {s.market??'—'}</small></td><td><span className={`signal-badge ${s.strategy}`}>{label[s.strategy]}</span>{s.rsi!=null&&<small>RSI {s.rsi.toFixed(1)}</small>}{s.low1_rsi!=null&&s.low2_rsi!=null&&<small title={`① ${s.low1_date} → ② ${s.low2_date}`}>저점 RSI {s.low1_rsi.toFixed(0)}→{s.low2_rsi.toFixed(0)}</small>}{s.rank!=null&&<small>{s.rank}위</small>}</td>
+    <td>{s.signal_date}<CandleTag candle={s.candle}/></td><td><strong>{s.name}</strong><small>{s.code} · {s.market??'—'}</small></td><td><span className={`signal-badge ${s.strategy}`}>{label[s.strategy]}</span>{s.rsi!=null&&<small>RSI {s.rsi.toFixed(1)}</small>}{s.low1_rsi!=null&&s.low2_rsi!=null&&<small title={`① ${s.low1_date} → ② ${s.low2_date}`}>저점 RSI {s.low1_rsi.toFixed(0)}→{s.low2_rsi.toFixed(0)}</small>}{s.rank!=null&&<small>{s.rank}위</small>}</td>
     <td>{s.entry_date?<>{s.entry_date.slice(5)}<small>{s.entry_price?.toLocaleString('ko-KR')}원</small></>:<span className="rsi-muted">{statusLabel[s.status]??s.status}</span>}</td>
     <td className={cls(s.horizons['5']?.ret)}>{s.horizons['5']?.status==='complete'?pct(s.horizons['5'].ret):'—'}</td>
     <td className={cls(s.horizons['20']?.ret)}>{s.horizons['20']?.status==='complete'?pct(s.horizons['20'].ret):'—'}</td>

@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-01-candle-tag',date:'2026-11-01',title:'신호일 음봉·양봉 표시',
+  targets:[{tab:'cases',selector:'.tracking-table',label:'신규 순매수 추적'},{tab:'simulation',selector:'.simulation-results',label:'시뮬레이션 · 종목별 결과'},{tab:'signals',selector:'.signal-recent',label:'신호 성과 검증 · 최근 신호'}],
+  changes:['신규 순매수 추적, 시뮬레이션 종목별 결과, 신호 성과 검증의 최근 신호 목록에서 신호일 옆에 그날 캔들(양봉 빨강 · 음봉 파랑)을 표시합니다. 신호일 종가가 시가보다 높으면 양봉, 낮으면 음봉입니다.','매수할 때 보는 참고 표시이며 점수·신호 조건·시뮬레이션 매매에는 쓰지 않습니다. 과거 3년 탐색에서는 음봉 신호의 거래당 성과가 더 좋았지만(현재 조건 13건 +14.6% vs 양봉 44건 +5.7%), 2019~2023년 검증 전입니다.'],
+  verified:'Vercel 빌드·운영 화면 확인 2026-11-01',limits:['사후 탐색 결과이며 투자 권유 아님']},
  {id:'2026-11-01-sim-monthly-signals',date:'2026-11-01',title:'시뮬레이션 손익 차트 아래 월별 신호 건수 막대',
   targets:[{tab:'simulation',selector:'.simulation-signal-chart',label:'전략 검증 시뮬레이션 · 손익 차트'}],
   changes:['운용 손익과 KOSPI 비교 차트 바로 아래에 월별 신호 발생 건수를 막대로 보여 줍니다. 막대는 위 차트와 같은 일별 날짜 축에서 그 달의 첫 거래일부터 마지막 거래일까지 걸쳐 그려 손익선과 기간이 정확히 겹칩니다. 진한 부분은 그중 실제로 매수한 건수입니다.','두 차트는 함께 움직여, 한쪽에 마우스를 올리면 같은 날짜의 손익과 그 달 신호 수가 같이 표시됩니다.'],

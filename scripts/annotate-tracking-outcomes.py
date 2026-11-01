@@ -10,6 +10,7 @@ from collector.foreign_record import foreign_record
 from collector.price_comparison import price_comparison
 from collector.corporate_context import published_reconciliation, corporate_assets
 from collector.simulation import pension_sells
+from collector.candle import candle_of
 
 
 def enrich(target, shard_limit=1_500_000):
@@ -39,6 +40,7 @@ def enrich(target, shard_limit=1_500_000):
                     history = json.loads(stock.read_text(encoding='utf-8')) if stock.exists() else {}
                     cache[code] = {key: {r['date']: r for r in history.get(key, [])} for key in ('pension', 'foreign')}
                 event['touch_outcome'] = touch_outcome(event['signal_date'], cache[code]['pension'], sessions)
+                event['signal_candle'] = candle_of(cache[code]['pension'].get(event['signal_date']))
                 event['foreign_record_20'] = foreign_record(event['signal_date'], cache[code]['foreign'], sessions)
                 event['price_comparison'] = price_comparison(event['signal_date'], cache[code]['pension'], sessions)
                 event['current_return'] = ((event['current_close']/event['signal_close']-1)*100

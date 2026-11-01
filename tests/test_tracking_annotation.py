@@ -50,4 +50,5 @@ class TrackingAnnotationTests(unittest.TestCase):
                 actual=[e for p in parts for e in json.loads(p.read_text(encoding='utf-8'))]
                 self.assertEqual([e['id'] for e in actual],[e['id'] for e in events])
                 self.assertTrue(all(e['current_return']==0 for e in actual))
+                self.assertTrue(all(e['signal_candle']=='flat' for e in actual))
             self.assertEqual(module.enrich(target,1200),20)

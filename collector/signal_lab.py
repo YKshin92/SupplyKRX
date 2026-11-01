@@ -20,6 +20,7 @@ import math
 from pathlib import Path
 
 from .simulation import price_problem
+from .candle import candle_of
 
 HORIZONS = (5, 10, 20, 60)
 RULES = (('30/10', 30, 10), ('10/5', 10, 5))
@@ -490,7 +491,8 @@ def publish_signal_lab(root, target, rsi_keep, index_prices, as_of, rows=None):
             market = markets.get(s['code'])
             result = evaluate(prices.get(s['code'], {}), sessions, pos, s['signal_date'], index_prices.get(market, {}))
             forward = (key, s['code'], s['signal_date']) in logged or (key == 'rank8' and bool(s.get('frozen')))
-            item = dict(s, strategy=key, name=names.get(s['code'], s['code']), market=market, forward=forward, **result)
+            item = dict(s, strategy=key, name=names.get(s['code'], s['code']), market=market, forward=forward,
+                        candle=candle_of(prices.get(s['code'], {}).get(s['signal_date'])), **result)
             counted.append(item)
         back = [s for s in counted if not s['forward']]
         fwd = [s for s in counted if s['forward']]
