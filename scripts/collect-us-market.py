@@ -3,7 +3,9 @@
 - Ranking: companiesmarketcap.com US list (CSV), taken at collection time. The cap date is the
   collection date in New York, not a historical composition, and is never applied to past dates.
 - Prices: Yahoo Finance chart API daily bars. `close` there is split-adjusted, not dividend-adjusted.
-  Only completed sessions are kept: a bar dated today in New York is dropped until the market has closed.
+  Only completed sessions are kept: a bar dated today in New York is dropped until 16:20 New York time (16:00 close plus
+  20 minutes for the final print). The morning KST run lands about 30 minutes after the close in winter; the 16:00 KST
+  collection fetches the whole history again, so any late revision of that close is replaced the same day.
 - Indices: S&P 500 (^GSPC) and Nasdaq Composite (^IXIC).
 The output is monitoring reference data only; it never enters signals, scores or the simulation.
 """
@@ -24,6 +26,7 @@ CHART = 'https://query1.finance.yahoo.com/v8/finance/chart/{}?range=2y&interval=
 INDICES = {'S&P500': '^GSPC', 'NASDAQ': '^IXIC'}
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'}
 NY = ZoneInfo('America/New_York')
+CLOSED_AFTER = (16, 20)  # New York (hour, minute) after which today's regular session counts as closed
 
 
 def get(url):
@@ -56,11 +59,16 @@ def ranking(top):
     return out
 
 
+def session_closed(now):
+    t = now.astimezone(NY)
+    return (t.hour, t.minute) >= CLOSED_AFTER
+
+
 def bars(symbol, now):
     data = json.loads(get(CHART.format(urllib.parse.quote(symbol))))['chart']['result'][0]
     quote = data['indicators']['quote'][0]
     today = now.astimezone(NY).date().isoformat()
-    closed = now.astimezone(NY).hour >= 17  # 16:00 close plus a margin for the final print
+    closed = session_closed(now)
     prices = {}
     for i, stamp in enumerate(data.get('timestamp') or []):
         day = datetime.fromtimestamp(stamp, NY).date().isoformat()
