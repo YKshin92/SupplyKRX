@@ -93,3 +93,38 @@ test('idle cash: deposit accrues on cash by calendar days; index cash follows KO
  // day 0 close -> day 1 open: 400 * 1.01, minus 300 bought at the open, then +0% open->close on day 1, ...
  assert.ok(r.account.cash>100*scale);assert.ok(Math.abs(r.ledger[0].end_cash-400*scale)<1e-6);
 });
+test('idle ETF: open buys sell the ETF for the shortfall, spare cash buys at the open, sale proceeds buy at the close',()=>{
+ const a=candidate('A',90,[price(),price(),price(100,135,95,130),price(),price()]);
+ const d=input([a]);d.stocks[0].prices=d.stocks[0].prices.map(p=>({...p,open:p.open*scale,high:p.high*scale,low:p.low*scale,close:p.close*scale}));
+ const bar=(o,c)=>({open:o,high:Math.max(o,c),low:Math.min(o,c),close:c});
+ d.indices.ETF=[bar(100,100),bar(110,110),bar(120,120),bar(125,130),bar(130,130)];
+ const at=(o)=>({...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:'ETF',...o}});
+ // day 0: 400 -> 4 units at 100. day 1: sell 300/110 units for the buy. day 2: take at 130 -> 390 buys at the close 120.
+ let units=4-300/110+390/120,r=runSimulation(d,at({}));
+ assert.ok(Math.abs(r.account.equity-units*130*scale)<1e-3);assert.equal(r.trades[0].status,'take');
+ assert.ok(Math.abs(r.ledger[1].end_cash-(4-300/110)*110*scale)<1e-3);
+ // next-open: the 390 waits as cash and buys at day 3's open 125.
+ units=4-300/110+390/125;r=runSimulation(d,at({reinvest:'next-open'}));assert.ok(Math.abs(r.account.equity-units*130*scale)<1e-3);
+ // 1% fee each way and 10% tax on the sale gain over the average price.
+ r=runSimulation(d,at({fee:1,gainTax:10}));
+ let u=400/(100*1.01);const liq=110*.99-.1*(110-100),sold=300/liq;u-=sold;const avg=100;u+=390/(120*1.01);
+ assert.ok(Math.abs(r.account.equity-u*130*scale)<1e-3);
+ assert.ok(Math.abs(r.account.idle_taxes-sold*scale*.1*10)<1e-3);
+ assert.ok(Math.abs(r.account.idle_fees-(400*scale-400*scale/1.01+sold*scale*110*.01+390*scale-390*scale/1.01))<1e-3);
+ assert.throws(()=>runSimulation(d,at({series:'NONE'})),/데이터가 없습니다/);
+});
+test('idle ETF basket: equal amounts in, same fraction of each out, per-series gain tax',()=>{
+ const a=candidate('A',90,[price(),price(),price(100,135,95,130),price(),price()]);
+ const d=input([a]);d.stocks[0].prices=d.stocks[0].prices.map(p=>({...p,open:p.open*scale,high:p.high*scale,low:p.low*scale,close:p.close*scale}));
+ const bar=(o,c)=>({open:o,high:Math.max(o,c),low:Math.min(o,c),close:c});
+ d.indices.X=[bar(100,100),bar(120,120),bar(120,120),bar(120,120),bar(120,120)];
+ d.indices.Y=[bar(50,50),bar(40,40),bar(40,40),bar(40,40),bar(40,40)];
+ const r=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X','Y'],gainTax:[0,10]}});
+ // day 0: 200 each -> 2 X, 4 Y. day 1: X 240 + Y 160 = 400, sell 3/4 of each for the 300 buy (Y at a loss: no tax).
+ let x=2*.25,y=4*.25;assert.ok(Math.abs(r.ledger[1].end_cash-(x*120+y*40)*scale)<1e-3);assert.equal(r.account.idle_taxes,0);
+ // day 2: take at 130 -> 390 split 195/195 at the close.
+ x+=195/120;y+=195/40;assert.ok(Math.abs(r.account.equity-(x*120+y*40)*scale)<1e-3);
+ // X has a gain and is taxed only through its own rate (0); a 10% rate on X taxes the X sale gain of 20 per unit.
+ const t=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X','Y'],gainTax:[10,0]}});
+ assert.ok(t.account.idle_taxes>0&&t.account.equity<r.account.equity);
+});
