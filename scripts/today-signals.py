@@ -1,8 +1,8 @@
 """Today's 연기금 매매법 signals (the simulation's default conditions) from the live daily files, for the daily alert.
 
-Signal on day d: 연기금 net buy >= 3억; each of the 10 previous sessions has 연기금 buy and sell below 1억; no 연기금 buy and no
-연기금 sell on any session from d minus 3 calendar months (window must be fully observed; 3개월 무거래, from 2026-11-02); signal-day volume <= 3x the previous 20-session
-average. Same rules as scripts/build-history-web.py + publish-simulation.py (quiet3m-volume). Reference only.
+Signal on day d: 연기금 net buy >= 3억; no 연기금 buy and no 연기금 sell on any session from d minus 3 calendar months
+(window must be fully observed; 3개월 무거래, from 2026-11-02); signal-day volume <= 3x the previous 20-session average. The older check
+'each of the 10 previous sessions has buy and sell below 1억' is kept in code but is implied by the 3-month rule. Same rules as scripts/build-history-web.py + publish-simulation.py (quiet3m-volume). Reference only.
 usage: today-signals.py --root <private data repo> [--date YYYY-MM-DD]   (prints JSON; with GITHUB_ACTIONS also a notice)
 """
 import argparse
