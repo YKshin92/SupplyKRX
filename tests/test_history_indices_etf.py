@@ -19,7 +19,10 @@ class EtfSeries(unittest.TestCase):
         finally:m.fetch_year=old
     def test_complete_etf_is_kept(self):
         got=self.run_with(rows());self.assertEqual(set(got),{'KOSPI','KOSDAQ','ETF_KOSPI200','ETF_SP500','ETF_NASDAQ100'});self.assertEqual(got['ETF_NASDAQ100']['code'],'133690')
-    def test_split_or_gap_leaves_etf_out_without_blocking_indices(self):
-        self.assertEqual(set(self.run_with(rows(jump=.5))),{'KOSPI','KOSDAQ'})
+    def test_clean_split_is_back_adjusted(self):
+        got=self.run_with(rows(jump=.5))['ETF_SP500'];self.assertEqual(got['split_adjustments'],[dict(date='2026-01-05',factor=.5)])
+        self.assertAlmostEqual(got['prices']['2026-01-02']['close'],50.5);self.assertAlmostEqual(got['prices']['2026-01-05']['close'],52)
+    def test_unclean_jump_or_gap_leaves_etf_out_without_blocking_indices(self):
+        self.assertEqual(set(self.run_with(rows(jump=.7))),{'KOSPI','KOSDAQ'})
         self.assertEqual(set(self.run_with(rows(drop='2026-01-02'))),{'KOSPI','KOSDAQ'})
 if __name__=='__main__':unittest.main()

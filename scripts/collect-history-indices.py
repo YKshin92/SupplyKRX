@@ -22,11 +22,18 @@ def collect_etf(code,sessions):
             prices[d]=dict(date=d,open=o,high=h,low=l,close=c)
     missing=set(sessions)-prices.keys()
     if missing:raise ValueError(f'{code}: missing {len(missing)} dates, first {sorted(missing)[:5]}')
-    days=sorted(prices)
-    for x,y in zip(days,days[1:]):
-        # A split or a bad row shows up as a jump no index ETF makes in a day.
-        if abs(prices[y]['close']/prices[x]['close']-1)>.2 or abs(prices[y]['open']/prices[x]['close']-1)>.2:raise ValueError(f'{code} {y}: price jump, check for a split')
-    return prices
+    days=sorted(prices);splits=[]
+    for j in range(1,len(days)):
+        x,y=days[j-1],days[j]
+        # A split or a bad row shows up as a jump no index ETF makes in a day. A clean 1:k (or k:1) opening ratio is a split:
+        # earlier prices are put on the new share basis so returns stay continuous; any other jump leaves the ETF out.
+        if abs(prices[y]['close']/prices[x]['close']-1)<=.2 and abs(prices[y]['open']/prices[x]['close']-1)<=.2:continue
+        ratio=prices[y]['open']/prices[x]['close']
+        k=next((k for k in (2,3,4,5,8,10,20,25,50,100) if abs(ratio*k-1)<.1 or abs(ratio/k-1)<.1),None)
+        if k is None:raise ValueError(f'{code} {y}: price jump {ratio:.3f}, not a clean split')
+        factor=1/k if ratio<1 else k;splits.append(dict(date=y,factor=factor))
+        for d in days[:j]:prices[d]={**prices[d],**{f:prices[d][f]*factor for f in ('open','high','low','close')}}
+    return prices,splits
 def collect(sessions,target):
     result=dict(schema_version=1,source='NAVER Finance price index',collected_at=datetime.now(timezone.utc).isoformat(),first_date=sessions[0],as_of=sessions[-1],indices={})
     for market in ('KOSPI','KOSDAQ'):
@@ -45,7 +52,9 @@ def collect(sessions,target):
         if missing:raise ValueError(f'{market}: missing {len(missing)} dates, first {sorted(missing)[:5]}')
         result['indices'][market]=dict(prices=prices);print(market,len(prices),flush=True)
     for key,(code,name) in ETFS.items():
-        try:result['indices'][key]=dict(code=code,name=name,prices=collect_etf(code,sessions));print(key,code,len(result['indices'][key]['prices']),flush=True)
+        try:
+            prices,splits=collect_etf(code,sessions);result['indices'][key]=dict(code=code,name=name,prices=prices,split_adjustments=splits)
+            print(key,code,len(prices),'split-adjusted '+str(splits) if splits else '',flush=True)
         except Exception as error:print(f'::warning::{name} ({code}) left out: {error}',flush=True)
     target.parent.mkdir(parents=True,exist_ok=True);tmp=target.with_suffix('.tmp');tmp.write_text(json.dumps(result,ensure_ascii=False),encoding='utf-8');tmp.replace(target)
 if __name__=='__main__':
