@@ -9,7 +9,7 @@ export const STRATEGY:Row[]=[
  {label:'15% + KOSPI200 ETF',final:6.46,total:546.2,cagr:26.9,mdd:-40.9,h:98.6,r:225.3,year:[19.1,33.9,17.2,-16.9,28.0,-4.0,131.7,46.2]},
  {label:'20% + KOSPI200 ETF',final:7.87,total:687.2,cagr:30.2,mdd:-40.9,h:127.6,r:245.8,year:[20.4,34.7,30.2,-16.4,28.8,-2.2,144.9,44.4]},
  {label:'25% + KOSPI200 ETF',final:9.91,total:890.6,cagr:34.1,mdd:-40.9,h:138.7,r:315.0,year:[19.7,40.1,28.5,-14.4,29.5,-0.5,158.5,61.4]}];
-/** Price returns (no dividends). S&P500 and Nasdaq-100 converted to won with USD/KRW; KOSPI200 is the KODEX 200 ETF price. */
+/** Price returns (no dividends). S&P500 and Nasdaq-100 converted to won with USD/KRW; KOSPI200 is the KODEX 200 ETF NAVER adjusted price (distributions included). */
 export const INDICES:{label:string;total:number;mdd:number;year:number[]}[]=[
  {label:'KOSPI',total:179.5,mdd:-40.0,year:[7.7,30.8,3.6,-24.9,18.7,-9.6,75.6,36.0]},
  {label:'KOSDAQ',total:6.2,mdd:-47.4,year:[-0.9,44.6,6.8,-34.3,27.6,-21.7,36.5,-21.7]},
@@ -28,7 +28,7 @@ export default function HistoryValidation(){
    <tbody>{STRATEGY.map(r=><tr key={r.label}><th scope="row">{r.label}</th><td>{r.final.toFixed(2)}억</td><td className={cls(r.total)}>{pct(r.total)}</td><td>{pct(r.cagr)}</td><td className="down">{pct(r.mdd)}</td><td className={cls(r.h)}>{pct(r.h)}</td><td className={cls(r.r)}>{pct(r.r)}</td></tr>)}</tbody>
   </table></div>
   <div className="history-validation-scroll"><table className="history-validation-table wide">
-   <caption>연도별 수익률 · 전략과 지수 (2026은 10/30까지, 지수는 가격 기준·배당 제외)</caption>
+   <caption>연도별 수익률 · 전략과 지수 (2026은 10/30까지, 지수는 가격 기준·배당 제외, KOSPI200 ETF는 분배금 포함)</caption>
    <thead><tr><th scope="col">연도</th>{STRATEGY.map(r=><th scope="col" key={r.label}>{r.label.replace('평가자산 ','').replace(' + KOSPI200 ETF','+ETF')}</th>)}{INDICES.map(x=><th scope="col" className="index" key={x.label}>{x.label.replace(' (원화)','')}</th>)}</tr></thead>
    <tbody>{YEARS.map((y,i)=><tr key={y}><th scope="row">{y}</th>{STRATEGY.map(r=><td key={r.label} className={cls(r.year[i])}>{pct(r.year[i])}</td>)}{INDICES.map(x=><td key={x.label} className={`index ${cls(x.year[i])}`}>{pct(x.year[i])}</td>)}</tr>)}
     <tr className="total"><th scope="row">누적</th>{STRATEGY.map(r=><td key={r.label} className={cls(r.total)}>{pct(r.total)}</td>)}{INDICES.map(x=><td key={x.label} className={`index ${cls(x.total)}`}>{pct(x.total)}</td>)}</tr>
@@ -37,8 +37,9 @@ export default function HistoryValidation(){
   <p className="history-validation-note">15%·20%·25%는 매수 비중, ‘+ETF’는 쉬는 현금을 KOSPI200 ETF에 둔 경우입니다. S&P500·나스닥100은 원화 환산(원/달러 +19.9%)이며 달러 기준으로는 +202.4%, +348.4%입니다.</p>
   <p><strong>읽는 법</strong> 매매법만(15%)으로는 KOSPI와 수익이 비슷하고 낙폭은 절반입니다. 비중을 20·25%로 올리면 수익이 커지지만 낙폭도 −21%, −30%로 커집니다. 쉬는 현금을 KOSPI200 ETF에 두면 수익이 크게 늘지만, 자금 대부분이 지수에 있어 낙폭이 지수 수준(−40.9%, 2026년 7월 급락)이 되고 2022년(−14~−17%) 같은 해가 생깁니다. 수익의 큰 부분은 2025~2026년 KOSPI200 급등(+94%, +50%)에서 나왔습니다.</p>
   <p><strong>점검에서 확인한 것</strong> 기존 계산(비용 전·15%·2.68억)은 지금 엔진에서 그대로 재현됩니다. 평가가 멈춘 날은 없고, 상장폐지·합병 2종목은 마지막 거래가로 정산했습니다. 시작 달을 2019년 1~12월로 바꿔도 15%는 연평균 13.4~14.7%로 안정적입니다. 2026년 KOSPI의 큰 등락(7/31 하루 +17.9% 등)은 실제 시장 기록과 일치합니다. 거래세를 연도별로 다르게(0.15~0.30%) 잡아도 연평균 차이는 ±0.3%p 안쪽입니다.</p>
-  <p><strong>주의할 점</strong> ① 25%는 현금이 모자라 신호를 늦게 사는 경우가 많습니다(156건 중 20건, 최대 43거래일 뒤 매수). 신호 다음 날 산다는 규칙과 다르고, 이탈 매도를 끄면 연평균이 23.6%→14.7%로 크게 흔들려 운에 좌우됩니다. 15%는 늦은 매수가 4건(최대 9일)뿐입니다. ② 자산이 커지면 주문이 커집니다. 25%+ETF는 2026년 주문 중간값이 약 2억 원, 일부는 신호일 거래대금의 26%로 실제로는 그 가격에 다 사기 어렵습니다. ③ 2019~2023년(규칙을 정할 때 안 쓴 기간)은 15%가 5년 +44.9%(연 약 7.7%)로, 2024~2026년보다 훨씬 낮습니다. ④ ETF는 소수 단위로 사고팔았다고 계산했고 분배금은 반영하지 않았습니다.</p>
+  <p><strong>주의할 점</strong> ① 25%는 현금이 모자라 신호를 늦게 사는 경우가 많습니다(156건 중 20건, 최대 43거래일 뒤 매수). 신호 다음 날 산다는 규칙과 다르고, 이탈 매도를 끄면 연평균이 23.6%→14.7%로 크게 흔들려 운에 좌우됩니다. 15%는 늦은 매수가 4건(최대 9일)뿐입니다. ② 자산이 커지면 주문이 커집니다. 25%+ETF는 2026년 주문 중간값이 약 2억 원, 일부는 신호일 거래대금의 26%로 실제로는 그 가격에 다 사기 어렵습니다. ③ 2019~2023년(규칙을 정할 때 안 쓴 기간)은 15%가 5년 +44.9%(연 약 7.7%)로, 2024~2026년보다 훨씬 낮습니다. ④ ETF는 소수 단위로 사고팔았다고 계산했고, NAVER 수정주가라 분배금이 재투자된 효과가 들어 있습니다(분배금 세금 15.4% 미반영, 연 약 0.3%p 과대).</p>
   <p><strong>2019~2023년 규칙 검증</strong> 3개월 무매수가 1·2개월보다 나음, 조건을 좁힐수록 좋아지는 방향은 같지만 차이가 작아짐(거래당 +7.8% → +3.3%), +30%/−10%는 그 기간엔 더 넓은 폭이 나았음, 연기금 순매도 이탈 매도는 거래당 +0.3%p로 영향이 작음, 외국인 최대 순매도일 제외·음봉 우선·KOSPI 200일선 규칙은 근거 없음. 94개월 중 26개월은 신호가 없었습니다.</p>
+  <p><strong>쉬는 현금 ETF에 200일선 필터를 걸면</strong> KOSPI200 ETF가 200일선 위일 때만 들고 아래면 현금으로 두는 방식(전날 종가로 판단, 다음 날 시가 매매)을 미리 기준을 정해 계산했습니다. 15%는 6.46억 → 4.92억(−24%), 25%는 9.91억 → 7.41억으로 줄었습니다. 2019~2023년 낙폭은 −32.5% → −23.6%로 줄었지만, 2026년 7월 급락은 지수가 200일선보다 훨씬 위에서 시작돼 피하지 못해 최대 낙폭은 −40.9% 그대로였습니다. 8년 동안 37%의 날을 현금으로 보냈고 31번 팔았습니다. 기준(두 구간 모두 낙폭 감소, 최종 금액 감소 20% 이내)을 넘지 못해 채택하지 않았습니다.</p>
   <p>수수료 0.015%·증권거래세 0.20%(2026년 세율)를 모든 연도에 같게 적용했습니다. 사후 계산이며 수익을 보장하지 않고 투자 권유가 아닙니다.</p>
  </details>;
 }

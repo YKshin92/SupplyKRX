@@ -22,7 +22,8 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
  *  sale over the average purchase price (foreign-index ETFs listed in Korea). `series` as a list is a basket: equal amounts are
  *  bought of each, sales take the same fraction of each (no rebalancing), and `gainTax` may then list one rate per series.
  *  `gate` (one list per series, aligned with sessions) holds a series only on days marked true or null: on a false day it is
- *  sold at the open and its share of idle cash stays cash (see trendGate). Distributions are not included. */
+ *  sold at the open and its share of idle cash stays cash (see trendGate). NAVER ETF prices are back-adjusted for
+ *  distributions, so ETF series count distributions as reinvested (no tax on them); price indices exclude dividends. */
 export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][]}};
 /** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
