@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-history8-yearly-best',date:'2026-11-02',title:'과거 8년 검증: 해마다 1위 전략 표시',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
+  changes:['연도별 수익률 표에서 그해 1위 전략 칸을 주황 배경·굵은 글씨로, 그 전략이 그해 모든 지수보다 높았으면 ★로 표시합니다(2022·2025·2026). 그해 1위 지수는 굵게 표시합니다.','맨 아래에 전략별 1위 횟수(25%+ETF 4회, 25% 2회, 15%·20%+ETF 각 1회)를 더했고, KOSPI가 오른 해엔 ETF를 둔 전략·제자리이거나 내린 해엔 현금을 든 전략이 1위였다는 점을 적었습니다.'],
+  verified:'앱 안 브라우저 확인 2026-11-02',limits:['사후 계산','투자 권유 아님']},
  {id:'2026-11-02-screen-check',date:'2026-11-02',title:'화면 점검 반영: 현금·ETF 표기, 8년 표 첫 열 고정, 대기 만료·주문 상한 계산',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
   changes:['총 평가자산 아래를 ‘현금 ○원 · ETF ○원’으로 나눠 적었습니다(쉬는 현금이 모두 ETF일 때 같은 금액이 두 번 보이던 문제).','과거 8년 검증 표는 휴대폰에서 옆으로 넘겨도 첫 열(전략·연도)이 고정되고, 표 제목이 잘리지 않습니다.','늦은 매수와 큰 주문 점검: 5거래일 안에 못 사면 건너뛰는 규칙과 주문을 신호일 거래대금의 10%로 묶는 규칙을 8년으로 계산해 카드에 적었습니다. 결과가 거의 같아 기본 규칙 후보이며 화면에는 아직 넣지 않았습니다.'],

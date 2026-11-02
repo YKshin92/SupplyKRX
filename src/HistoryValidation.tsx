@@ -18,6 +18,11 @@ export const INDICES:{label:string;total:number;mdd:number;year:number[]}[]=[
  {label:'KOSPI200 ETF',total:297.8,mdd:-41.9,year:[14.4,35.6,3.0,-24.1,24.9,-9.4,94.2,50.4]}];
 const pct=(v:number)=>`${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(1)}%`;
 const cls=(v:number)=>v>=0?'up':'down';
+/** Per year: the strategy with the highest return, whether it beat every index that year, and the top index. */
+const argmax=(v:number[])=>v.reduce((b,x,k)=>x>v[b]?k:b,0);
+export const YEAR_BEST=YEARS.map((_,i)=>{const s=argmax(STRATEGY.map(r=>r.year[i])),x=argmax(INDICES.map(r=>r.year[i]));
+ return {strategy:s,index:x,beatAll:STRATEGY[s].year[i]>INDICES[x].year[i]};});
+const WINS=STRATEGY.map((_,k)=>YEAR_BEST.filter(b=>b.strategy===k).length);
 export default function HistoryValidation(){
  return <details className="history-validation"><summary><span className="history-validation-star" aria-hidden="true">★</span><strong>과거 8년 검증 (2019~2026)</strong><em className="history-validation-badge">가장 신뢰할 근거</em><span className="history-validation-lead">1억 원 · 평가자산 15%씩 → 2.77억 원 (+177%) · 최대 낙폭 −19.5% · 같은 기간 KOSPI +180% (−40.0%)</span></summary>
   <p className="history-validation-why">이 전략을 판단할 때 가장 믿을 만한 자료입니다. 규칙을 정할 때 쓰지 않은 2019~2023년을 포함해 8년 동안, 지금 화면과 같은 규칙으로 계산했습니다. 아래 짧은 기간 시뮬레이션보다 이 결과를 먼저 보세요.</p>
@@ -30,10 +35,15 @@ export default function HistoryValidation(){
   <p className="history-validation-caption" id="hv-yearly">연도별 수익률 · 전략과 지수 (2026은 10/30까지, 지수는 가격 기준·배당 제외, KOSPI200 ETF는 분배금 포함)</p>
   <div className="history-validation-scroll"><table className="history-validation-table wide" aria-labelledby="hv-yearly">
    <thead><tr><th scope="col">연도</th>{STRATEGY.map(r=><th scope="col" key={r.label}>{r.label.replace('평가자산 ','').replace(' + KOSPI200 ETF','+ETF')}</th>)}{INDICES.map(x=><th scope="col" className="index" key={x.label}>{x.label.replace(' (원화)','')}</th>)}</tr></thead>
-   <tbody>{YEARS.map((y,i)=><tr key={y}><th scope="row">{y}</th>{STRATEGY.map(r=><td key={r.label} className={cls(r.year[i])}>{pct(r.year[i])}</td>)}{INDICES.map(x=><td key={x.label} className={`index ${cls(x.year[i])}`}>{pct(x.year[i])}</td>)}</tr>)}
+   <tbody>{YEARS.map((y,i)=><tr key={y}><th scope="row">{y}</th>{STRATEGY.map((r,k)=>{const best=YEAR_BEST[i].strategy===k,star=best&&YEAR_BEST[i].beatAll;
+     return <td key={r.label} className={`${cls(r.year[i])}${best?' best':''}`} title={best?(star?'그해 1위 전략 · 모든 지수보다 높음':'그해 1위 전략'):undefined}>{pct(r.year[i])}{star&&<span className="best-star" aria-hidden="true">★</span>}{best&&<span className="sr-only">{star?' (그해 1위, 모든 지수보다 높음)':' (그해 1위)'}</span>}</td>;})}
+     {INDICES.map((x,k)=><td key={x.label} className={`index ${cls(x.year[i])}${YEAR_BEST[i].index===k?' idx-best':''}`} title={YEAR_BEST[i].index===k?'그해 1위 지수':undefined}>{pct(x.year[i])}</td>)}</tr>)}
     <tr className="total"><th scope="row">누적</th>{STRATEGY.map(r=><td key={r.label} className={cls(r.total)}>{pct(r.total)}</td>)}{INDICES.map(x=><td key={x.label} className={`index ${cls(x.total)}`}>{pct(x.total)}</td>)}</tr>
-    <tr className="total mdd"><th scope="row">최대 낙폭</th>{STRATEGY.map(r=><td key={r.label} className="down">{pct(r.mdd)}</td>)}{INDICES.map(x=><td key={x.label} className="index down">{pct(x.mdd)}</td>)}</tr></tbody>
+    <tr className="total mdd"><th scope="row">최대 낙폭</th>{STRATEGY.map(r=><td key={r.label} className="down">{pct(r.mdd)}</td>)}{INDICES.map(x=><td key={x.label} className="index down">{pct(x.mdd)}</td>)}</tr>
+    <tr className="total wins"><th scope="row">1위 횟수</th>{WINS.map((n,k)=><td key={STRATEGY[k].label} className={n===Math.max(...WINS)?'most':''}>{n?`${n}회`:'—'}</td>)}{INDICES.map(x=><td key={x.label} className="index"/>)}</tr></tbody>
   </table></div>
+  <p className="history-validation-legend"><span className="swatch" aria-hidden="true"/>그해 1위 전략 <span className="best-star" aria-hidden="true">★</span> 그 전략이 그해 모든 지수보다 높음 · <b>굵은 지수</b>는 그해 1위 지수</p>
+  <p className="history-validation-pattern">KOSPI가 오른 해(2019·2020·2023·2025·2026)에는 쉬는 현금을 ETF에 둔 전략이, 제자리이거나 내린 해(2021·2022·2024)에는 현금을 들고 있던 전략이 1위였습니다. 어느 한 전략이 매년 이기지는 않습니다.</p>
   <p className="history-validation-note">15%·20%·25%는 매수 비중, ‘+ETF’는 쉬는 현금을 KOSPI200 ETF에 둔 경우입니다. S&P500·나스닥100은 원화 환산(원/달러 +19.9%)이며 달러 기준으로는 +202.4%, +348.4%입니다.</p>
   <p><strong>읽는 법</strong> 매매법만(15%)으로는 KOSPI와 수익이 비슷하고 낙폭은 절반입니다. 비중을 20·25%로 올리면 수익이 커지지만 낙폭도 −21%, −30%로 커집니다. 쉬는 현금을 KOSPI200 ETF에 두면 수익이 크게 늘지만, 자금 대부분이 지수에 있어 낙폭이 지수 수준(−40.9%, 2026년 7월 급락)이 되고 2022년(−14~−17%) 같은 해가 생깁니다. 수익의 큰 부분은 2025~2026년 KOSPI200 급등(+94%, +50%)에서 나왔습니다.</p>
   <p><strong>점검에서 확인한 것</strong> 기존 계산(비용 전·15%·2.68억)은 지금 엔진에서 그대로 재현됩니다. 평가가 멈춘 날은 없고, 상장폐지·합병 2종목은 마지막 거래가로 정산했습니다. 시작 달을 2019년 1~12월로 바꿔도 15%는 연평균 13.4~14.7%로 안정적입니다. 2026년 KOSPI의 큰 등락(7/31 하루 +17.9% 등)은 실제 시장 기록과 일치합니다. 거래세를 연도별로 다르게(0.15~0.30%) 잡아도 연평균 차이는 ±0.3%p 안쪽입니다.</p>
