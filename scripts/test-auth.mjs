@@ -41,11 +41,12 @@ test('session exchange rejects cross-site calls and stores only verified JWT in 
 });
 test('middleware protects static data before cache, allows member viewing but rejects member collection and CSV',async()=>{
  const guest=createProxy(async()=>{throw Object.assign(new Error(),{status:401});});
- for(const path of ['/data/live/manifest.json','/data/live/periods/3m/summary.json','/api/collect'])assert.equal((await guest(new Request('https://supply-krx.vercel.app'+path))).status,401);
+ for(const path of ['/data/live/manifest.json','/data/live/periods/3m/summary.json','/api/collect','/api/strategy'])assert.equal((await guest(new Request('https://supply-krx.vercel.app'+path))).status,401);
  assert.equal((await guest(new Request('https://supply-krx.vercel.app/api/auth?action=config'))).headers.get('x-middleware-next'),'1');
  const member=createProxy(async()=>({id:'viewer-id',isAdmin:false}));
  let res=await member(new Request('https://supply-krx.vercel.app/data/live/manifest.json'));assert.equal(res.headers.get('x-middleware-next'),'1');assert.equal(res.headers.get('cache-control'),'private, no-store');
  assert.equal((await member(new Request('https://supply-krx.vercel.app/api/collect'))).status,403);
+ assert.equal((await member(new Request('https://supply-krx.vercel.app/api/strategy'))).status,403);
  assert.equal((await member(new Request('https://supply-krx.vercel.app/data/live/export.csv'))).status,403);
  const admin=createProxy(async()=>({id:'owner-id',isAdmin:true}));assert.equal((await admin(new Request('https://supply-krx.vercel.app/api/collect'))).headers.get('x-middleware-next'),'1');
 });

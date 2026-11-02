@@ -1,7 +1,11 @@
 /** Public release history shown in the app. No private quotes, account values or credentials. */
-export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
+export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-03-strategy-candidates',date:'2026-11-03',title:'전략 개선 후보 탭: 승인 → 반영 요청 → 새벽 일괄 적용',
+  targets:[{tab:'candidates',label:'전략 개선 후보'}],
+  changes:['일일 개선 연구에서 검토가 괜찮다고 판단한 매매법 개선안을 ‘전략 개선 후보’ 탭에 올립니다. 후보마다 바꾸는 내용, 지금과 바꾼 뒤의 숫자, 주의할 점, 반영하면 바뀌는 곳을 보여 줍니다.','관리자는 후보를 승인하고(취소 가능), 승인한 항목을 모아 ‘반영 요청’을 누를 수 있습니다. 요청은 매일 새벽 1시 47분경 일괄 적용 작업이 신호 계산·16시 알림·화면·과거 8년 검증까지 함께 고치고 검증한 뒤 운영에 반영하며, 끝나면 ‘반영됨’(날짜·앱 버전)으로 바뀝니다. 실패하면 이유와 함께 ‘반영 실패’로 표시되고 다시 승인할 수 있습니다.','첫 후보: 3개월 조건 완화(매수 0원 + 매도 합계 1억 미만 허용, 연구 #4).','승인·반영 버튼은 관리자만 쓸 수 있고(수동 수집과 같은 확인), 일반 회원은 목록만 볼 수 있습니다.'],
+  verified:'상태 계산·API·접근 제한 테스트, Vercel 배포 확인 2026-11-03',limits:['반영은 버튼을 누른 즉시가 아니라 다음 새벽 일괄 작업에서 이루어짐','투자 권유 아님']},
  {id:'2026-11-02-dormant-cleanup',date:'2026-11-02',title:'3개월 무거래 조건에 맞춰 화면 정리',
   targets:[{tab:'simulation',label:'전략 검증 시뮬레이션'},{tab:'cases',label:'신규 순매수 추적'},{tab:'signals',label:'신호 성과 검증'}],
   changes:['매수 신호 조건에서 ‘직전 10거래일 매수·매도 매일 1억 미만’을 뺐습니다. 3개월 동안 매수·매도가 0원이면 저절로 충족되는 조건이라 결과는 같습니다. 조건은 순매수 3억 이상, 3개월 무거래, 거래량 20일 평균 3배 이하 세 가지입니다.','신규 순매수 추적에서 결과가 바뀌지 않게 된 선택(등록 전 관찰 기간 10/20일, 일별 저거래 상한, 엄격한 조건 · 이전 거래 0원)을 없앴습니다. 순매수 1·3·5억원 선택은 그대로입니다.','신규 순매수 추적과 시뮬레이션 상세의 ‘최초 등록일’을 같은 조건(3개월 무거래 + 거래량 3배 이하)을 처음 충족한 날짜로 바로잡았습니다. 전에는 저거래 기본 신호의 첫 날짜라 지금 조건보다 앞선 날짜가 나올 수 있었습니다.','과거 8년 검증 카드의 주문 규모 문장(2025~2026년 신호일 거래대금의 19~24%)과 거래세 민감도(15% ±0.2%p, 25% −0.4~+0.2%p), 계산 기준의 주문 규모 중앙값(0.3~0.9%)을 새 조건 결과로 고쳤습니다.'],
