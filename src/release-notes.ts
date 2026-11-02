@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-history8-update',date:'2026-11-02',title:'과거 8년 검증 다시 정리: 비중 15·20·25%, 쉬는 현금 KOSPI200 ETF, 지수 4개 비교',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
+  changes:['지금 화면 규칙(수수료·세금, 연기금 순매도 이탈 매도, 최소 300만 원)으로 2019-01~2026-10을 다시 계산했습니다. 1억 원 기준 평가자산 15% 2.77억(+177%, 낙폭 −19.5%), 20% 3.97억(−21.0%), 25% 5.24억(−30.0%). 쉬는 현금을 KOSPI200 ETF에 두면 6.46억·7.87억·9.91억이지만 낙폭은 모두 −40.9%입니다.','같은 기간 KOSPI +180%, KOSDAQ +6%, S&P500 +262%·나스닥100 +438%(원화 환산, 달러 기준 +202%·+348%)와 연도별로 나란히 보여 줍니다.','점검: 기존 계산은 그대로 재현되고 평가가 멈춘 날은 없습니다. 다만 25%는 현금이 모자라 신호를 늦게 사는 경우(최대 43거래일 뒤)가 많고 이탈 매도 설정에 따라 결과가 크게 흔들리며, 자산이 커진 뒤에는 주문이 신호일 거래대금의 최대 26%까지 커져 실제 체결이 어렵습니다. 2026년 KOSPI 급등락(7/31 +17.9%)은 실제 기록과 일치합니다.'],
+  verified:'연구 재계산(history8-update-2026-11-02)·Vercel 배포 번들 확인 2026-11-02',limits:['사후 계산, 2024~2026년은 규칙을 정한 기간','ETF 소수 단위·분배금 제외','거래세는 2026년 세율을 모든 연도에 적용','투자 권유 아님']},
  {id:'2026-11-02-sim-benchmarks-outcome',date:'2026-11-02',title:'시뮬레이션: 비교 지수 4개, 매매 결과 구분, 종목별 결과에 ETF 표시',
   targets:[{tab:'simulation',selector:'.simulation-bench',label:'전략 검증 시뮬레이션 · 지수 비교'},{tab:'simulation',selector:'.simulation-outcome',label:'전략 검증 시뮬레이션 · 매매 결과'}],
   changes:['‘운용 손익과 지수 비교’에 KOSDAQ, S&P500, 나스닥100을 더했습니다. 같은 초기자금을 첫 실제 매수일 시가에 넣고 보유했을 때이며, S&P500·나스닥100은 국내 상장 ETF 원화 가격(환율 포함)입니다. 지수 칩을 눌러 선을 켜고 끌 수 있습니다.','‘총 손실금액’ 카드를 ‘매매 결과’로 바꿔 익절·평가이익·손절·평가손실을 건수와 금액으로 나눠 보여 줍니다. 수급 이탈·가격 종료 매도는 별도 줄입니다. 총 손익 카드에는 주식 매매 손익과 쉬는 현금 손익을 나눠 적었습니다.','종목별 결과 맨 위에 쉬는 현금 ETF 행(누적 매수·매도, 실현·평가 손익, 수수료·세금, 평균 보유금액 대비 수익률)을 고정했고, ‘쉬는 현금 ETF 포함’ 체크로 숨길 수 있습니다.'],

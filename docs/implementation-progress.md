@@ -478,3 +478,8 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **ETF 자료:** `collect-history-indices.py`가 KODEX 200(069500)·TIGER 미국S&P500(360750)·TIGER 미국나스닥100(133690) 일봉(NAVER, 원화)을 선택 수집. 실패·누락 시 해당 ETF만 빼고 KOSPI/KOSDAQ은 막지 않음. 1:k 분할은 이전 가격을 새 기준으로 환산, ±35% 넘는 비분할 급변만 제외(KOSPI는 2026-07-31 +17.9%로 실제 급등). history-web.yml 앱 고정 커밋을 올려 매일 갱신.
 - **엔진 결과:** `idle_legs`(ETF별 누적 매수·매도, 실현·평가 손익, 수수료·세금, 평균 보유금액 대비 수익률), `benchmark_start`, `account.idle_value/idle_fees/idle_taxes`.
 - **화면:** ‘운용 손익과 지수 비교’에 KOSPI·KOSDAQ·S&P500·나스닥100(같은 초기자금을 첫 매수일 시가에 투입) 칩 토글. ‘총 손실금액’ 카드를 ‘매매 결과’(익절·평가이익·손절·평가손실, 수급 이탈·가격 종료는 별도 줄)로 교체. 총 손익 카드에 주식 매매/쉬는 현금 손익 분리. 종목별 결과에 ETF 행(맨 위 고정, ‘쉬는 현금 ETF 포함’ 체크로 표시 여부 선택).
+
+### D14 과거 8년 검증 갱신 (2026-11-02)
+- 카드(HistoryValidation)를 현재 사이트 규칙(수수료·세금, 이탈 매도, 최소 300만)으로 다시 계산: 1억·15/20/25% × 쉬는 현금 그대로/KOSPI200 ETF, 연도별 수익률과 KOSPI·KOSDAQ·S&P500·나스닥100(원화 환산)·KOSPI200 ETF 비교.
+- 자료: research-indices.yml이 연구 브랜치에 KRX ETF(collect-history-indices)와 미국 지수·원달러(scripts/collect-us-history.py, Yahoo)를 함께 저장.
+- 점검(비공개 history8-update-2026-11-02/RESULTS.md): 기존 2.68억 재현, 평가 불가 0. 25%는 현금 부족 대기로 늦은 매수가 많고(최대 43거래일) 이탈 매도 설정에 크게 흔들림, 25%+ETF는 주문이 신호일 거래대금의 최대 26%. 신호 만료 규칙은 미정(사용자 결정 사항).
