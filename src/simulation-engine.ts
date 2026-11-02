@@ -14,7 +14,9 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
  *  when even that is below minBuy. Left out, minBuy equals the target amount (wait for the full amount, the original rule). */
 /** costs (percent of trade value): buy = brokerage fee, sell = brokerage fee + securities transaction tax. The buy fee is part
  *  of the cost basis (invested), the sell cost comes off the proceeds. Left out, nothing is charged (the original results). */
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number}};
+/** idle (capital mode): cash not in stocks earns a deposit rate (calendar-day accrual) or rides the KOSPI price index (sold at
+ *  the open to pay the day's buys, sale proceeds re-enter at the close; no fees or dividends). */
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number}};
 /** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
@@ -40,6 +42,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  if(s.sizing==='percent'&&(!Number.isFinite(s.percent)||s.percent!<1||s.percent!>100))throw Error('자금 비율은 1~100% 사이로 입력해 주세요.');
  if(s.minBuy!=null&&(!Number.isFinite(s.minBuy)||s.minBuy<0||s.minBuy>1e8))throw Error('최소 매수금액 범위를 확인해 주세요.');
  if(s.costs&&![s.costs.buy,s.costs.sell].every(v=>Number.isFinite(v)&&v>=0&&v<=5))throw Error('수수료·세금 비율을 확인해 주세요.');
+ if(s.idle&&s.idle.kind==='deposit'&&!(Number.isFinite(s.idle.rate??0.025)&&(s.idle.rate??0.025)>=0&&(s.idle.rate??0.025)<=0.2))throw Error('예금 금리를 확인해 주세요.');
  const buyRate=(s.costs?.buy??0)/100,sellRate=(s.costs?.sell??0)/100,costed=!!s.costs&&(buyRate>0||sellRate>0);
  const start=days.findIndex(d=>d>=s.start),byCode=new Map(data.stocks.map(c=>[c.code,c]));
  const sells=new Map(data.stocks.map(c=>[c.code,new Map(c.sells??[])]));
@@ -49,6 +52,11 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  for(let i=start;i<days.length;i++){
   const heldCodes=new Set(trades.filter(t=>t.status==='open'||t.status==='unresolved').map(t=>t.code));
   for(const t of trades)if(t.status==='pending'&&t.signal_index===i-1&&heldCodes.has(t.code)){t.status='skipped';t.reason='신호 확인 시 이미 보유 중 · 추가 매수 제외';}
+  const K=data.indices.KOSPI;
+  if(s.mode==='capital'&&s.idle&&i>start){
+   if(s.idle.kind==='deposit'){const gap=(Date.parse(days[i])-Date.parse(days[i-1]))/864e5;cash*=Math.pow(1+(s.idle.rate??0.025),gap/365);}
+   else{const o=K?.[i]?.open,c0=K?.[i-1]?.close;if(positive(o)&&positive(c0))cash*=o/c0;}
+  }
   const morning=cash;let buys=0,sales=0;
   // Order size is fixed before the open from what is known at the previous close (no same-day information).
   const percentMode=s.mode==='capital'&&s.sizing==='percent';
@@ -76,6 +84,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    paths.set(t,new Map());
    if(benchmarkStart===null){benchmarkStart=days[i];benchmarkOpen=data.indices.KOSPI?.[i]?.open??null;}
   }
+  if(s.mode==='capital'&&s.idle?.kind==='index'){const o=K?.[i]?.open,c1=K?.[i]?.close;if(positive(o)&&positive(c1))cash*=c1/o;}
   minCash=Math.min(minCash,cash);maxHoldings=Math.max(maxHoldings,trades.filter(t=>t.status==='open'||t.status==='unresolved').length);
   for(const t of trades){
    if(t.status!=='open')continue;

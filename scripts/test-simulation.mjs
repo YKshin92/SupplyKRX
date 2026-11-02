@@ -82,3 +82,14 @@ test('a held stock whose prices end for good is settled at its last close; a sho
  r=runSimulation(mk([p(100),p(100),p(104),null,p(103),p(103),p(103),p(103),p(103),p(103)]),{...settings,initial:300*scale,budget:300*scale});
  assert.equal(r.trades[0].status,'unresolved');  // prices come back: not a delisting
 });
+test('idle cash: deposit accrues on cash by calendar days; index cash follows KOSPI open/close around the buys',()=>{
+ const a=candidate('A',90,sessions.map(()=>price()));
+ const base=run([a],{initial:400*scale}).account.equity;   // 300 in A, 100 cash
+ const dep=run([a],{initial:400*scale,idle:{kind:'deposit',rate:0.1}}).account.equity;
+ const days=(Date.parse(sessions.at(-1))-Date.parse(sessions[0]))/864e5;assert.ok(dep>base&&dep<base+400*scale*(Math.pow(1.1,days/365)-1)+1);
+ const d=input([a]);d.stocks[0].prices=d.stocks[0].prices.map(p=>({...p,open:p.open*scale,high:p.high*scale,low:p.low*scale,close:p.close*scale}));
+ d.indices.KOSPI=sessions.map((x,i)=>({open:100*(1+i*0.01),high:110,low:90,close:100*(1+i*0.01)}));  // +1% per day, open = close
+ const r=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index'}});
+ // day 0 close -> day 1 open: 400 * 1.01, minus 300 bought at the open, then +0% open->close on day 1, ...
+ assert.ok(r.account.cash>100*scale);assert.ok(Math.abs(r.ledger[0].end_cash-400*scale)<1e-6);
+});

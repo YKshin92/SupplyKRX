@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-sim-idle-cash',date:'2026-11-02',title:'시뮬레이션에 ‘쉬는 현금’ 옵션: 예금 또는 KOSPI 지수',
+  targets:[{tab:'simulation',selector:'.simulation-idle',label:'전략 검증 시뮬레이션 · 쉬는 현금'}],
+  changes:['신호가 없어 남는 현금을 그대로 두기(기본) / 예금·MMF 연 2.5% / KOSPI 지수 중에서 고를 수 있습니다. 지수는 매일 종가→시가, 시가→종가 움직임을 따르고, 매수할 때 그날 시가에 지수를 팔아 대금을 마련한다고 계산합니다.','과거 8년(1억·평가자산 15%)으로 사전 등록 기준에 따라 비교했습니다: 그대로 2.68억, 예금 3.08억, KOSPI 5.33억(최대 낙폭 −38.8%, KOSPI만 보유 시 2.79억·−40%). KOSPI 200일선 아래에서 매수를 줄이는 규칙은 결과를 낮춰 넣지 않았고, 주문 규모는 신호일 거래대금의 0.4%(중앙값)로 상한이 필요 없었습니다.'],
+  verified:'로컬 엔진 재계산(연구 결과와 일치)·Vercel 운영 화면 확인 2026-11-02',limits:['지수는 가격지수 기준(배당·ETF 보수·매매 비용 제외)','지수 보관 시 위험은 지수 수준으로 커짐','투자 권유 아님']},
  {id:'2026-11-02-sim-history-costs',date:'2026-11-02',title:'시뮬레이션: 과거 8년 검증 요약, 수수료·세금 옵션, 상장폐지 정산',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션'}],
   changes:['시뮬레이션 위쪽에 ‘과거 8년 검증 (2019~2026)’을 접어 두었습니다. 1억 원으로 평가자산의 15%씩 샀다면 2.68억 원(+168%, 수수료·세금 반영 시 +154%), 최대 낙폭 −19.4%였고, 연도별 수익률과 2019~2023년에도 유지된 규칙·달라진 점을 정리했습니다.','‘수수료·세금 반영’을 켜면 매수 수수료 0.015%, 매도 수수료 0.015% + 증권거래세 0.20%(2026년 세율)를 손익에 반영합니다. 기본은 꺼져 있습니다.','보유 중 종목의 거래가 끝나(상장폐지·합병) 다시 거래되지 않으면, 계좌 평가가 멈추지 않도록 마지막 거래일 종가로 정산하고 ‘가격 종료 정산’으로 표시합니다.','주말에 화면 위에 뜨던 ‘거래일 달력의 확인 범위가 오래되었습니다’ 경고가 더는 뜨지 않습니다(공휴일에는 계속 확인).'],

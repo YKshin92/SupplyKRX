@@ -469,3 +469,4 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **가격 종료 정산:** 보유 종목에 데이터 끝(5거래일 이상 남은 시점)까지 거래 가능한 일봉이 다시 없으면 마지막 거래 가능일 종가로 정산하고 status `delisted`. 일시 정지 뒤 재개되면 기존처럼 unresolved.
 - **주말 달력 경고:** `previousSession`이 마지막 평일 기준으로 달력 확인 범위를 판단.
 - **오늘 신호 알림:** `scripts/today-signals.py`(실시간 일별 + detail-backfill)로 기본 조건(quiet3m-volume) 신호를 계산해 collect.yml 단계에서 notice로 남기고, 16시 예약 작업이 휴대폰 알림 보고에 포함한다. 2026-07-10~10-30 75거래일 모두 시뮬레이션 신호와 일치.
+- **쉬는 현금(2026-11-02):** `Settings.idle={kind:'deposit',rate}|{kind:'index'}` — 예금은 달력일 복리 이자, 지수는 전일 종가→시가로 움직인 뒤 그날 매수 대금을 시가에 빼고 남은 현금이 시가→종가를 따른다. 화면 선택(그대로/예금 2.5%/KOSPI), 기본은 그대로. 사전 등록 검증(비공개 capital-use-2026-11-02): 1억·15%로 그대로 2.68억, 예금 3.08억, KOSPI 5.33억(MDD −38.8%), KOSPI 단독 2.79억(−40%). 200일선 규칙 미채택, 주문 규모 상한 불필요.

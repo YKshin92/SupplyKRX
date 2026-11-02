@@ -61,6 +61,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
     <li>매도: 매수가 대비 <b>+{settings.take}% 익절 / −{settings.stop}% 손절</b> · 같은 날 둘 다 닿으면 손절로 계산</li>
     <li>자금이 모자라면 신호일 수급 점수(연기금 35 + 외국인 15점 → 100점 환산)가 높은 종목부터 · 이미 보유한 종목은 다시 사지 않음</li>
     {settings.flowExit&&<li>보유 중 연기금 순매도가 신호일 순매수보다 큰 날이 나오면 다음 거래일 시가에 전량 매도</li>}
+    {settings.mode==='capital'&&settings.idle&&<li>쉬는 현금: {settings.idle.kind==='index'?'KOSPI 지수에 넣어 두고 매수할 때 시가에 팔아 씀(위험이 지수 수준으로 커짐)':'예금·MMF 연 2.5%로 이자'}</li>}
    </ol></div>
    <p className="simulation-method-note">8항목 수급 점수(네 투자자 순위)는 이 매매법과 별개인 연구로, 수급 순위 화면에서 전진 검증 중입니다. 여기 매수·매도에는 쓰지 않습니다.</p>
   </section>
@@ -77,9 +78,10 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>익절 · %<input type="number" min="1" max="100" value={settings.take} onChange={e=>change('take',Number(e.target.value))}/></label>
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
+  <label className="simulation-option simulation-idle"><span><b>쉬는 현금</b><small>신호가 없어 남은 현금을 어디에 둘지. KOSPI는 가격지수 기준(배당·ETF 보수 제외)이며 매수 대금은 그날 시가에 지수를 팔아 마련합니다.</small></span><select aria-label="쉬는 현금" disabled={settings.mode==='unlimited'} value={settings.idle?.kind==='index'?'index':settings.idle?.kind==='deposit'?'deposit':'cash'} onChange={e=>change('idle',e.target.value==='index'?{kind:'index'}:e.target.value==='deposit'?{kind:'deposit',rate:0.025}:undefined)}><option value="cash">그대로 두기 (이자 0%)</option><option value="deposit">예금·MMF 연 2.5%</option><option value="index">KOSPI 지수 (ETF 가정)</option></select></label>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.costs} onChange={e=>change('costs',e.target.checked?COSTS:undefined)}/><span><b>수수료·세금 반영</b><small>매수 수수료 {COSTS.buy}% · 매도 수수료 0.015% + 증권거래세 0.20%(2026년 세율). 증권사·연도별 세율에 따라 다릅니다.</small></span></label>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.flowExit} onChange={e=>change('flowExit',e.target.checked)}/><span><b>연기금 순매도 이탈 매도</b><small>매수 후 어느 하루 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가에 전량 매도 (익절·손절은 그대로 적용)</small></span></label>
-  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}${s.costs?' · 수수료·세금 반영':''}`:'데이터 준비 중'}</p>
+  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}${s.costs?' · 수수료·세금 반영':''}${capital&&s.idle?(s.idle.kind==='index'?' · 쉬는 현금 KOSPI':' · 쉬는 현금 예금 연 2.5%'):''}`:'데이터 준비 중'}</p>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
    <section className="simulation-metrics" aria-label="시뮬레이션 요약">

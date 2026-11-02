@@ -7,9 +7,11 @@ export default function HistoryValidation(){
   <table className="history-validation-table"><caption>연도별 수익률</caption><thead><tr><th scope="col">연도</th><th scope="col">비용 전</th><th scope="col">수수료·세금 반영</th></tr></thead>
    <tbody>{YEARLY.map(([y,a,b])=><tr key={y}><th scope="row">{y==='2026'?'2026 (~10/30)':y}</th><td className={a>=0?'up':'down'}>{pct(a)}</td><td className={b>=0?'up':'down'}>{pct(b)}</td></tr>)}
     <tr className="total"><th scope="row">누적</th><td className="up">+168.3%</td><td className="up">+154.3%</td></tr></tbody></table>
+  <p><strong>KOSPI와 비교</strong> 같은 기간 KOSPI만 들고 있었다면 2.79억 원(+180%, 최대 낙폭 −40%)입니다. 매매법만으로는 수익이 비슷하고 낙폭이 절반입니다. 매매법은 자금 대부분이 현금으로 쉬므로, 쉬는 현금을 예금(연 2.5%)에 두면 3.08억 원, KOSPI 지수에 두면 5.33억 원(최대 낙폭 −38.8%)이었습니다. 지수에 두면 위험도 지수 수준이 됩니다.</p>
   <p><strong>기대치</strong> 규칙을 정할 때 쓰지 않은 2019~2023년만 보면 연평균 약 7%였고, 수익의 대부분은 2025~2026년에 났습니다. 2022·2024년처럼 손실이나 제자리인 해도 있고, 94개월 중 26개월은 신호가 없었습니다.</p>
   <p><strong>2019~2023년에도 유지된 것</strong> 3개월 무매수가 1·2개월보다 나음, 종목당 15%(300만/2천만) 수준이 낙폭 대비 적정, 서둘러 팔거나 연기금 순매도로 파는 규칙은 개선 없음.</p>
   <p><strong>달라진 것</strong> 조건을 좁힐수록 좋아지는 방향은 같았지만 차이가 작아졌고(현재 조건 거래당 +7.8% → +3.3%), +30%/−10%는 그 기간엔 더 넓은 폭이 나았습니다. 외국인 최대 순매도일 제외와 음봉 우선은 근거가 없었습니다.</p>
+  <p><strong>효과 없던 것</strong> KOSPI가 200일선 아래일 때 매수를 줄이거나 쉬기(최종 금액만 줄어듦). 주문 규모는 신호일 거래대금의 0.4%(중앙값) 수준이라 1억 원대에서는 체결 부담이 크지 않습니다.</p>
   <p>보유 중 가격이 끊긴 2종목(상장폐지·합병)은 마지막 거래가로 정산했습니다. 수수료 0.015%·증권거래세 0.20%(2026년 세율)를 모든 연도에 같게 적용했습니다. 사후 계산이며 수익을 보장하지 않고 투자 권유가 아닙니다.</p>
  </details>;
 }
