@@ -1,7 +1,7 @@
 """Today's 연기금 매매법 signals (the simulation's default conditions) from the live daily files, for the daily alert.
 
-Signal on day d: 연기금 net buy >= 3억; each of the 10 previous sessions has 연기금 buy and sell below 1억; no 연기금 buy on any
-session from d minus 3 calendar months (window must be fully observed); signal-day volume <= 3x the previous 20-session
+Signal on day d: 연기금 net buy >= 3억; each of the 10 previous sessions has 연기금 buy and sell below 1억; no 연기금 buy and no
+연기금 sell on any session from d minus 3 calendar months (window must be fully observed; 3개월 무거래, from 2026-11-02); signal-day volume <= 3x the previous 20-session
 average. Same rules as scripts/build-history-web.py + publish-simulation.py (quiet3m-volume). Reference only.
 usage: today-signals.py --root <private data repo> [--date YYYY-MM-DD]   (prints JSON; with GITHUB_ACTIONS also a notice)
 """
@@ -56,7 +56,7 @@ def signals(days, rows, day):
         if start < days[0]:
             continue  # the 3-month window is not fully observed
         window = [hist.get(d) for d in days[:i] if d >= start]
-        if any(not p or p['buy'] is None for p in window) or any(p['buy'] != 0 for p in window):
+        if any(not p or p['buy'] is None or p['sell'] is None for p in window) or any(p['buy'] != 0 or p['sell'] != 0 for p in window):
             continue
         vols = [hist.get(d, {}).get('volume') for d in days[max(0, i - 20):i]]
         if len(vols) != 20 or any(v is None for v in vols) or not mean(vols) > 0 or r['volume'] is None:

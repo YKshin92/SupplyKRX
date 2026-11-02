@@ -44,7 +44,7 @@ export default function TrackingCases(p:Props){
   <div className="explorer-filters entry-filters compact-tracking">
    <div className="filter-top"><h2>신규 순매수 추적</h2><button className="button small" onClick={reset}>조건 초기화</button></div>
    {data?.history_pending&&<p className="notice">3년 전체 이력 갱신을 기다리고 있습니다. 현재 확보된 최근 이력만 표시합니다.</p>}
-   <p className="filter-guidance"><b>추적 조건</b> 기본 신호 중 직전 3개월(62거래일) 연기금 매수 0원 + 신호일 거래량이 20일 평균의 3배 이하인 신호만 등록합니다.</p>{data?.history_available&&<p className="filter-guidance">전체 이력 {data.first_date} ~ {data.as_of} · 최초 등록일은 이 관측 범위에서 처음 조건을 충족한 날짜입니다. 과거 종목 유형은 미검증이며 우선주 등이 포함될 수 있습니다.</p>}
+   <p className="filter-guidance"><b>추적 조건</b> 기본 신호 중 직전 3개월(62거래일) 연기금 매수·매도 0원(3개월 무거래) + 신호일 거래량이 20일 평균의 3배 이하인 신호만 등록합니다.</p>{data?.history_available&&<p className="filter-guidance">전체 이력 {data.first_date} ~ {data.as_of} · 최초 등록일은 이 관측 범위에서 처음 조건을 충족한 날짜입니다. 과거 종목 유형은 미검증이며 우선주 등이 포함될 수 있습니다.</p>}
    <p className="entry-description">저거래 이후 큰 순매수가 시작된 종목 · 등록 전 {lookback}거래일 {strict?'매수·매도 모두 0원':`일별 매수·매도 각각 ${applied.quiet}억원 미만`} → 하루 순매수 {applied.net}억원 이상 · 기준일 {p.asOf}</p>
    <div className="quick-filters tracking-views" aria-label="추적 빠른 보기">{views.map(([v,label,description])=><button key={v} aria-pressed={view===v} className={view===v?'active':''} title={description} onClick={()=>presetView(v)}>{label} <span>{counts[v]??0}</span></button>)}</div>
    <p className="filter-guidance">{views.find(([v])=>v===view)?.[2]} · 버튼 종목 수는 등록 조건과 매도 조건 기준이며, 검색·시장·추가 금액 필터 적용 전입니다.</p>

@@ -17,7 +17,7 @@ export function recentWindow<T extends {date:string}>(rows:T[],asOf:string,signa
  const start=recentStart(asOf,months),selected=rows.filter(r=>r.date>=start&&r.date<=asOf);
  return {rows:selected,start,signalFound:selected.some(r=>r.date===signalDate)};
 }
-/** Signal-centred window: the 3 calendar months before the signal (the "3개월 무매수" check), then at least 3 months after it
+/** Signal-centred window: the 3 calendar months before the signal (the "3개월 무거래" check), then at least 3 months after it
  *  or through the exit / issue date plus 10 sessions, whichever is later. When the latest data cuts the end short, the
  *  start moves back so the window still spans 6 months where the data allows. */
 export function signalWindow<T extends {date:string}>(rows:T[],signalDate:string,exitDate?:string|null,issueDate?:string|null){

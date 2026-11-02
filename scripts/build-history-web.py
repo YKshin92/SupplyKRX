@@ -58,10 +58,11 @@ def build(archive,live,target,indices_path=None,metadata_root=None):
                     if len(prior)==n and [x[0] for x in prior]==list(range(i-n,i)) and all(x[1] is not None and x[2] is not None and 0<=x[1]<1e8 and 0<=x[2]<1e8 for x in prior):eligible=True
                 if eligible:
                     boundary=cut(d);pd=[j for j,s in enumerate(days[:i]) if s>=boundary];pr=[x for x in previous if days[x[0]]>=boundary]
-                    complete=boundary>=days[0] and [x[0] for x in pr]==pd and all(x[1] is not None for x in pr)
+                    complete=boundary>=days[0] and [x[0] for x in pr]==pd and all(x[1] is not None and x[2] is not None for x in pr)
                     volumes=[x[3] for x in previous[-20:]]
                     vr=r['volume']/mean(volumes) if len(volumes)==20 and all(v is not None for v in volumes) and mean(volumes)>0 and r['volume'] is not None else None
-                    extras[r['code']+':'+d]=dict(quiet_3m=all(x[1]==0 for x in pr) if complete else None,volume_ratio_20=vr)
+                    # quiet_3m (2026-11-02, user's rule): no 연기금 buying and no selling from the same date 3 months earlier through the previous session.
+                    extras[r['code']+':'+d]=dict(quiet_3m=all(x[1]==0 and x[2]==0 for x in pr) if complete else None,volume_ratio_20=vr)
                     wanted.add(r['code'])
             q.append((i,r['buy'],r['sell'],r['volume']))
         if d in idx['days']:assert count==idx['days'][d]['rows'],d

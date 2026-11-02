@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-dormant-3m',date:'2026-11-02',title:'신호 조건 변경: 직전 3개월 연기금 매수·매도 0원 (3개월 무거래)',
+  targets:[{tab:'simulation',label:'전략 검증 시뮬레이션'},{tab:'cases',label:'신규 순매수 추적'},{tab:'signals',label:'신호 성과 검증'}],
+  changes:['‘직전 3개월 연기금 매수 0원’을 ‘매수·매도 0원’으로 바꿨습니다. 최근 3개월 안에 연기금이 판 적이 있는 종목은 신호에서 빠집니다. 시뮬레이션, 신규 순매수 추적, 신호 성과 검증의 연기금 신호, 매일 16시 신호 알림에 모두 적용됩니다.','과거 8년(1억)으로 보면 신호 156건 → 102건, 거래당 평균 +4.9% → +6.3%, 평가자산 15% 최대 낙폭 −19.5% → −12.7%, 연평균은 쉬는 현금 그대로 13.9% → 12.1%, KOSPI200 ETF와 함께 26.9% → 28.2%입니다. 현금이 모자라 늦게 사던 문제도 거의 없어졌습니다(25%에서 3건, 최대 7거래일).','과거 8년 검증 카드를 새 조건으로 다시 계산했습니다.'],
+  verified:'8년 재계산(history8-update-2026-11-02 result-dormant)·과거 자료 재생성·Vercel 배포 확인 2026-11-02',limits:['이 조건은 8년 결과를 본 뒤 정했으므로 앞으로의 실제 신호로 다시 확인 필요','신호 성과 검증의 지난 고정 기록은 바꾸지 않고 오늘부터 새 조건으로 기록','투자 권유 아님']},
  {id:'2026-11-02-history8-yearly-best',date:'2026-11-02',title:'과거 8년 검증: 해마다 1위 전략 표시',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
   changes:['연도별 수익률 표에서 그해 1위 전략 칸을 주황 배경·굵은 글씨로, 그 전략이 그해 모든 지수보다 높았으면 ★로 표시합니다(2022·2025·2026). 그해 1위 지수는 굵게 표시합니다.','맨 아래에 전략별 1위 횟수(25%+ETF 4회, 25% 2회, 15%·20%+ETF 각 1회)를 더했고, KOSPI가 오른 해엔 ETF를 둔 전략·제자리이거나 내린 해엔 현금을 든 전략이 1위였다는 점을 적었습니다.'],
