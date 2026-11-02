@@ -17,3 +17,31 @@
 .history-validation{border:1px solid var(--border);border-radius:9px;padding:14px 20px;margin:0 0 18px;background:var(--sim-surface)}.history-validation summary{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;cursor:pointer;font-size:13px}.history-validation summary::before{content:'▸';color:var(--muted)}.history-validation[open] summary::before{content:'▾'}.history-validation summary span{color:var(--muted);font-size:12px}.history-validation p{font-size:12.5px;line-height:1.75;margin:10px 0 0}.history-validation p strong{margin-right:6px;color:var(--text)}.history-validation-table{border-collapse:collapse;margin:12px 0 4px;font-size:12px;font-variant-numeric:tabular-nums;width:100%;max-width:420px}.history-validation-table caption{text-align:left;color:var(--muted);font-size:11px;margin-bottom:4px}.history-validation-table :is(th,td){padding:5px 8px;border-bottom:1px solid var(--border);text-align:right}.history-validation-table th[scope=row],.history-validation-table thead th:first-child{text-align:left}.history-validation-table .up{color:var(--red,#cd4e60)}.history-validation-table .down{color:var(--blue,#2866bd)}.history-validation-table tr.total :is(th,td){font-weight:600;border-bottom:0}
 @media(max-width:600px){.history-validation{padding:12px 14px}}
 .simulation label.simulation-idle{align-items:center;gap:14px;flex-wrap:wrap}.simulation label.simulation-idle select{width:auto;min-width:190px}
+/* Comparison indices, trade outcome card and idle-cash ETF rows (2026-11-02). Benchmark hues are the validated categorical
+   slots 3-5 after the app's blue (strategy) and orange (KOSPI); text stays in ink colors, the hue only marks the line. */
+.simulation{--bench-kosdaq:#1baf7a;--bench-sp500:#eda100;--bench-nasdaq:#e87ba4}
+[data-theme=dark] .simulation{--bench-kosdaq:#199e70;--bench-sp500:#c98500;--bench-nasdaq:#d55181}
+.simulation-bench{display:flex;flex-wrap:wrap;gap:6px;padding:12px 8px 0}
+.simulation-bench-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--sim-surface);color:inherit;border-radius:999px;padding:5px 11px;font-size:12px;line-height:1.3;cursor:pointer}
+.simulation-bench-chip i{width:14px;height:3px;border-radius:2px;background:var(--chip,var(--pension-bar));flex:none}
+.simulation-bench-chip b{font-weight:600;font-variant-numeric:tabular-nums}
+.simulation-bench-chip.strategy{cursor:default;border-color:transparent;background:var(--accent-soft,#e8f0fc)}
+.simulation-bench-chip.strategy i{background:var(--pension-bar);height:4px}
+.simulation-bench-chip[aria-pressed=false]{color:var(--muted)}
+.simulation-bench-chip[aria-pressed=false] i{background:none;border-top:2px dashed var(--muted);height:0}
+.simulation-bench-chip:hover{border-color:var(--blue)}
+.simulation-bench-chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.simulation-outcome dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;margin:0}
+.simulation-outcome dl div{display:flex;flex-direction:column;gap:3px;padding-left:9px;border-left:3px solid var(--border);min-width:0}
+.simulation-outcome dl .gain{border-left-color:color-mix(in srgb,var(--red) 60%,transparent)}
+.simulation-outcome dl .loss{border-left-color:color-mix(in srgb,var(--blue) 60%,transparent)}
+.simulation-outcome dt{font-size:11px;color:var(--muted)}
+.simulation-outcome dt i{font-style:normal;margin-left:2px}
+.simulation-outcome dd{margin:0;font-size:15px;font-weight:700;letter-spacing:-.3px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.simulation-split b,.simulation-outcome small b{font-weight:600}
+.simulation-etf-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding:0 4px;cursor:pointer}
+.simulation .simulation-etf-toggle input{width:auto;flex:none;flex-basis:auto;padding:0;margin:0;accent-color:var(--blue)}
+.simulation-etf-row{background:color-mix(in srgb,var(--sim-signal-bar) 25%,transparent)}
+.simulation-etf-name{font-size:13px}
+.simulation-status.etf{background:var(--accent-soft,#e8f0fc);border-color:transparent;color:var(--blue)}
+@media(max-width:600px){.simulation-outcome dl{grid-template-columns:1fr;gap:8px}.simulation-outcome dd{font-size:14px}.simulation-bench{padding:10px 0 0}.simulation-bench-chip{padding:4px 9px;font-size:11px}}

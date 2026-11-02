@@ -25,10 +25,13 @@ def collect_etf(code,sessions):
     days=sorted(prices);splits=[]
     for j in range(1,len(days)):
         x,y=days[j-1],days[j]
-        # A split or a bad row shows up as a jump no index ETF makes in a day. A clean 1:k (or k:1) opening ratio is a split:
-        # earlier prices are put on the new share basis so returns stay continuous; any other jump leaves the ETF out.
-        if abs(prices[y]['close']/prices[x]['close']-1)<=.2 and abs(prices[y]['open']/prices[x]['close']-1)<=.2:continue
+        # A split shows up as an opening ratio near 1:k (k:1). It is put on the new share basis so returns stay continuous.
+        # Real index moves can be large (KOSPI +17.9% on 2026-07-31), so only a move beyond ±35% that is not a clean split
+        # counts as a bad row and leaves the ETF out.
         ratio=prices[y]['open']/prices[x]['close']
+        if .6<ratio<1.8:
+            if abs(prices[y]['close']/prices[x]['close']-1)>.35 or abs(ratio-1)>.35:raise ValueError(f'{code} {y}: price jump {ratio:.3f}')
+            continue
         k=next((k for k in (2,3,4,5,8,10,20,25,50,100) if abs(ratio*k-1)<.1 or abs(ratio/k-1)<.1),None)
         if k is None:raise ValueError(f'{code} {y}: price jump {ratio:.3f}, not a clean split')
         factor=1/k if ratio<1 else k;splits.append(dict(date=y,factor=factor))

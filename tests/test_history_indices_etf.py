@@ -23,6 +23,7 @@ class EtfSeries(unittest.TestCase):
         got=self.run_with(rows(jump=.5))['ETF_SP500'];self.assertEqual(got['split_adjustments'],[dict(date='2026-01-05',factor=.5)])
         self.assertAlmostEqual(got['prices']['2026-01-02']['close'],50.5);self.assertAlmostEqual(got['prices']['2026-01-05']['close'],52)
     def test_unclean_jump_or_gap_leaves_etf_out_without_blocking_indices(self):
-        self.assertEqual(set(self.run_with(rows(jump=.7))),{'KOSPI','KOSDAQ'})
+        self.assertEqual(set(self.run_with(rows(jump=.55))),{'KOSPI','KOSDAQ'})
+        self.assertIn('ETF_KOSPI200',self.run_with(rows(jump=1.2)))  # a large real move (+20%) is kept
         self.assertEqual(set(self.run_with(rows(drop='2026-01-02'))),{'KOSPI','KOSDAQ'})
 if __name__=='__main__':unittest.main()

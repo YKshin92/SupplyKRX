@@ -128,3 +128,16 @@ test('idle ETF basket: equal amounts in, same fraction of each out, per-series g
  const t=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X','Y'],gainTax:[10,0]}});
  assert.ok(t.account.idle_taxes>0&&t.account.equity<r.account.equity);
 });
+test('idle legs report the ETF as a position: bought, sold, realized + unrealized = account gain beyond the stocks',()=>{
+ const a=candidate('A',90,[price(),price(),price(100,135,95,130),price(),price()]);
+ const d=input([a]);d.stocks[0].prices=d.stocks[0].prices.map(p=>({...p,open:p.open*scale,high:p.high*scale,low:p.low*scale,close:p.close*scale}));
+ const bar=(o,c)=>({open:o,high:Math.max(o,c),low:Math.min(o,c),close:c});
+ d.indices.X=[bar(100,100),bar(110,110),bar(120,120),bar(125,130),bar(130,130)];d.indices.Y=[bar(50,50),bar(40,40),bar(45,45),bar(50,50),bar(55,55)];
+ const r=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,costs:{buy:.015,sell:.215},idle:{kind:'index',series:['X','Y'],fee:.015,gainTax:[0,15.4]}});
+ const legs=r.idle_legs,idle=legs.reduce((a,l)=>a+l.pnl,0);
+ assert.equal(legs.length,2);assert.equal(legs[0].first_date,sessions[0]);assert.equal(legs[0].sells,1);
+ for(const l of legs)assert.ok(Math.abs(l.sold+l.value-l.bought-l.pnl)<1e-6);
+ assert.ok(Math.abs(r.account.pnl-r.summary.pnl-idle)<1e-3);
+ assert.ok(Math.abs(legs.reduce((a,l)=>a+l.fees+l.taxes,0)-r.account.idle_fees-r.account.idle_taxes)<1e-6);
+ assert.equal(r.benchmark_start,sessions[1]);
+});
