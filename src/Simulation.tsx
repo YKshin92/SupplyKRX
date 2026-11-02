@@ -1,6 +1,7 @@
 import SimulationIssues from './SimulationIssues';
 import CorporateReconciliation from './CorporateReconciliation';
 import CandleTag,{candleOf} from './CandleTag';
+import HistoryValidation from './HistoryValidation';
 import type {Stock} from './data';
 import HistoryEventDetail,{type DetailEvent} from './HistoryEventDetail';
 import {sessionData,parallelParts} from './history-cache';
@@ -12,11 +13,13 @@ import {adjustedBasis} from './simulation-presentation';
 const won=(v:number|null|undefined)=>v==null?'미확인':`${v.toLocaleString('ko-KR',{maximumFractionDigits:0})}원`;
 const pct=(v:number|null|undefined)=>v==null?'—':`${v>0?'+':''}${v.toFixed(2)}%`;
 const days=(v:number|null)=>v==null?'—':`${v.toFixed(1)}거래일`;
-const labels:Record<Status,string>={take:'익절',stop:'손절',flow:'수급 이탈 매도',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
+const labels:Record<Status,string>={take:'익절',stop:'손절',flow:'수급 이탈 매도',delisted:'가격 종료 정산',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
 const initial:Settings={mode:'capital',initial:20e6,budget:3e6,take:30,stop:10,start:'',filter:'quiet3m-volume',flowExit:false,sizing:'fixed',percent:15,minBuy:3e6};
 /** One month as a bar spanning its first to last trading day on the daily axis (inset so neighbouring months do not touch). */
 const MonthBar=(p:{x?:number;y?:number;width?:number;height?:number;fill?:string})=><rect x={(p.x??0)+1} y={p.y??0} width={Math.max((p.width??0)-2,1)} height={Math.max(p.height??0,0)} fill={p.fill} rx={2}/>;
 type MonthRow={month:string;first:string;last:string;signals:number;bought:number};
+/** 2026 rates: brokerage fee 0.015% each way (online accounts, varies by broker) + securities transaction tax 0.20% on the sale. */
+const COSTS={buy:0.015,sell:0.215};
 /** How much one signal buys, in words (capital mode can size by % of equity and has a minimum order). */
 function sizeText(s:Settings){const percent=s.mode==='capital'&&s.sizing==='percent';const base=percent?`평가자산의 ${s.percent}%`:`종목당 ${won(s.budget)}`;return s.mode==='capital'&&s.minBuy!=null?`${base} · 최소 ${won(s.minBuy)}`:base;}
 export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;watch:string[];toggle:(code:string)=>void;metadata:Stock[]}){
@@ -44,7 +47,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
  function openDetail(t:SimTrade,element:HTMLElement){detailOpener.current=element;setDetailTrade(t);}
  function closeDetail(){setDetailTrade(null);requestAnimationFrame(()=>detailOpener.current?.isConnected&&detailOpener.current.focus({preventScroll:true}));}
  return <div className="simulation">
-  <div className="simulation-heading"><div><div className="eyebrow">STRATEGY LAB</div><h2>연기금 매매법 시뮬레이션</h2><p>연기금 신규 순매수 신호를 아래 규칙대로 사고팔았을 때의 결과 · 실제 일봉으로 자금 운용과 성과 비교</p></div><span className="simulation-badge">모의 계산 · 비용 차감 전</span></div>
+  <div className="simulation-heading"><div><div className="eyebrow">STRATEGY LAB</div><h2>연기금 매매법 시뮬레이션</h2><p>연기금 신규 순매수 신호를 아래 규칙대로 사고팔았을 때의 결과 · 실제 일봉으로 자금 운용과 성과 비교</p></div><span className="simulation-badge">{settings.costs?'모의 계산 · 수수료·세금 반영':'모의 계산 · 비용 차감 전'}</span></div>
   <section className="simulation-method" aria-label="연기금 신규 순매수 매매법">
    <div><h3>매수 신호 · 연기금 신규 순매수</h3><ol>
     <li>신호일 연기금 순매수 <b>3억원 이상</b></li>
@@ -61,6 +64,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    </ol></div>
    <p className="simulation-method-note">8항목 수급 점수(네 투자자 순위)는 이 매매법과 별개인 연구로, 수급 순위 화면에서 전진 검증 중입니다. 여기 매수·매도에는 쓰지 않습니다.</p>
   </section>
+  <HistoryValidation/>
   <div className="simulation-settings">
    <label>운용 방식<select value={settings.mode} onChange={e=>change('mode',e.target.value as Settings['mode'])}><option value="capital">초기자금 내 운용</option><option value="unlimited">모든 신호 매수 · 자금 제한 없음</option></select></label>
    <label>시작일<input type="date" value={settings.start} min={input?.sessions[0]} max={input?.sessions[input.sessions.length-1]} onChange={e=>change('start',e.target.value)}/></label>
@@ -73,15 +77,16 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>익절 · %<input type="number" min="1" max="100" value={settings.take} onChange={e=>change('take',Number(e.target.value))}/></label>
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
+  <label className="simulation-option"><input type="checkbox" checked={!!settings.costs} onChange={e=>change('costs',e.target.checked?COSTS:undefined)}/><span><b>수수료·세금 반영</b><small>매수 수수료 {COSTS.buy}% · 매도 수수료 0.015% + 증권거래세 0.20%(2026년 세율). 증권사·연도별 세율에 따라 다릅니다.</small></span></label>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.flowExit} onChange={e=>change('flowExit',e.target.checked)}/><span><b>연기금 순매도 이탈 매도</b><small>매수 후 어느 하루 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가에 전량 매도 (익절·손절은 그대로 적용)</small></span></label>
-  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}`:'데이터 준비 중'}</p>
+  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수 + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}${s.costs?' · 수수료·세금 반영':''}`:'데이터 준비 중'}</p>
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>
    <section className="simulation-metrics" aria-label="시뮬레이션 요약">
     <article><span>{capital?'총 평가자산':'누적 실제 매수금액'}</span><strong>{capital&&result.account.equity==null?'정산 확인 필요':won(capital?result.account.equity:summary.invested)}</strong><small>{capital?`잔여 현금 ${won(result.account.cash)}`:`${summary.bought}종목 매수`}</small></article>
     <article><span>총 손익 · 실현 + 평가</span><strong className={total==null?'':total<0?'negative':'positive'}>{total==null?'산출 보류':won(total)}</strong><small>{capital?`초기자금 대비 ${pct(result.account.return_pct)}`:'매수별 합계 · 초기자금 수익률 아님'}</small></article>
     <article><span>총 손실금액 · 손실 종목 합계</span><strong className="negative">{won(summary.losses)}</strong><small>수익 종목 이익 합계 {won(summary.gains)}</small></article>
-    <article><span>익절 {summary.take}종목 · 평균 소요일</span><strong>{days(summary.take_days)}</strong><small>손절 {summary.stop}종목 · 평균 {days(summary.stop_days)}{summary.flow?` · 수급 이탈 매도 ${summary.flow}종목 · 평균 ${days(summary.flow_days)}`:''}</small></article>
+    <article><span>익절 {summary.take}종목 · 평균 소요일</span><strong>{days(summary.take_days)}</strong><small>손절 {summary.stop}종목 · 평균 {days(summary.stop_days)}{summary.flow?` · 수급 이탈 매도 ${summary.flow}종목 · 평균 ${days(summary.flow_days)}`:''}{summary.delisted?` · 가격 종료 정산 ${summary.delisted}종목`:''}</small></article>
    </section>
    <div className="simulation-counts"><span>신호 <b>{summary.signals}</b></span><span>매수 <b>{summary.bought}</b></span><span>보유 <b>{summary.open}</b></span><span>대기 <b>{summary.waiting}</b></span><span>누적 실제 매수 <b>{won(summary.invested)}</b></span><span>실현 손익 <b>{won(summary.realized_pnl)}</b></span><span>평가 손익 <b>{won(summary.unrealized_pnl)}</b></span></div>
    {result?.corporate_reconciliation&&<CorporateReconciliation context={result.corporate_reconciliation} trades={result.trades}/>}<SimulationIssues trades={result.trades} asOf={result.as_of} open={openDetail}/>

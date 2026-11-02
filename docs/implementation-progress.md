@@ -462,3 +462,10 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - **음봉·양봉 표시(2026-11-01):** `collector/candle.py`(종가 vs 시가)로 추적 이벤트(`signal_candle`, annotate 단계)·신호 성과 검증(`candle`)에 붙이고, 시뮬레이션 표는 입력 가격에서 계산한다(`src/CandleTag.tsx`). 참고 표시이며 규칙·점수에 쓰지 않는다.
 - **종목 상세 6개월(2026-11-01):** 과거 신호 분석(`HistoryEventDetail`)은 기본이 ‘신호 시점’(`signalWindow`: 신호 전 3개월 + 신호 후 최소 3개월 또는 청산+10거래일, 합계 최소 6개월)이고 신호 전 3개월·모의 보유 구간을 음영으로 표시한다. 종목 상세(App)는 3년 종목 파일(history-stock, 약 1,020종목)이 있으면 최근 6개월, 없으면 3개월 공개 자료를 쓴다. 종목별 RSI 파일은 130거래일.
 - **전 종목 6개월 상세(2026-11-01):** 빌드 단계 `scripts/publish-detail-6m.py`가 3년 종목 파일이 없는 종목(약 1,590개)에 `detail-6m/<code>.json`(연기금·외국인 6개월)을 만든다. 실시간 수집 이전 구간(2026-04-20~07-09)은 비공개 3년 보관본 일별 파일을 체크섬 확인 후 `data/live/detail-backfill/`에 복사해 쓰고, 같은 날짜는 실시간 자료가 우선한다. 종목 상세의 ‘최근 6개월’은 history-stock → detail-6m 순으로 읽는다.
+
+### D12 과거 8년 검증 반영과 운용 현실화 (2026-11-02)
+- **과거 8년 검증:** 연구 브랜치 codex/history-eight-years(2018-10~2026-10)로 사전 등록 1~10번을 판정(비공개 history-validation-2026-11-01/RESULTS.md). 시뮬레이션에 요약 카드(`src/HistoryValidation.tsx`)를 둔다.
+- **수수료·세금:** `Settings.costs={buy,sell}`(%) — 매수 수수료는 원가(invested)에, 매도 수수료+거래세는 매도 대금에서 차감. 화면 체크박스(0.015% / 0.215%), 기본 꺼짐. 없으면 기존 결과와 동일.
+- **가격 종료 정산:** 보유 종목에 데이터 끝(5거래일 이상 남은 시점)까지 거래 가능한 일봉이 다시 없으면 마지막 거래 가능일 종가로 정산하고 status `delisted`. 일시 정지 뒤 재개되면 기존처럼 unresolved.
+- **주말 달력 경고:** `previousSession`이 마지막 평일 기준으로 달력 확인 범위를 판단.
+- **오늘 신호 알림:** `scripts/today-signals.py`(실시간 일별 + detail-backfill)로 기본 조건(quiet3m-volume) 신호를 계산해 collect.yml 단계에서 notice로 남기고, 16시 예약 작업이 휴대폰 알림 보고에 포함한다. 2026-07-10~10-30 75거래일 모두 시뮬레이션 신호와 일치.

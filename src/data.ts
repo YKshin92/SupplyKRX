@@ -18,8 +18,9 @@ export function seoulDate(now=new Date()){return new Intl.DateTimeFormat('sv-SE'
 export function previousSession(m:Manifest,today=seoulDate()){
   // No inference beyond the supplied calendar's checked horizon.
   const checked=m.calendar_checked_through;
-  const yesterday=new Date(`${today}T00:00:00Z`);yesterday.setUTCDate(yesterday.getUTCDate()-1);
-  if(m.status==='calendar_unverified'||checked<yesterday.toISOString().slice(0,10))return null;
+  // The calendar is checked through the last session; a weekend after it is not a stale calendar (holidays still warn).
+  const lastWeekday=new Date(`${today}T00:00:00Z`);do lastWeekday.setUTCDate(lastWeekday.getUTCDate()-1);while(lastWeekday.getUTCDay()===0||lastWeekday.getUTCDay()===6);
+  if(m.status==='calendar_unverified'||checked<lastWeekday.toISOString().slice(0,10))return null;
   return m.sessions.filter(d=>d<today).at(-1)??null;
 }
 export async function json<T>(url:string):Promise<T>{const r=await fetch(url,{cache:'no-cache'});if(!r.ok)throw new Error(`데이터를 불러오지 못했습니다 (${r.status}).`);return r.json();}

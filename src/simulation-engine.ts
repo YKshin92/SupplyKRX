@@ -12,8 +12,11 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
 /** sizing (capital mode): 'fixed' buys `budget` per signal; 'percent' buys `percent`% of the previous close's equity (cash + holdings).
  *  minBuy (capital mode): every order is at least this much; when cash is short the order uses the remaining cash, and it waits
  *  when even that is below minBuy. Left out, minBuy equals the target amount (wait for the full amount, the original rule). */
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number};
-export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow';
+/** costs (percent of trade value): buy = brokerage fee, sell = brokerage fee + securities transaction tax. The buy fee is part
+ *  of the cost basis (invested), the sell cost comes off the proceeds. Left out, nothing is charged (the original results). */
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number}};
+/** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
+export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
 export type SimTrade={code:string;name:string;market:string;signal_date:string;event_id:string;signal_index:number;signal_net:number;score:number|null;status:Status;reason:string;entry_index:number|null;entry_date:string|null;entry_price:number|null;shares:number;invested:number;exit_date:string|null;exit_price:number|null;pnl:number|null;return_pct:number|null;trading_days:number|null;calendar_days:number|null;wait_days:number;ambiguous:boolean;flow_exit_signal?:string;horizons:Record<string,Horizon>;corporate_phase?:SplitPosition['phase']|CorporatePosition['phase'];adjusted_basis?:number;corporate_evidence_on?:string;corporate_reference_value?:number|null;fractional_claim?:{numerator:number;denominator:number};fractional_forfeit?:Forfeit[];corporate_legs?:Leg[];held_value?:number|null};
 export type Ledger={date:string;morning_cash:number;buy_value:number;sale_proceeds:number;end_cash:number;holdings:number;waiting:number;equity:number|null;strategy_pnl:number|null;benchmark_pnl:number|null;unknown_cost:number};
@@ -36,6 +39,8 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
  if(s.sizing==='percent'&&(!Number.isFinite(s.percent)||s.percent!<1||s.percent!>100))throw Error('자금 비율은 1~100% 사이로 입력해 주세요.');
  if(s.minBuy!=null&&(!Number.isFinite(s.minBuy)||s.minBuy<0||s.minBuy>1e8))throw Error('최소 매수금액 범위를 확인해 주세요.');
+ if(s.costs&&![s.costs.buy,s.costs.sell].every(v=>Number.isFinite(v)&&v>=0&&v<=5))throw Error('수수료·세금 비율을 확인해 주세요.');
+ const buyRate=(s.costs?.buy??0)/100,sellRate=(s.costs?.sell??0)/100,costed=!!s.costs&&(buyRate>0||sellRate>0);
  const start=days.findIndex(d=>d>=s.start),byCode=new Map(data.stocks.map(c=>[c.code,c]));
  const sells=new Map(data.stocks.map(c=>[c.code,new Map(c.sells??[])]));
  const trades:SimTrade[]=data.stocks.flatMap(c=>{return c.signals.filter((e,j,all)=>e.index>=start&&(s.filter==null||s.filter==='standard'||e.quiet_3m===true&&(s.filter!=='quiet3m-volume'||e.volume_ratio_20!=null&&e.volume_ratio_20<=3))&&all.findIndex(x=>x.index===e.index)===j).map(signal=>({code:c.code,name:c.name,market:c.market,event_id:`${c.code}:${days[signal.index]}`,signal_index:signal.index,signal_date:days[signal.index],signal_net:signal.net,score:signal.score,status:s.mode==='capital'&&signal.score==null?'score_missing':'pending',reason:signal.score==null?'신호일 수급 점수 자료 부족':'다음 거래일 매수 대기',entry_index:null,entry_date:null,entry_price:null,shares:0,invested:0,exit_date:null,exit_price:null,pnl:null,return_pct:null,trading_days:null,calendar_days:null,wait_days:0,ambiguous:false,horizons:{}} as SimTrade));}).sort((a,b)=>a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code));
@@ -58,12 +63,12 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    if(problem){t.reason=problem+' · 다음 거래일 재검토';if(s.mode==='unlimited')t.status='excluded';continue;}
    // The full order is bought when its whole shares fit in cash (the original rule). Otherwise, with a minimum set, the
    // remaining cash buys what it can as long as it is at least the minimum; without one the signal waits for cash.
-   const opening=r!.open!,want=partial?Math.max(target,s.minBuy!):target;let shares=Math.floor(want/opening);
-   if(s.mode==='capital'&&shares*opening>cash+1e-7){
-    if(!partial||cash<s.minBuy!-1e-7||cash<opening){t.reason=!partial?'현금 부족 · 매도 대금 재사용 대기':cash<s.minBuy!-1e-7?'현금이 최소 매수금액보다 적음 · 매도 대금 재사용 대기':'남은 현금으로 1주도 살 수 없음 · 대기';continue;}
-    shares=Math.floor(cash/opening);
+   const opening=r!.open!,unit=opening*(1+buyRate),want=partial?Math.max(target,s.minBuy!):target;let shares=Math.floor(want/unit);
+   if(s.mode==='capital'&&shares*unit>cash+1e-7){
+    if(!partial||cash<s.minBuy!-1e-7||cash<unit){t.reason=!partial?'현금 부족 · 매도 대금 재사용 대기':cash<s.minBuy!-1e-7?'현금이 최소 매수금액보다 적음 · 매도 대금 재사용 대기':'남은 현금으로 1주도 살 수 없음 · 대기';continue;}
+    shares=Math.floor(cash/unit);
    }
-   const cost=shares*opening;
+   const cost=costed?shares*unit:shares*opening;
    if(!shares){t.reason='1주 가격이 매수 한도 초과 · 대기';if(s.mode==='unlimited')t.status='excluded';continue;}
    heldCodes.add(t.code);
    if(s.mode==='capital')cash-=cost;buys+=cost;
@@ -82,7 +87,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
     corporatePositions.set(t,step.position);
     Object.assign(t,{shares:step.shares,corporate_phase:step.position.phase,adjusted_basis:step.position.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:step.reference_value,fractional_forfeit:step.position.fractional_forfeit,corporate_legs:step.legs,held_value:step.held_value,status:step.status,reason:step.reason,pnl:step.pnl,return_pct:step.return_pct,exit_date:step.pnl==null?null:days[i],exit_price:step.exit_price});
     if(step.pnl!=null){paths.get(t)!.set(i,step.pnl);t.trading_days=i-t.entry_index!+1;t.calendar_days=Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5);if(step.ambiguous)t.ambiguous=true;}
-    if(step.cash_in){sales+=step.cash_in;if(s.mode==='capital')cash+=step.cash_in;}
+    if(step.cash_in){const fee=step.cash_in*sellRate;if(fee&&t.pnl!=null)t.pnl-=fee;sales+=step.cash_in-fee;if(s.mode==='capital')cash+=step.cash_in-fee;}
     continue;
    }
    if(action&&t.entry_date!<actionStart(action)){
@@ -91,11 +96,22 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
     positions.set(t,state);const value=splitValue(state,r,s.take,s.stop);
     Object.assign(t,{shares:state.shares,corporate_phase:state.phase,adjusted_basis:state.basis_price,corporate_evidence_on:action.evidence_on,corporate_reference_value:value.reference_value,fractional_claim:state.fractional_claim,fractional_forfeit:state.fractional_forfeit,status:value.status==='halted'?'open':value.status,reason:value.reason??state.diagnosis??'기업행사 정산 확인 중',pnl:value.pnl,return_pct:value.return_pct,exit_date:value.pnl==null?null:days[i],exit_price:value.exit_price??(value.status==='open'?r!.close:null)});
     if(value.pnl!=null){paths.get(t)!.set(i,value.pnl);t.trading_days=i-t.entry_index!+1;t.calendar_days=Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5);t.ambiguous=value.ambiguous;}
-    if(value.status==='take'||value.status==='stop'){sales+=value.sale_proceeds;if(s.mode==='capital')cash+=value.sale_proceeds;}
+    if(value.status==='take'||value.status==='stop'){const fee=value.sale_proceeds*sellRate;if(fee&&t.pnl!=null)t.pnl-=fee;sales+=value.sale_proceeds-fee;if(s.mode==='capital')cash+=value.sale_proceeds-fee;}
     continue;
    }
    const c=byCode.get(t.code)!,r=c.prices[i],problem=priceProblem(c.prices[i-1],r);
-   if(problem){Object.assign(t,{status:'unresolved',reason:days[i]+' '+problem,pnl:null,return_pct:null,exit_date:null,exit_price:null});continue;}
+   if(problem){
+    // No tradeable bar ever again (suspension then delisting or a merger; the data end is at least 5 sessions away): settle at the
+    // last tradeable close instead of freezing the account.
+    if(i<=days.length-6&&!c.prices.slice(i).some((p,j)=>p&&!priceProblem(c.prices[i+j-1],p))){
+     let k=i-1;while(k>t.entry_index!&&priceProblem(c.prices[k-1],c.prices[k]))k--;
+     const price=c.prices[k]!.close!,gross=t.shares*price,fee=gross*sellRate,pnl=costed?Math.round((gross-fee-t.invested)*1e4)/1e4:Math.round(t.shares*(price-t.entry_price!)*1e4)/1e4;
+     paths.get(t)!.set(i,pnl);
+     Object.assign(t,{status:'delisted',reason:`${days[k]} 이후 가격 없음(상장폐지·합병 추정) · 마지막 종가로 정산`,exit_date:days[k],exit_price:price,pnl,return_pct:costed?pnl/t.invested*100:(price/t.entry_price!-1)*100,trading_days:k-t.entry_index!+1,calendar_days:Math.round((Date.parse(days[k])-Date.parse(t.entry_date!))/864e5)});
+     sales+=t.invested+pnl;if(s.mode==='capital')cash+=t.invested+pnl;continue;
+    }
+    Object.assign(t,{status:'unresolved',reason:days[i]+' '+problem,pnl:null,return_pct:null,exit_date:null,exit_price:null});continue;
+   }
    const entry=t.entry_price!,upper=entry*(1+s.take/100),lower=entry*(1-s.stop/100);
    let price=r!.close!,status:Status='open',reason='최신 종가 평가';
    if(t.flow_exit_signal){price=r!.open!;status='flow';reason=`${t.flow_exit_signal} 연기금 순매도가 신호일 순매수보다 커서 다음 거래일 시가 전량 매도`;}
@@ -104,8 +120,9 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    else if(r!.high!>=upper&&r!.low!<=lower){t.ambiguous=true;price=lower;status='stop';reason='같은 날 양쪽 도달 · 손절 우선';}
    else if(r!.low!<=lower){price=lower;status='stop';reason='장중 손절선 도달';}
    else if(r!.high!>=upper){price=upper;status='take';reason='장중 익절선 도달';}
-   const pnl=Math.round(t.shares*(price-entry)*1e4)/1e4;paths.get(t)!.set(i,pnl);
-   Object.assign(t,{status,reason,exit_date:days[i],exit_price:price,pnl,return_pct:(price/entry-1)*100,trading_days:i-t.entry_index!+1,calendar_days:Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5)});
+   const exiting=status==='take'||status==='stop'||status==='flow';
+   const pnl=costed?Math.round((t.shares*price*(exiting?1-sellRate:1)-t.invested)*1e4)/1e4:Math.round(t.shares*(price-entry)*1e4)/1e4;paths.get(t)!.set(i,pnl);
+   Object.assign(t,{status,reason,exit_date:days[i],exit_price:price,pnl,return_pct:costed?pnl/t.invested*100:(price/entry-1)*100,trading_days:i-t.entry_index!+1,calendar_days:Math.round((Date.parse(days[i])-Date.parse(t.entry_date!))/864e5)});
    if(status==='take'||status==='stop'||status==='flow'){sales+=t.invested+pnl;if(s.mode==='capital')cash+=t.invested+pnl;}
    else if(s.flowExit&&(sells.get(t.code)?.get(i)??0)>t.signal_net)t.flow_exit_signal=days[i];
   }
@@ -125,18 +142,18 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    }
   }t.horizons[horizon]=result;
  }
- const bought=trades.filter(t=>t.invested>0),priced=bought.filter(t=>t.pnl!=null),realized=priced.filter(t=>t.status==='take'||t.status==='stop'||t.status==='flow'),open=priced.filter(t=>t.status==='open');
+ const bought=trades.filter(t=>t.invested>0),priced=bought.filter(t=>t.pnl!=null),realized=priced.filter(t=>t.status==='take'||t.status==='stop'||t.status==='flow'||t.status==='delisted'),open=priced.filter(t=>t.status==='open');
  const last=ledger[ledger.length-1],pnl=sum(priced.map(t=>t.pnl!)),unknown=sum(bought.filter(t=>t.pnl==null).map(t=>t.invested));
  let curve=ledger.map(d=>({date:d.date,strategy_pnl:d.strategy_pnl,benchmark_pnl:d.benchmark_pnl}));
  let benchmarkPnl=last.benchmark_pnl,benchmarkCount=bought.length;
  if(s.mode==='unlimited'){
   const paired=priced.filter(t=>positive(data.indices.KOSPI?.[t.entry_index!]?.open)&&positive(data.indices.KOSPI?.[days.length-1]?.close));benchmarkCount=paired.length;
-  curve=ledger.map((d,j)=>{const i=start+j;let a=0,b=0,missing=false;for(const t of paired){if(t.entry_index!>i)continue;const ip=data.indices.KOSPI?.[i]?.close,io=data.indices.KOSPI?.[t.entry_index!]?.open;const value=(t.status==='take'||t.status==='stop')&&t.exit_date!<=d.date?t.pnl:paths.get(t)?.get(i);if(!positive(ip)||!positive(io)||value==null){missing=true;continue;}a+=value;b+=t.invested*(ip/io-1);}return {date:d.date,strategy_pnl:missing?null:a,benchmark_pnl:missing?null:b};});
+  curve=ledger.map((d,j)=>{const i=start+j;let a=0,b=0,missing=false;for(const t of paired){if(t.entry_index!>i)continue;const ip=data.indices.KOSPI?.[i]?.close,io=data.indices.KOSPI?.[t.entry_index!]?.open;const value=(t.status==='take'||t.status==='stop'||t.status==='flow'||t.status==='delisted')&&t.exit_date!<=d.date?t.pnl:paths.get(t)?.get(i);if(!positive(ip)||!positive(io)||value==null){missing=true;continue;}a+=value;b+=t.invested*(ip/io-1);}return {date:d.date,strategy_pnl:missing?null:a,benchmark_pnl:missing?null:b};});
   benchmarkPnl=paired.length?sum(paired.map(t=>t.invested*(data.indices.KOSPI![days.length-1]!.close!/data.indices.KOSPI![t.entry_index!]!.open!-1))):null;
  }
  return {settings:{...s},corporate_reconciliation:corporate??null,first_date:days[start],as_of:days[days.length-1],trades,ledger,curve,
   account:{cash:last.end_cash,equity:last.equity,pnl:last.equity==null?null:last.equity-s.initial,return_pct:last.equity==null?null:(last.equity/s.initial-1)*100,max_holdings:maxHoldings,min_cash:minCash,unknown_cost:last.unknown_cost},
-  summary:{signals:trades.length,bought:bought.length,invested:sum(bought.map(t=>t.invested)),pnl:unknown?null:pnl,known_pnl:pnl,unknown_invested:unknown,gains:sum(priced.map(t=>Math.max(0,t.pnl!))),losses:-sum(priced.map(t=>Math.min(0,t.pnl!))),realized_pnl:sum(realized.map(t=>t.pnl!)),unrealized_pnl:sum(open.map(t=>t.pnl!)),take:trades.filter(t=>t.status==='take').length,stop:trades.filter(t=>t.status==='stop').length,flow:trades.filter(t=>t.status==='flow').length,open:open.length,waiting:trades.filter(t=>t.status==='pending').length,take_days:mean(trades.filter(t=>t.status==='take').map(t=>t.trading_days!)),stop_days:mean(trades.filter(t=>t.status==='stop').map(t=>t.trading_days!)),flow_days:mean(trades.filter(t=>t.status==='flow').map(t=>t.trading_days!))},
+  summary:{signals:trades.length,bought:bought.length,invested:sum(bought.map(t=>t.invested)),pnl:unknown?null:pnl,known_pnl:pnl,unknown_invested:unknown,gains:sum(priced.map(t=>Math.max(0,t.pnl!))),losses:-sum(priced.map(t=>Math.min(0,t.pnl!))),realized_pnl:sum(realized.map(t=>t.pnl!)),unrealized_pnl:sum(open.map(t=>t.pnl!)),take:trades.filter(t=>t.status==='take').length,stop:trades.filter(t=>t.status==='stop').length,flow:trades.filter(t=>t.status==='flow').length,delisted:trades.filter(t=>t.status==='delisted').length,open:open.length,waiting:trades.filter(t=>t.status==='pending').length,take_days:mean(trades.filter(t=>t.status==='take').map(t=>t.trading_days!)),stop_days:mean(trades.filter(t=>t.status==='stop').map(t=>t.trading_days!)),flow_days:mean(trades.filter(t=>t.status==='flow').map(t=>t.trading_days!))},
   benchmark:{pnl:benchmarkPnl,count:benchmarkCount,return_pct:s.mode==='capital'?(benchmarkPnl==null?null:benchmarkPnl/s.initial*100):benchmarkCount&&benchmarkPnl!=null?benchmarkPnl/(benchmarkCount*s.budget)*100:null},
   horizons:[5,10,20].map(days=>{const p=trades.map(t=>t.horizons[days]).filter(h=>h.status==='complete');return {days,count:p.length,stock:mean(p.map(h=>h.stock!)),index:mean(p.map(h=>h.index!)),excess:mean(p.map(h=>h.excess!))};})};
 }

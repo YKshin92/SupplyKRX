@@ -65,3 +65,20 @@ test('minimum order: uses the remaining cash down to the minimum, and lifts a sm
  r=run([a],{sizing:'percent',percent:10});assert.equal(r.trades[0].entry_date,null);  // 10% of 300 = 30 < one 100 share
  r=run([a],{sizing:'percent',percent:10,minBuy:100*scale});assert.equal(r.trades[0].shares,1);  // lifted to the 100 minimum
 });
+test('costs: buy fee joins the cost basis, sell cost comes off the proceeds, cash stays consistent',()=>{
+ const a=candidate('A',90,[price(),price(100,135,95,130),price(),price(),price()]);
+ const r=run([a],{costs:{buy:0.1,sell:0.3}});const t=r.trades[0];
+ assert.equal(t.shares,2);assert.equal(t.invested,2*100*scale*1.001);  // 300 budget / (100 x 1.001) -> 2 shares
+ const proceeds=2*130*scale*(1-0.003);assert.ok(Math.abs(t.pnl-(proceeds-t.invested))<1e-3);
+ assert.ok(Math.abs(r.account.cash-(300*scale-t.invested+proceeds))<1e-3);
+ assert.equal(run([a]).trades[0].shares,3);  // without costs: unchanged
+});
+test('a held stock whose prices end for good is settled at its last close; a short gap stays unresolved',()=>{
+ const days=['2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-07','2026-09-08','2026-09-09','2026-09-10','2026-09-11','2026-09-14'];
+ const mk=(prices)=>({version:1,sessions:days,stocks:[{code:'A',name:'A',market:'KOSPI',signals:[{index:0,net:3e8,score:90,absent:0}],prices}],indices:{KOSPI:days.map(()=>price())},source:{}});
+ const p=(c)=>({open:100*scale,high:105*scale,low:95*scale,close:c*scale,volume:100,change_pct:null});
+ let r=runSimulation(mk([p(100),p(100),p(104),null,null,null,null,null,null,null]),{...settings,initial:300*scale,budget:300*scale});
+ assert.equal(r.trades[0].status,'delisted');assert.equal(r.trades[0].exit_date,'2026-09-03');assert.equal(r.trades[0].exit_price,104*scale);assert.equal(r.account.cash,300*scale+3*4*scale);
+ r=runSimulation(mk([p(100),p(100),p(104),null,p(103),p(103),p(103),p(103),p(103),p(103)]),{...settings,initial:300*scale,budget:300*scale});
+ assert.equal(r.trades[0].status,'unresolved');  // prices come back: not a delisting
+});
