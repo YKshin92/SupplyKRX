@@ -2,7 +2,8 @@
 
 Writes {symbol: {date: close}} for S&P 500 (^GSPC), Nasdaq-100 (^NDX), Nasdaq Composite (^IXIC) and USD/KRW (KRW=X).
 Dates are the exchange's local trading dates. Missing bars are left absent, never filled.
-usage: collect-us-history.py --start 2018-10-01 --target data/us-indices.json
+usage: collect-us-history.py --start 2018-10-01 --target data/us-indices.json [--extra ^KS11:Asia/Seoul,069500.KS:Asia/Seoul]
+--extra adds symbols (symbol:time zone), e.g. Korean series for history before the research archive starts.
 """
 import argparse, json, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
@@ -46,7 +47,11 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--start', required=True)
     p.add_argument('--target', type=Path, required=True)
+    p.add_argument('--extra', default='')
     a = p.parse_args()
+    for item in filter(None, a.extra.split(',')):
+        symbol, zone = item.rsplit(':', 1)
+        SYMBOLS[symbol] = zone
     result = dict(schema_version=1, source='Yahoo Finance chart API (daily close)', collected_at=datetime.now(timezone.utc).isoformat(),
                   start=a.start, series={})
     for symbol, zone in SYMBOLS.items():

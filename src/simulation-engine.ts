@@ -21,8 +21,9 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
  *  `fee` (percent of the trade) applies to each index buy and sale; `gainTax` (percent) applies to the positive gain of each
  *  sale over the average purchase price (foreign-index ETFs listed in Korea). `series` as a list is a basket: equal amounts are
  *  bought of each, sales take the same fraction of each (no rebalancing), and `gainTax` may then list one rate per series.
- *  Distributions are not included. */
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open'}};
+ *  `gate` (one list per series, aligned with sessions) holds a series only on days marked true or null: on a false day it is
+ *  sold at the open and its share of idle cash stays cash (see trendGate). Distributions are not included. */
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][]}};
 /** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
@@ -39,6 +40,13 @@ export function priceProblem(previous:Price|null|undefined,r:Price|null|undefine
  if(positive(previous?.close)) {const change=(c/previous.close-1)*100;if(Math.abs(change)>35||Math.abs(o/previous.close-1)>.35||(r.change_pct!=null&&Math.abs(change-r.change_pct)>5))return '가격 단절 · 기업행사 확인 필요';}
  return null;
 }
+/** Trend gate for idle cash: true when the previous close is above its n-day simple average of closes (all known by the
+ *  open), false below, null until n closes exist. `seed` = closes before the first session (oldest first). */
+export function trendGate(prices:(Price|null)[],n:number,seed:number[]=[]):(boolean|null)[]{
+ const closes=[...seed];const out:(boolean|null)[]=[];
+ for(const p of prices){const w=closes.slice(-n);out.push(w.length<n?null:closes.at(-1)!>w.reduce((a,b)=>a+b,0)/n);if(positive(p?.close))closes.push(p!.close!);}
+ return out;
+}
 export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateContext){
  const actionMap=corporateActionMap(corporate);
  const positions=new Map<SimTrade,SplitPosition>(),corporatePositions=new Map<SimTrade,CorporatePosition>();
@@ -54,14 +62,15 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  // Index holdings (idle index mode), one leg per series: units at average purchase price. A basket buys equal amounts of each
  // leg and sells every leg by the same fraction (no rebalancing). parked = cash not in the index yet.
  const legs=idleIndex?(Array.isArray(s.idle!.series)?s.idle!.series:[s.idle!.series??'KOSPI']).map((key,k)=>({key,P:data.indices[key],tax:(Array.isArray(taxes)?taxes[k]??0:taxes??0)/100,units:0,avg:0,last:null as number|null,
-  basis:0,bought:0,sold:0,realized:0,fees:0,taxes:0,buys:0,sells:0,first:null as string|null,valueDays:0,valueSum:0})):[];
+  basis:0,bought:0,sold:0,realized:0,fees:0,taxes:0,buys:0,sells:0,gateExits:0,offDays:0,first:null as string|null,valueDays:0,valueSum:0})):[];
+ const on=(k:number,i:number)=>s.idle?.gate?.[k]?.[i]!==false;
  if(idleIndex&&(!legs.length||legs.some(l=>!l.P?.length)))throw Error('쉬는 현금을 넣을 지수·ETF 가격 데이터가 없습니다.');
  if(idleIndex&&![idleFee,...legs.map(l=>l.tax)].every(v=>Number.isFinite(v)&&v>=0&&v<.5))throw Error('ETF 수수료·세금 비율을 확인해 주세요.');
  let parked=s.initial,idleFees=0,idleTaxes=0;
  const idleValue=()=>sum(legs.map(l=>l.units*(l.last??0)));
  const buyLeg=(l:typeof legs[number],amount:number,price:number,day:string)=>{const add=amount/(price*(1+idleFee)),fee=amount-add*price;idleFees+=fee;l.fees+=fee;l.avg=(l.units*l.avg+add*price)/(l.units+add);l.units+=add;l.basis+=amount;l.bought+=amount;l.buys++;l.first??=day;};
- const sellLeg=(l:typeof legs[number],sold:number,price:number)=>{if(!(sold>0))return;const gross=sold*price,fee=gross*idleFee,tax=sold*l.tax*Math.max(0,price-l.avg),out=l.basis*sold/l.units;
-  idleFees+=fee;idleTaxes+=tax;l.fees+=fee;l.taxes+=tax;l.sold+=gross-fee-tax;l.realized+=gross-fee-tax-out;l.basis-=out;l.units-=sold;l.sells++;if(l.units<1e-12){l.units=0;l.basis=0;}};
+ const sellLeg=(l:typeof legs[number],sold:number,price:number):number=>{if(!(sold>0))return 0;const gross=sold*price,fee=gross*idleFee,tax=sold*l.tax*Math.max(0,price-l.avg),out=l.basis*sold/l.units;
+  idleFees+=fee;idleTaxes+=tax;l.fees+=fee;l.taxes+=tax;l.sold+=gross-fee-tax;l.realized+=gross-fee-tax-out;l.basis-=out;l.units-=sold;l.sells++;if(l.units<1e-12){l.units=0;l.basis=0;}return gross-fee-tax;};
  const start=days.findIndex(d=>d>=s.start),byCode=new Map(data.stocks.map(c=>[c.code,c]));
  const sells=new Map(data.stocks.map(c=>[c.code,new Map(c.sells??[])]));
  const trades:SimTrade[]=data.stocks.flatMap(c=>{return c.signals.filter((e,j,all)=>e.index>=start&&(s.filter==null||s.filter==='standard'||e.quiet_3m===true&&(s.filter!=='quiet3m-volume'||e.volume_ratio_20!=null&&e.volume_ratio_20<=3))&&all.findIndex(x=>x.index===e.index)===j).map(signal=>({code:c.code,name:c.name,market:c.market,event_id:`${c.code}:${days[signal.index]}`,signal_index:signal.index,signal_date:days[signal.index],signal_net:signal.net,score:signal.score,status:s.mode==='capital'&&signal.score==null?'score_missing':'pending',reason:signal.score==null?'신호일 수급 점수 자료 부족':'다음 거래일 매수 대기',entry_index:null,entry_date:null,entry_price:null,shares:0,invested:0,exit_date:null,exit_price:null,pnl:null,return_pct:null,trading_days:null,calendar_days:null,wait_days:0,ambiguous:false,horizons:{}} as SimTrade));}).sort((a,b)=>a.signal_date.localeCompare(b.signal_date)||a.code.localeCompare(b.code));
@@ -75,6 +84,8 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   }
   // At the open the index can be sold for its value after fee and gain tax; without an opening price it cannot be traded today.
   const opens=legs.map(l=>l.P![i]?.open),tradable=idleIndex&&opens.every(positive),liq=legs.map((l,k)=>tradable?opens[k]!*(1-idleFee)-l.tax*Math.max(0,opens[k]!-l.avg):0);
+  // A gated-off series is sold at the open; its cash joins the spare cash.
+  if(idleIndex&&tradable)legs.forEach((l,k)=>{if(!on(k,i)){l.offDays++;if(l.units>0){l.gateExits++;parked+=sellLeg(l,l.units,opens[k]!);}}});
   if(idleIndex)cash=parked+sum(legs.map((l,k)=>l.units*liq[k]));
   const morning=cash;let buys=0,sales=0;
   // Order size is fixed before the open from what is known at the previous close (no same-day information).
@@ -105,10 +116,11 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   }
   if(idleIndex){
    if(tradable){
-    if(buys<=parked){const spare=parked-buys;if(spare>0)legs.forEach((l,k)=>buyLeg(l,spare/legs.length,opens[k]!,days[i]));}
+    const live=legs.map((_,k)=>k).filter(k=>on(k,i));
+    if(buys<=parked){const spare=parked-buys;if(spare>0&&live.length){live.forEach(k=>buyLeg(legs[k],spare/live.length,opens[k]!,days[i]));parked=0;}else parked=spare;}
     else{const total=sum(legs.map((l,k)=>l.units*liq[k])),f=total>0?Math.min(1,(buys-parked)/total):0;
-     legs.forEach((l,k)=>sellLeg(l,l.units*f,opens[k]!));}
-    parked=0;legs.forEach((l,k)=>l.last=opens[k]!);
+     legs.forEach((l,k)=>sellLeg(l,l.units*f,opens[k]!));parked=0;}
+    legs.forEach((l,k)=>l.last=opens[k]!);
    }else parked=cash;
    minCash=Math.min(minCash,parked+idleValue());cash=parked;
   }else minCash=Math.min(minCash,cash);maxHoldings=Math.max(maxHoldings,trades.filter(t=>t.status==='open'||t.status==='unresolved').length);
@@ -163,7 +175,8 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   }
   if(idleIndex){
    parked=cash;const closes=legs.map(l=>l.P![i]?.close);legs.forEach((l,k)=>{if(positive(closes[k]))l.last=closes[k]!;});
-   if(parked>0&&s.idle!.reinvest!=='next-open'&&closes.every(positive)){legs.forEach((l,k)=>buyLeg(l,parked/legs.length,closes[k]!,days[i]));parked=0;}
+   const live=legs.map((_,k)=>k).filter(k=>on(k,i));
+   if(parked>0&&s.idle!.reinvest!=='next-open'&&closes.every(positive)&&live.length){live.forEach(k=>buyLeg(legs[k],parked/live.length,closes[k]!,days[i]));parked=0;}
    cash=parked+idleValue();for(const l of legs){l.valueDays++;l.valueSum+=l.units*(l.last??0);}
   }
   const held=trades.filter(t=>t.status==='open'||t.status==='unresolved'),unknown=held.filter(t=>t.pnl==null);
@@ -195,7 +208,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   /** Idle-cash index legs as positions: cash bought and sold (after fee and tax), realized and unrealized result on the cash
    *  basis, and the average end-of-day value held (the base for its return). */
   idle_legs:legs.map(l=>{const value=l.units*(l.last??0),unrealized=value-l.basis,pnl=l.realized+unrealized,average=l.valueDays?l.valueSum/l.valueDays:0;
-   return {series:l.key,first_date:l.first,buys:l.buys,sells:l.sells,bought:l.bought,sold:l.sold,units:l.units,avg_price:l.avg,last_price:l.last,value,realized:l.realized,unrealized,pnl,fees:l.fees,taxes:l.taxes,average_value:average,return_pct:average>0?pnl/average*100:null};}),
+   return {series:l.key,first_date:l.first,buys:l.buys,sells:l.sells,gate_exits:l.gateExits,off_days:l.offDays,bought:l.bought,sold:l.sold,units:l.units,avg_price:l.avg,last_price:l.last,value,realized:l.realized,unrealized,pnl,fees:l.fees,taxes:l.taxes,average_value:average,return_pct:average>0?pnl/average*100:null};}),
   benchmark_start:benchmarkStart,
   account:{cash:last.end_cash,idle_value:idleIndex?idleValue():0,idle_fees:idleFees,idle_taxes:idleTaxes,equity:last.equity,pnl:last.equity==null?null:last.equity-s.initial,return_pct:last.equity==null?null:(last.equity/s.initial-1)*100,max_holdings:maxHoldings,min_cash:minCash,unknown_cost:last.unknown_cost},
   summary:{signals:trades.length,bought:bought.length,invested:sum(bought.map(t=>t.invested)),pnl:unknown?null:pnl,known_pnl:pnl,unknown_invested:unknown,gains:sum(priced.map(t=>Math.max(0,t.pnl!))),losses:-sum(priced.map(t=>Math.min(0,t.pnl!))),realized_pnl:sum(realized.map(t=>t.pnl!)),unrealized_pnl:sum(open.map(t=>t.pnl!)),take:trades.filter(t=>t.status==='take').length,stop:trades.filter(t=>t.status==='stop').length,flow:trades.filter(t=>t.status==='flow').length,delisted:trades.filter(t=>t.status==='delisted').length,open:open.length,waiting:trades.filter(t=>t.status==='pending').length,take_days:mean(trades.filter(t=>t.status==='take').map(t=>t.trading_days!)),stop_days:mean(trades.filter(t=>t.status==='stop').map(t=>t.trading_days!)),flow_days:mean(trades.filter(t=>t.status==='flow').map(t=>t.trading_days!))},

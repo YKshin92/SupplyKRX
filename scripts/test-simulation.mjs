@@ -141,3 +141,18 @@ test('idle legs report the ETF as a position: bought, sold, realized + unrealize
  assert.ok(Math.abs(legs.reduce((a,l)=>a+l.fees+l.taxes,0)-r.account.idle_fees-r.account.idle_taxes)<1e-6);
  assert.equal(r.benchmark_start,sessions[1]);
 });
+test('idle trend gate: a series is held only on gated-on days; off days sell at the open and keep cash',async()=>{
+ const {trendGate}=await import('../src/simulation-engine.ts');
+ // gate from the previous close vs its 2-day average; null until 2 closes are known, seed fills the start.
+ const P=[{close:10},{close:12},{close:11},{close:9},{close:13}];
+ assert.deepEqual(trendGate(P,2),[null,null,true,false,false]);
+ assert.deepEqual(trendGate(P,2,[8,9]),[true,true,true,false,false]);
+ const a=candidate('A',null,sessions.map(()=>price()));  // never bought (no score): only idle cash moves
+ const d=input([a]);const bar=(o,c)=>({open:o,high:Math.max(o,c),low:Math.min(o,c),close:c});
+ d.indices.X=[bar(100,100),bar(110,110),bar(120,120),bar(90,90),bar(100,100)];
+ const run2=(gate,fee=0)=>runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X'],fee,gate:gate&&[gate]}});
+ // on, on, off, off, on: 4 units at 100, sold at 120 (day 2 open), cash until day 4, bought at 100 -> 4.8 units -> 480 at close.
+ let r=run2([true,true,false,false,true]);assert.ok(Math.abs(r.account.equity-480*scale)<1e-6);assert.equal(r.idle_legs[0].gate_exits,1);assert.equal(r.idle_legs[0].off_days,2);
+ r=run2(undefined);assert.ok(Math.abs(r.account.equity-400*scale)<1e-6);  // no gate: 100 -> 100
+ r=run2([false,false,false,false,false]);assert.ok(Math.abs(r.account.equity-400*scale)<1e-6);assert.equal(r.idle_legs[0].buys,0);
+});
