@@ -44,4 +44,5 @@
 .simulation-etf-row{background:color-mix(in srgb,var(--sim-signal-bar) 25%,transparent)}
 .simulation-etf-name{font-size:13px}
 .simulation-status.etf{background:var(--accent-soft,#e8f0fc);border-color:transparent;color:var(--blue)}
+.simulation-legend span.simulation-legend-signal{color:var(--muted)}
 @media(max-width:600px){.simulation-outcome dl{grid-template-columns:1fr;gap:8px}.simulation-outcome dd{font-size:14px}.simulation-bench{padding:10px 0 0}.simulation-bench-chip{padding:4px 9px;font-size:11px}}
