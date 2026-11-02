@@ -37,7 +37,7 @@ export default function StrategyCandidates({canAct,asOf}:{canAct:boolean;asOf:st
    const type=r.headers.get('content-type')??'';if(!type.includes('application/json'))throw new Error('승인 서버에 연결하지 못했습니다.');const d=await r.json();if(!r.ok)throw new Error(d.error??'요청을 처리하지 못했습니다.');return d as {run:Run|null;requestedAt?:string};}
   try{
    const first=await call('/api/strategy',{action,id});const after=first.requestedAt??new Date().toISOString();let run:Run|null=null;const deadline=Date.now()+3*60*1000;
-   while(Date.now()<deadline){await pause();const r=run?await call(`/api/strategy?run=${run.id}`):await call(`/api/strategy?after=${encodeURIComponent(after)}`);run=r.run;
+   while(Date.now()<deadline){await pause();const r:{run:Run|null}=run?await call(`/api/strategy?run=${run.id}`):await call(`/api/strategy?after=${encodeURIComponent(after)}`);run=r.run;
     if(run){setRunUrl(run.url);if(run.status==='completed')break;setMessage('요청을 기록하는 중…');}}
    if(!run||run.status!=='completed')throw new Error('기록 확인 시간이 지났습니다. 잠시 뒤 새로 고침해 주세요.');
    if(run.conclusion!=='success')throw new Error('지금 상태에서는 할 수 없는 요청이라 기록되지 않았습니다. 새로 고침 뒤 다시 확인해 주세요.');
