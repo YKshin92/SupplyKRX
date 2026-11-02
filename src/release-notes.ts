@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-sim-defaults',date:'2026-11-02',title:'시뮬레이션 기본 설정 변경: 2026년 시작 · 2천만 원 · 평가자산 25%',
+  targets:[{tab:'simulation',label:'전략 검증 시뮬레이션'}],
+  changes:['처음 열 때 시작일 2026-01-01, 초기자금 2,000만 원, 신호마다 평가자산의 25% 매수(최소 300만 원), 익절 +30% · 손절 −10%로 계산합니다.','수수료·세금(매수 0.015%, 매도 0.215%)과 연기금 순매도 이탈 매도가 기본으로 켜져 있습니다. 화면에서 언제든 바꿀 수 있습니다.','이 설정으로 2026-01-02~10-30 결과는 2,622만 원(+31.1%), 최대 낙폭 −21.1%입니다. 같은 기간 평가자산 15%는 +24.6%(낙폭 −15.4%)로, 비중을 키우면 수익과 함께 낙폭도 커집니다.'],
+  verified:'로컬 엔진 재계산 2026-11-02',limits:['한 해 안쪽의 짧은 기간 결과','과거 8년 몬테카를로에서 비중이 클수록 −20% 이상 낙폭 확률이 높았음','투자 권유 아님']},
  {id:'2026-11-02-sim-idle-cash',date:'2026-11-02',title:'시뮬레이션에 ‘쉬는 현금’ 옵션: 예금 또는 KOSPI 지수',
   targets:[{tab:'simulation',selector:'.simulation-idle',label:'전략 검증 시뮬레이션 · 쉬는 현금'}],
   changes:['신호가 없어 남는 현금을 그대로 두기(기본) / 예금·MMF 연 2.5% / KOSPI 지수 중에서 고를 수 있습니다. 지수는 매일 종가→시가, 시가→종가 움직임을 따르고, 매수할 때 그날 시가에 지수를 팔아 대금을 마련한다고 계산합니다.','과거 8년(1억·평가자산 15%)으로 사전 등록 기준에 따라 비교했습니다: 그대로 2.68억, 예금 3.08억, KOSPI 5.33억(최대 낙폭 −38.8%, KOSPI만 보유 시 2.79억·−40%). KOSPI 200일선 아래에서 매수를 줄이는 규칙은 결과를 낮춰 넣지 않았고, 주문 규모는 신호일 거래대금의 0.4%(중앙값)로 상한이 필요 없었습니다.'],
