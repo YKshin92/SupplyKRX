@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-history8-emphasis',date:'2026-11-02',title:'★ 과거 8년 검증을 가장 눈에 띄게',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
+  changes:['과거 8년 검증 카드 앞에 ★과 ‘가장 신뢰할 근거’ 표시를 달고, 테두리·배경으로 강조했습니다. 접힌 상태에서도 15% 결과와 최대 낙폭, 같은 기간 KOSPI를 바로 볼 수 있습니다.','펼치면 맨 위에 이 결과를 먼저 봐야 하는 이유(규칙을 정할 때 쓰지 않은 2019~2023년 포함, 지금 화면과 같은 규칙)를 적었습니다.'],
+  verified:'Vercel 배포 번들 확인 2026-11-02',limits:['투자 권유 아님']},
  {id:'2026-11-02-history8-update',date:'2026-11-02',title:'과거 8년 검증 다시 정리: 비중 15·20·25%, 쉬는 현금 KOSPI200 ETF, 지수 4개 비교',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
   changes:['지금 화면 규칙(수수료·세금, 연기금 순매도 이탈 매도, 최소 300만 원)으로 2019-01~2026-10을 다시 계산했습니다. 1억 원 기준 평가자산 15% 2.77억(+177%, 낙폭 −19.5%), 20% 3.97억(−21.0%), 25% 5.24억(−30.0%). 쉬는 현금을 KOSPI200 ETF에 두면 6.46억·7.87억·9.91억이지만 낙폭은 모두 −40.9%입니다.','같은 기간 KOSPI +180%, KOSDAQ +6%, S&P500 +262%·나스닥100 +438%(원화 환산, 달러 기준 +202%·+348%)와 연도별로 나란히 보여 줍니다.','점검: 기존 계산은 그대로 재현되고 평가가 멈춘 날은 없습니다. 다만 25%는 현금이 모자라 신호를 늦게 사는 경우(최대 43거래일 뒤)가 많고 이탈 매도 설정에 따라 결과가 크게 흔들리며, 자산이 커진 뒤에는 주문이 신호일 거래대금의 최대 26%까지 커져 실제 체결이 어렵습니다. 2026년 KOSPI 급등락(7/31 +17.9%)은 실제 기록과 일치합니다.'],

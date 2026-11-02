@@ -56,3 +56,14 @@
 .history-validation-table thead th.index{color:var(--text)}
 .history-validation-table tr.total.mdd :is(th,td){font-weight:500}
 .history-validation p.history-validation-note{font-size:11.5px;color:var(--muted);margin-top:6px}
+/* 8-year card emphasis: the most reliable evidence for the strategy (2026-11-02). Amber marks it; text stays in ink colors. */
+.simulation{--star:#c98500;--star-soft:#fdf3dc}
+[data-theme=dark] .simulation{--star:#f0b429;--star-soft:#3a2f14}
+.history-validation{border-color:color-mix(in srgb,var(--star) 45%,var(--border));border-left:4px solid var(--star);background:color-mix(in srgb,var(--star-soft) 55%,var(--sim-surface));padding:16px 20px}
+.history-validation summary{align-items:center;gap:8px 10px}
+.history-validation summary strong{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.history-validation summary .history-validation-star{color:var(--star);font-size:18px;line-height:1}
+.history-validation-badge{font-style:normal;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--star-soft);border:1px solid color-mix(in srgb,var(--star) 50%,transparent);color:inherit}
+.history-validation summary .history-validation-lead{flex-basis:100%;margin-left:22px;font-size:12.5px;color:inherit;font-variant-numeric:tabular-nums}
+.history-validation p.history-validation-why{margin-top:12px;padding:10px 12px;border-radius:7px;background:var(--sim-surface);border:1px solid color-mix(in srgb,var(--star) 30%,var(--border));font-weight:500}
+@media(max-width:600px){.history-validation{padding:12px 14px}.history-validation summary strong{font-size:14px}.history-validation summary .history-validation-lead{margin-left:0;font-size:12px}}

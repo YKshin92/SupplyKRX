@@ -19,7 +19,8 @@ export const INDICES:{label:string;total:number;mdd:number;year:number[]}[]=[
 const pct=(v:number)=>`${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(1)}%`;
 const cls=(v:number)=>v>=0?'up':'down';
 export default function HistoryValidation(){
- return <details className="history-validation"><summary><strong>과거 8년 검증 (2019~2026)</strong><span>1억 원 · 평가자산 15%씩 → 2.77억 원 (+177%) · 같은 기간 KOSPI +180%</span></summary>
+ return <details className="history-validation"><summary><span className="history-validation-star" aria-hidden="true">★</span><strong>과거 8년 검증 (2019~2026)</strong><em className="history-validation-badge">가장 신뢰할 근거</em><span className="history-validation-lead">1억 원 · 평가자산 15%씩 → 2.77억 원 (+177%) · 최대 낙폭 −19.5% · 같은 기간 KOSPI +180% (−40.0%)</span></summary>
+  <p className="history-validation-why">이 전략을 판단할 때 가장 믿을 만한 자료입니다. 규칙을 정할 때 쓰지 않은 2019~2023년을 포함해 8년 동안, 지금 화면과 같은 규칙으로 계산했습니다. 아래 짧은 기간 시뮬레이션보다 이 결과를 먼저 보세요.</p>
   <p>지금 화면의 규칙(신호 4가지 조건, 다음 날 시가 매수, +30% 익절 / −10% 손절, 연기금 순매도 이탈 매도, 최소 300만 원, 수수료·세금 반영)을 2019-01-02 ~ 2026-10-30에 그대로 돌렸습니다. 1억 원으로 시작해 매수할 때마다 전날 평가자산의 15·20·25%를 샀고, 쉬는 현금은 그대로 두거나 KOSPI200 ETF(KODEX 200)에 넣었습니다.</p>
   <div className="history-validation-scroll"><table className="history-validation-table wide">
    <caption>전략 결과 · 1억 원 시작</caption>
