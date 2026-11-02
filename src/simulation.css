@@ -67,3 +67,7 @@
 .history-validation summary .history-validation-lead{flex-basis:100%;margin-left:22px;font-size:12.5px;color:inherit;font-variant-numeric:tabular-nums}
 .history-validation p.history-validation-why{margin-top:12px;padding:10px 12px;border-radius:7px;background:var(--sim-surface);border:1px solid color-mix(in srgb,var(--star) 30%,var(--border));font-weight:500}
 @media(max-width:600px){.history-validation{padding:12px 14px}.history-validation summary strong{font-size:14px}.history-validation summary .history-validation-lead{margin-left:0;font-size:12px}}
+/* 8-year tables: captions above the scroller, first column stays put while the table scrolls sideways (2026-11-02). */
+.history-validation p.history-validation-caption{font-size:11px;color:var(--muted);margin:14px 0 0}
+.history-validation-caption+.history-validation-scroll{margin-top:4px}
+.history-validation-table.wide th[scope=row],.history-validation-table.wide thead th:first-child{position:sticky;left:0;z-index:1;background:color-mix(in srgb,var(--star-soft) 55%,var(--sim-surface))}

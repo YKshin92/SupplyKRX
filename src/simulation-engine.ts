@@ -24,7 +24,10 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
  *  `gate` (one list per series, aligned with sessions) holds a series only on days marked true or null: on a false day it is
  *  sold at the open and its share of idle cash stays cash (see trendGate). NAVER ETF prices are back-adjusted for
  *  distributions, so ETF series count distributions as reinvested (no tax on them); price indices exclude dividends. */
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][]}};
+/** maxWait (capital mode): a signal not bought within this many trading days after the first possible open is skipped
+ *  (0 = next open only). cap (capital mode): one order is at most this fraction of the signal day's traded value
+ *  (close × volume, known after that close). Left out, signals wait without limit and orders are uncapped (original rule). */
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][]};maxWait?:number;cap?:number};
 /** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
@@ -55,6 +58,8 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  if(!days.length||!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||s.start<days[0]||s.start>days[days.length-1]||new Date(s.start).toISOString().slice(0,10)!==s.start)throw Error('시작일은 보유 데이터 기간 안에서 선택해 주세요.');
  if(!Number.isFinite(s.initial)||s.initial<1e4||s.initial>1e9||!Number.isFinite(s.budget)||s.budget<1e4||s.budget>1e8||!Number.isFinite(s.take)||s.take<1||s.take>100||!Number.isFinite(s.stop)||s.stop<1||s.stop>50)throw Error('입력 범위를 확인해 주세요.');
  if(s.sizing==='percent'&&(!Number.isFinite(s.percent)||s.percent!<1||s.percent!>100))throw Error('자금 비율은 1~100% 사이로 입력해 주세요.');
+ if(s.maxWait!=null&&!(Number.isInteger(s.maxWait)&&s.maxWait>=0&&s.maxWait<=250))throw Error('매수 대기 기한을 확인해 주세요.');
+ if(s.cap!=null&&!(Number.isFinite(s.cap)&&s.cap>0&&s.cap<=1))throw Error('주문 상한 비율을 확인해 주세요.');
  if(s.minBuy!=null&&(!Number.isFinite(s.minBuy)||s.minBuy<0||s.minBuy>1e8))throw Error('최소 매수금액 범위를 확인해 주세요.');
  if(s.costs&&![s.costs.buy,s.costs.sell].every(v=>Number.isFinite(v)&&v>=0&&v<=5))throw Error('수수료·세금 비율을 확인해 주세요.');
  if(s.idle&&s.idle.kind==='deposit'&&!(Number.isFinite(s.idle.rate??0.025)&&(s.idle.rate??0.025)>=0&&(s.idle.rate??0.025)<=0.2))throw Error('예금 금리를 확인해 주세요.');
@@ -98,11 +103,13 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
    if(heldCodes.has(t.code)){t.status='skipped';t.reason='동일 종목 중복 대기 신호 제외';continue;}
    const c=byCode.get(t.code)!,r=c.prices[i],previous=c.prices[i-1];t.wait_days=i-t.signal_index-1;
    if(s.mode==='unlimited'&&i!==t.signal_index+1)continue;
+   if(s.mode==='capital'&&s.maxWait!=null&&t.wait_days>s.maxWait){t.status='skipped';t.reason=`${s.maxWait}거래일 안에 매수하지 못해 건너뜀`;continue;}
    const problem=s.mode==='unlimited'?priceProblem(previous,r):!positive(r?.open)?'시가 미확인':positive(previous?.close)&&Math.abs(r!.open!/previous.close-1)>.35?'시가 단절':null;
    if(problem){t.reason=problem+' · 다음 거래일 재검토';if(s.mode==='unlimited')t.status='excluded';continue;}
    // The full order is bought when its whole shares fit in cash (the original rule). Otherwise, with a minimum set, the
    // remaining cash buys what it can as long as it is at least the minimum; without one the signal waits for cash.
-   const opening=r!.open!,unit=opening*(1+buyRate),want=partial?Math.max(target,s.minBuy!):target;let shares=Math.floor(want/unit);
+   const sig=c.prices[t.signal_index],capValue=s.mode==='capital'&&s.cap&&positive(sig?.close)&&positive(sig?.volume)?s.cap*sig!.close!*sig!.volume!:Infinity;
+   const opening=r!.open!,unit=opening*(1+buyRate),want=Math.min(partial?Math.max(target,s.minBuy!):target,capValue);let shares=Math.floor(want/unit);
    if(s.mode==='capital'&&shares*unit>cash+1e-7){
     if(!partial||cash<s.minBuy!-1e-7||cash<unit){t.reason=!partial?'현금 부족 · 매도 대금 재사용 대기':cash<s.minBuy!-1e-7?'현금이 최소 매수금액보다 적음 · 매도 대금 재사용 대기':'남은 현금으로 1주도 살 수 없음 · 대기';continue;}
     shares=Math.floor(cash/unit);

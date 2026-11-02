@@ -156,3 +156,13 @@ test('idle trend gate: a series is held only on gated-on days; off days sell at 
  r=run2(undefined);assert.ok(Math.abs(r.account.equity-400*scale)<1e-6);  // no gate: 100 -> 100
  r=run2([false,false,false,false,false]);assert.ok(Math.abs(r.account.equity-400*scale)<1e-6);assert.equal(r.idle_legs[0].buys,0);
 });
+test('maxWait skips signals not bought in time; cap limits an order to a share of the signal-day traded value',()=>{
+ const a=candidate('A',90,sessions.map(()=>price()));const b=candidate('B',70,sessions.map(()=>price()));
+ // 300 cash, 300 per order: A buys on day 1, B waits for cash. maxWait 0 skips B the next open; without it B keeps waiting.
+ let r=run([a,b],{maxWait:0});assert.equal(r.trades.find(t=>t.code==='B').status,'skipped');assert.match(r.trades.find(t=>t.code==='B').reason,/0거래일/);
+ r=run([a,b]);assert.equal(r.trades.find(t=>t.code==='B').status,'pending');
+ // signal-day value = close 100*scale × volume 100 = 10000*scale; cap 1% -> 100*scale -> 1 share instead of 3.
+ r=run([a],{cap:.01});assert.equal(r.trades[0].shares,1);
+ r=run([a]);assert.equal(r.trades[0].shares,3);
+ assert.throws(()=>run([a],{cap:2}),/주문 상한/);assert.throws(()=>run([a],{maxWait:-1}),/대기 기한/);
+});

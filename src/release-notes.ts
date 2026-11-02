@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-02-screen-check',date:'2026-11-02',title:'화면 점검 반영: 현금·ETF 표기, 8년 표 첫 열 고정, 대기 만료·주문 상한 계산',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
+  changes:['총 평가자산 아래를 ‘현금 ○원 · ETF ○원’으로 나눠 적었습니다(쉬는 현금이 모두 ETF일 때 같은 금액이 두 번 보이던 문제).','과거 8년 검증 표는 휴대폰에서 옆으로 넘겨도 첫 열(전략·연도)이 고정되고, 표 제목이 잘리지 않습니다.','늦은 매수와 큰 주문 점검: 5거래일 안에 못 사면 건너뛰는 규칙과 주문을 신호일 거래대금의 10%로 묶는 규칙을 8년으로 계산해 카드에 적었습니다. 결과가 거의 같아 기본 규칙 후보이며 화면에는 아직 넣지 않았습니다.'],
+  verified:'앱 안 브라우저로 PC·모바일·다크 화면 확인, 연구 재계산(rules.json) 2026-11-02',limits:['투자 권유 아님']},
  {id:'2026-11-02-idle-trend-check',date:'2026-11-02',title:'쉬는 현금 ETF에 200일선 필터 검토 (채택 안 함), ETF 분배금 설명 바로잡음',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 8년 검증'}],
   changes:['KOSPI200 ETF가 200일선 위일 때만 쉬는 현금을 넣는 방식을 8년으로 계산했습니다. 최종 금액이 24~25% 줄고, 2026년 7월 급락(최대 낙폭 −40.9%)은 피하지 못해 채택하지 않았습니다. 결과는 과거 8년 검증 카드에 적었습니다.','점검 중 NAVER의 ETF 가격이 분배금을 반영한 수정주가인 것을 확인했습니다(KODEX 200, 8년 누적 약 18% 차이). 그래서 ETF 계산에는 분배금 재투자 효과가 들어 있고, 분배금 세금(15.4%)만 빠져 있습니다. 화면 설명을 그렇게 고쳤습니다.'],
