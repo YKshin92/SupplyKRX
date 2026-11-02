@@ -21,8 +21,8 @@ const ETF_NAMES:Record<string,{name:string;code:string}>={ETF_KOSPI200:{name:'KO
 const days=(v:number|null)=>v==null?'—':`${v.toFixed(1)}거래일`;
 const labels:Record<Status,string>={take:'익절',stop:'손절',flow:'수급 이탈 매도',delisted:'가격 종료 정산',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
 /** Default view (user's choice 2026-11-02): from 2026-01-01, 2,000만, 25% of equity per signal, +30/-10, fees and tax on,
- *  연기금 net-sell exit on, idle cash in the Nasdaq-100 ETF. Costs match COSTS below (2026 rates). */
-const initial:Settings={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,start:'2026-01-01',filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:25,minBuy:3e6,costs:{buy:0.015,sell:0.215},idle:{kind:'index',series:['ETF_NASDAQ100']}};
+ *  연기금 net-sell exit on, idle cash in the KOSPI200 ETF. Costs match COSTS below (2026 rates). */
+const initial:Settings={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,start:'2026-01-01',filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:25,minBuy:3e6,costs:{buy:0.015,sell:0.215},idle:{kind:'index',series:['ETF_KOSPI200']}};
 /** One month as a bar spanning its first to last trading day on the daily axis (inset so neighbouring months do not touch). */
 const MonthBar=(p:{x?:number;y?:number;width?:number;height?:number;fill?:string})=><rect x={(p.x??0)+1} y={p.y??0} width={Math.max((p.width??0)-2,1)} height={Math.max(p.height??0,0)} fill={p.fill} rx={2}/>;
 type MonthRow={month:string;first:string;last:string;signals:number;bought:number};
