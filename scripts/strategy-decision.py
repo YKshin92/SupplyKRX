@@ -1,5 +1,5 @@
 """Record one owner decision on 전략 개선 후보 (run only by the private strategy-decision workflow after an admin click on the site).
-usage: strategy-decision.py --root <private data repo> --action approve|unapprove|apply [--id cNNN-...] [--run <workflow run id>]
+usage: strategy-decision.py --root <private data repo> --action approve|unapprove|hold|unhold|apply [--id cNNN-...] [--run <workflow run id>]
 Prints a GitHub notice; exits 1 with the reason when the decision does not fit the current status."""
 import argparse, os, sys
 from pathlib import Path

@@ -52,6 +52,31 @@ class StrategyCandidateTests(unittest.TestCase):
             setup(root, candidates=[dict(id='bad id', title='A', change='x')])
             with self.assertRaises(ValueError): statuses(root)
 
+    def test_hold_and_unhold(self):
+        with tempfile.TemporaryDirectory() as root:
+            setup(root)
+            with self.assertRaises(ValueError): record(root, 'unhold', 'c001-sell-tolerance')  # not held
+            record(root, 'hold', 'c001-sell-tolerance', now='2026-11-03T13:00:00Z')
+            _, s = statuses(root)
+            self.assertEqual((s['c001-sell-tolerance']['status'], s['c001-sell-tolerance']['held_at']), ('held', '2026-11-03T13:00:00Z'))
+            with self.assertRaises(ValueError): record(root, 'hold', 'c001-sell-tolerance')
+            with self.assertRaises(ValueError): record(root, 'apply')  # held is not approved, so nothing to apply
+            record(root, 'unhold', 'c001-sell-tolerance', now='2026-11-03T13:01:00Z')
+            self.assertEqual(statuses(root)[1]['c001-sell-tolerance']['status'], 'review')
+            record(root, 'hold', 'c001-sell-tolerance', now='2026-11-03T13:02:00Z')
+            record(root, 'approve', 'c001-sell-tolerance', now='2026-11-03T13:03:00Z')  # approve straight from held
+            s = statuses(root)[1]['c001-sell-tolerance']
+            self.assertEqual((s['status'], s['held_at']), ('approved', None))
+            with self.assertRaises(ValueError): record(root, 'hold', 'c001-sell-tolerance')  # approved: cancel first
+            e = record(root, 'apply', now='2026-11-03T13:04:00Z')
+            self.assertEqual(e['ids'], ['c001-sell-tolerance'])
+        ev = [dict(at='2026-11-03T01:00:00Z', action='hold', id='c002-weights'), dict(at='2026-11-03T01:05:00Z', action='unapprove', id='c002-weights')]
+        self.assertEqual(derive(C, ev, [])['c002-weights']['status'], 'held', 'invalid transitions in the log are ignored')
+        with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as out:
+            setup(root, events=[dict(at='2026-11-03T01:00:00Z', action='hold', id='c002-weights')])
+            rows = publish(root, out)['candidates']
+            self.assertEqual([r['status'] for r in rows], ['review', 'held']); self.assertEqual(rows[1]['status_label'], '보류')
+
 
 if __name__ == '__main__':
     unittest.main()

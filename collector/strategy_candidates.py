@@ -3,9 +3,10 @@ apply results written only by the nightly apply task. Status is derived from one
 
 Private files (SupplyKRX-data):
   data/strategy/candidates.json  {schema_version, candidates:[{id, created, goal, title, source, label, summary, change, metrics, risks, scope, withdrawn?}]}
-  data/strategy/decisions.json   {schema_version, events:[{at, action: approve|unapprove|apply, id? , ids?, run?}]}
+  data/strategy/decisions.json   {schema_version, events:[{at, action: approve|unapprove|hold|unhold|apply, id? , ids?, run?}]}
   data/strategy/applied.json     {schema_version, items:[{id, at, status: applied|failed, note, app_commit?, release_note?}]}
 Statuses: review (검토 완료 · 승인 대기) -> approved (승인됨) -> pending (반영 대기) -> applied (반영됨) | failed (반영 실패, 다시 승인 가능).
+held (보류, 2026-11-03): from review or failed; not part of an apply request. unhold returns it to review, approve approves it directly.
 """
 import json
 import re
@@ -13,8 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ID = re.compile(r'^c\d{3}(?:-[a-z0-9]+){0,6}$')
-ACTIONS = ('approve', 'unapprove', 'apply')
-LABELS = {'review': '검토 완료 · 승인 대기', 'approved': '승인됨', 'pending': '반영 대기', 'applied': '반영됨', 'failed': '반영 실패', 'withdrawn': '철회'}
+ACTIONS = ('approve', 'unapprove', 'hold', 'unhold', 'apply')
+# Which statuses each owner decision may start from (record validates; derive ignores anything else).
+ALLOWED = {'approve': ('review', 'failed', 'held'), 'unapprove': ('approved',), 'hold': ('review', 'failed'), 'unhold': ('held',)}
+LABELS = {'review': '검토 완료 · 승인 대기', 'approved': '승인됨', 'pending': '반영 대기', 'applied': '반영됨', 'failed': '반영 실패', 'held': '보류', 'withdrawn': '철회'}
 
 
 def _read(path, key):
@@ -40,8 +43,8 @@ def load(root):
 
 
 def derive(candidates, events, items):
-    """Return {id: dict(status, approved_at, requested_at, applied_at, note, app_commit, release_note)} from one ordered timeline."""
-    state = {c['id']: dict(status='withdrawn' if c.get('withdrawn') else 'review', approved_at=None, requested_at=None,
+    """Return {id: dict(status, approved_at, held_at, requested_at, applied_at, note, app_commit, release_note)} from one ordered timeline."""
+    state = {c['id']: dict(status='withdrawn' if c.get('withdrawn') else 'review', approved_at=None, held_at=None, requested_at=None,
                            applied_at=None, note=None, app_commit=None, release_note=None) for c in candidates}
     timeline = [(e['at'], 0, 'decision', e) for e in events] + [(i['at'], 1, 'result', i) for i in items]
     for _, _, kind, x in sorted(timeline, key=lambda t: (t[0], t[1])):
@@ -51,12 +54,16 @@ def derive(candidates, events, items):
                 s = state.get(cid)
                 if not s:
                     continue
-                if x['action'] == 'approve' and s['status'] in ('review', 'failed'):
-                    s.update(status='approved', approved_at=x['at'])
-                elif x['action'] == 'unapprove' and s['status'] == 'approved':
-                    s.update(status='review', approved_at=None)
-                elif x['action'] == 'apply' and s['status'] == 'approved':
-                    s.update(status='pending', requested_at=x['at'])
+                if x['action'] == 'apply':
+                    if s['status'] == 'approved':
+                        s.update(status='pending', requested_at=x['at'])
+                elif s['status'] in ALLOWED.get(x['action'], ()):
+                    if x['action'] == 'approve':
+                        s.update(status='approved', approved_at=x['at'], held_at=None)
+                    elif x['action'] == 'hold':
+                        s.update(status='held', held_at=x['at'])
+                    else:  # unapprove, unhold
+                        s.update(status='review', approved_at=None, held_at=None)
         else:
             s = state.get(x.get('id'))
             if s and s['status'] == 'pending' and x.get('status') in ('applied', 'failed'):
@@ -85,8 +92,7 @@ def record(root, action, cid=None, run=None, now=None):
         if not cid or not ID.match(cid) or cid not in state:
             raise ValueError('없는 후보입니다.')
         current = state[cid]['status']
-        allowed = ('review', 'failed') if action == 'approve' else ('approved',)
-        if current not in allowed:
+        if current not in ALLOWED[action]:
             raise ValueError(f'지금 상태({LABELS[current]})에서는 할 수 없습니다.')
         event = dict(at=at, action=action, id=cid)
     if run:
@@ -107,7 +113,7 @@ def publish(root, target):
         s = state[c['id']]
         rows.append({**{k: c.get(k) for k in ('id', 'created', 'goal', 'title', 'source', 'label', 'summary', 'change', 'metrics', 'risks', 'scope', 'withdrawn')},
                      **s, 'status_label': LABELS[s['status']]})
-    order = {'pending': 0, 'approved': 1, 'review': 2, 'failed': 3, 'applied': 4, 'withdrawn': 5}
+    order = {'pending': 0, 'approved': 1, 'review': 2, 'failed': 3, 'held': 4, 'applied': 5, 'withdrawn': 6}
     rows.sort(key=lambda r: (r['created'] or '', r['id']), reverse=True)  # newest first within each status
     rows.sort(key=lambda r: order[r['status']])
     out = dict(schema_version=1, generated_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),

@@ -5,7 +5,7 @@ const base='https://api.github.com/repos/YKshin92/SupplyKRX-data/actions';
 const workflow='strategy-decision.yml';
 const origin='https://supply-krx.vercel.app';
 const ID=/^c\d{3}(?:-[a-z0-9]+){0,6}$/;
-const ACTIONS=new Set(['approve','unapprove','apply']);
+const ACTIONS=new Set(['approve','unapprove','hold','unhold','apply']);
 const active=new Set(['queued','in_progress','waiting','pending','requested']);
 async function adminOnly(req,res){
  const {sessionUser}=await import('../server/auth.js');

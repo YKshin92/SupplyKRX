@@ -27,6 +27,11 @@ test('a decision is dispatched with validated inputs, and a running decision blo
  g=github([{id:5,status:'in_progress',created_at:'2026-11-03T00:00:00Z'}]);res=response();
  await createStrategyHandler(async()=>true,{...g,env})(post({action:'apply'}),res);assert.equal(res.code,409);assert.ok(!g.calls.some(c=>c.url.endsWith('/dispatches')));
 });
+test('hold and unhold are dispatched like other decisions',async()=>{
+ for(const action of ['hold','unhold']){const g=github([]);const res=response();await createStrategyHandler(async()=>true,{...g,env})(post({action,id:'c002-weight-52w-foreign'}),res);
+  assert.equal(res.code,202);assert.deepEqual(JSON.parse(g.calls.find(c=>c.url.endsWith('/dispatches')).options.body).inputs,{action,id:'c002-weight-52w-foreign'});}
+ const g=github([]);const res=response();await createStrategyHandler(async()=>true,{...g,env})(post({action:'hold'}),res);assert.equal(res.code,400);
+});
 test('run lookup only returns this workflow',async()=>{
  const fetchImpl=async()=>new Response(JSON.stringify({id:9,status:'completed',conclusion:'success',path:'.github/workflows/collect.yml'}),{status:200});
  const res=response();await createStrategyHandler(async()=>true,{fetchImpl,env})({method:'GET',headers:{},query:{run:'9'}},res);assert.equal(res.code,404);

@@ -53,6 +53,11 @@ test('session exchange rejects cross-site calls and stores only verified JWT in 
  res=response();await handler({method:'GET',query:{action:'me'},headers:{cookie:`${sessionCookie}=${token}`}},res);assert.equal(res.body.id,'owner-id');
  res=response();await handler({...req,query:{action:'logout'}},res);assert.match(res.headers['Set-Cookie'],/Max-Age=0/);
 });
+test('encoded, doubled or malformed paths are checked like plain ones',async()=>{
+ const guest=createProxy(async()=>{throw Object.assign(new Error(),{status:401});});
+ for(const path of ['//data/live/manifest.json','/%64ata/live/manifest.json','/data//live/manifest.json'])assert.equal((await guest(new Request('https://supply-krx.vercel.app'+path))).status,401,path);
+ assert.equal((await guest(new Request('https://supply-krx.vercel.app/data/live/%E0%A4%A.json'))).status,400);
+});
 test('middleware protects static data before cache, allows member viewing but rejects member collection and CSV',async()=>{
  const guest=createProxy(async()=>{throw Object.assign(new Error(),{status:401});});
  for(const path of ['/data/live/manifest.json','/data/live/periods/3m/summary.json','/api/collect','/api/strategy'])assert.equal((await guest(new Request('https://supply-krx.vercel.app'+path))).status,401);
@@ -61,6 +66,9 @@ test('middleware protects static data before cache, allows member viewing but re
  let res=await member(new Request('https://supply-krx.vercel.app/data/live/manifest.json'));assert.equal(res.headers.get('x-middleware-next'),'1');assert.equal(res.headers.get('cache-control'),'private, no-store');
  assert.equal((await member(new Request('https://supply-krx.vercel.app/api/collect'))).status,403);
  assert.equal((await member(new Request('https://supply-krx.vercel.app/api/strategy'))).status,403);
+ for(const path of ['/data/live/signal-lab/latest.json','/data/live/strategy-candidates.json','/api/trading','/data/live/signal%2Dlab/latest.json','/data//live/strategy-candidates.json','//data/live/signal-lab/latest.json'])assert.equal((await member(new Request('https://supply-krx.vercel.app'+path))).status,403,path);
+ for(const path of ['/data/live/simulation-input.json','/data/live/entry-events.json','/data/live/flow-ranks/x.json','/data/live/signal-labs.json'])assert.equal((await member(new Request('https://supply-krx.vercel.app'+path))).headers.get('x-middleware-next'),'1',path);
  assert.equal((await member(new Request('https://supply-krx.vercel.app/data/live/export.csv'))).status,403);
  const admin=createProxy(async()=>({id:'owner-id',isAdmin:true}));assert.equal((await admin(new Request('https://supply-krx.vercel.app/api/collect'))).headers.get('x-middleware-next'),'1');
+ assert.equal((await admin(new Request('https://supply-krx.vercel.app/data/live/signal-lab/latest.json'))).headers.get('x-middleware-next'),'1');
 });
