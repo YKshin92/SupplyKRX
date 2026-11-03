@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .rules import signal_passes
 
-EMPTY = dict(version=1, positions={}, pending=[], seen=[], trades=[], orders=[], halted={}, day=None, equity_prev_close=None)
+EMPTY = dict(version=1, positions={}, pending=[], seen=[], trades=[], orders=[], halted={}, day=None, equity_prev_close=None, equity_history=[])
 
 
 def load(path: str | Path) -> dict:

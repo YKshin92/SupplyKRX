@@ -121,7 +121,12 @@ def after_close(book: dict, broker: Broker, today: str, closes: dict[str, float]
             pos['flow_flag'] = today
             flagged.append(code)
             log(book, 'flow_flag', date=today, code=code, reason='연기금 순매도 > 신호일 순매수 · 다음 거래일 시가 매도 예약')
-    book['equity_prev_close'] = broker.cash() + sum(p['shares'] * closes[c] for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values())
+    cash = broker.cash()
+    book['equity_prev_close'] = cash + sum(p['shares'] * closes[c] for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values())
+    for c, p in book['positions'].items():
+        p['last_close'] = closes[c]
+    history = [h for h in book['equity_history'] if h['date'] != today]
+    book['equity_history'] = history + [dict(date=today, equity=book['equity_prev_close'], cash=cash)]
     return flagged
 
 

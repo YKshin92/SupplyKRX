@@ -6,6 +6,8 @@ from trader.replay import replay, load_input
 from trader.book import load, save, add_signals
 from trader.broker import DryRunBroker, Quote, PlugBroker, LiveGuardError, check_target, order_payload
 from trader.bot import Risk, at_open, on_price, after_close
+from trader.report import build_state, max_drawdown
+from trader.sync import Mailbox
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'trader-synthetic.json'
 S = Settings()
@@ -123,6 +125,53 @@ class BotReplayParityTests(unittest.TestCase):
             book, _ = drive_bot(load_input(FIXTURE))
             save(book, Path(d) / 'b' / 'book.json')
             self.assertEqual(load(Path(d) / 'b' / 'book.json'), json.loads(json.dumps(book)))
+
+
+class ReportAndMailboxTests(unittest.TestCase):
+    def test_state_document(self):
+        book, broker = drive_bot(load_input(FIXTURE))
+        st = build_state(book, cash=broker.cash(), prices={}, mode='dry-run', stopped=False, settings=S, daily_max_buy=1e7, initial=20_000_000)
+        self.assertEqual(st['schema'], 1)
+        self.assertEqual(len(st['balance']['positions']), len(book['positions']))
+        self.assertEqual(st['performance']['closed'], len(book['trades']))
+        self.assertAlmostEqual(st['balance']['equity'], book['equity_prev_close'], delta=1)
+        self.assertNotIn('account', json.dumps(st))  # 계좌번호 필드 없음
+        p = st['balance']['positions'][0]
+        self.assertAlmostEqual(p['take_price'], p['entry_price'] * 1.3, delta=1)
+        self.assertEqual(max_drawdown([100, 120, 90, 130]), -25.0)
+
+    def test_mailbox_put_get_and_safe_stop(self):
+        import base64, io
+        store, calls = {}, []
+        class Res(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+        def opener(req, timeout):
+            calls.append((req.get_method(), req.full_url, req.headers.get('Authorization')))
+            path = req.full_url.split('/contents/')[1].split('?')[0]
+            if req.get_method() == 'GET':
+                if path not in store:
+                    import urllib.error
+                    raise urllib.error.HTTPError(req.full_url, 404, 'nf', {}, None)
+                return Res(json.dumps(dict(content=base64.b64encode(store[path].encode()).decode(), sha='s1')).encode())
+            body = json.loads(req.data)
+            self.assertEqual(body['branch'], 'trading-state')
+            store[path] = base64.b64decode(body['content']).decode()
+            return Res(b'{}')
+        m = Mailbox('t', opener=opener)
+        m.put_json('trading/state.json', dict(a=1), 'state')
+        self.assertEqual(m.get_json('trading/state.json')[0], dict(a=1))
+        self.assertFalse(m.remote_stopped())  # control 없음 = 정지 아님
+        store['trading/control.json'] = json.dumps(dict(stopped=True))
+        self.assertTrue(m.remote_stopped())
+        def broken(req, timeout): raise OSError('down')
+        m.open = broken
+        self.assertTrue(m.remote_stopped(), 'keeps the last known value')
+        self.assertTrue(Mailbox('t', opener=broken).remote_stopped(), 'never read → stopped')
+        self.assertTrue(all(c[1].startswith('https://api.github.com/repos/YKshin92/SupplyKRX-data/contents/trading/') for c in calls))
+        from unittest import mock
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaises(RuntimeError):
+            Mailbox(None, opener=opener)
 
 
 if __name__ == '__main__':

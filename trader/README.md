@@ -46,5 +46,12 @@
    - 시세·잔고·체결 응답의 필드를 실제 응답으로 확인해 `PlugBroker`를 완성한다.
    - PC에 설치하고 장중 자동 실행을 붙인다.
    - 장 시작 전 계좌와 장부를 맞추는 단계를 넣는다.
-3. 사이트 '자동매매'(관리자 전용) 메뉴: 현재 잔고, 거래내역, 매매 성과, 긴급 정지 버튼. PC 봇과 사이트를 잇는 방법을 정한 뒤 만든다.
+3. 사이트 '자동매매'(관리자 전용) 탭은 화면(`src/AutoTrading.tsx`)과 API(`api/trading.js`)까지 만들었다. 탭은 현재 잔고 · 거래내역 · 매매 성과이고 긴급 정지 버튼이 있다.
+   - 연결은 비공개 저장소 SupplyKRX-data의 `trading-state` 가지를 쓴다. 이 가지는 배포하지 않는다.
+     - 봇이 `trading/state.json`을 올린다(`trader/report.py`, `trader/sync.py`).
+     - 사이트의 정지·재개 버튼은 `trading-control.yml`을 실행해 `trading/control.json`에 기록한다.
+     - 봇은 주문 직전마다 이 파일을 확인한다.
+   - 사용자가 준비할 것:
+     - PC용 GitHub 토큰: SupplyKRX-data 한 저장소, Contents 읽기·쓰기만. PC 환경 변수 `SUPPLYKRX_TRADER_TOKEN`에 넣는다.
+     - 사이트 서버 토큰 `GITHUB_COLLECTION_TOKEN`에 Contents 읽기 권한 추가
 4. 실전 전환은 모의 결과를 보고 사용자가 직접 한다.
