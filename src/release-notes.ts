@@ -223,3 +223,20 @@ export const isRecent=(date:string,today=seoulToday(),days=7)=>{const age=dayNum
 export const recentTabs=(today=seoulToday())=>new Set(RELEASES.filter(r=>!r.superseded&&isRecent(r.date,today)).flatMap(r=>r.targets.map(t=>t.tab)));
 export const recentSelectors=(today=seoulToday())=>new Set(RELEASES.filter(r=>!r.superseded&&isRecent(r.date,today)).flatMap(r=>r.targets.flatMap(t=>t.selector?[t.selector]:[])));
 export const latestRelease=RELEASES[0];
+/** Tab NEW badges (2026-11-04): a tab shows NEW only while it has a release this browser has not seen yet; opening the tab marks its
+ *  releases seen. The first visit counts everything already released as seen, so NEW never lights up every tab at once. Daily data
+ *  updates are not releases and never show NEW. */
+export const SEEN_RELEASES_KEY='supplykrx-seen-releases-v1';
+export const unseenTabs=(seen:ReadonlySet<string>)=>new Set<string>(RELEASES.filter(r=>!r.superseded&&!seen.has(r.id)).flatMap(r=>r.targets.map(t=>t.tab)));
+export const releaseIdsFor=(tab:string)=>RELEASES.filter(r=>r.targets.some(t=>t.tab===tab)).map(r=>r.id);
+export function readSeenReleases(storage:Pick<Storage,'getItem'|'setItem'>|null=typeof localStorage==='undefined'?null:localStorage):Set<string>{
+ const all=RELEASES.map(r=>r.id);
+ try{const raw=storage?.getItem(SEEN_RELEASES_KEY);if(raw==null){storage?.setItem(SEEN_RELEASES_KEY,JSON.stringify(all));return new Set(all);}
+  const v=JSON.parse(raw);return new Set(Array.isArray(v)?v.filter((x:unknown):x is string=>typeof x==='string'):all);}
+ catch{return new Set(all);}
+}
+export function markSeen(seen:ReadonlySet<string>,tab:string,storage:Pick<Storage,'setItem'>|null=typeof localStorage==='undefined'?null:localStorage):Set<string>{
+ const next=new Set([...seen,...releaseIdsFor(tab)]);
+ try{storage?.setItem(SEEN_RELEASES_KEY,JSON.stringify([...next]));}catch{/* per-viewer convenience only */}
+ return next;
+}

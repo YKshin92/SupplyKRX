@@ -29,7 +29,7 @@ import VolumeChart from './VolumeChart';
 import {adjustRows,adjustLabel} from './price-adjust';
 import {chaseWarning} from './chase';
 import {FLOW_INVESTORS,INSTITUTION_NOTE,flowInvestor,investorRows,withInvestorFlow,type FlowInvestorKey} from './investor-flow';
-import {recentTabs,type ReleaseTarget} from './release-notes';
+import {unseenTabs,readSeenReleases,markSeen,releaseIdsFor,type ReleaseTarget} from './release-notes';
 import {ResponsiveContainer,ComposedChart,Line,Bar,XAxis,YAxis,CartesianGrid,Tooltip,ReferenceLine,Cell} from 'recharts';
 import {type Dataset,type Row,type Manifest,amountUnit,amountNumber,amountLabel,axisAmount,summarize,loadDataset,json,money,integer,sign,previousSession} from './data';
 import {historyDetail,type HistoryDetail} from './history-data';
@@ -57,7 +57,9 @@ export default function App({canCollect=false,accountControls}:{canCollect?:bool
  const [flowOpen,setFlowOpen]=useState(true),[statInvestor,setStatInvestor]=useState<StatInvestor>('연기금 등');
  const [workspaceTab,setWorkspaceTab]=useState<'market'|'explore'|'cases'|'simulation'|'signals'|'candidates'|'trading'>('explore');
  const [discoveryView,setDiscoveryView]=useState<'pension'|'ranks'|'rsi'|'highs'>('pension');
- const recent=recentTabs();
+ const [seenReleases,setSeenReleases]=useState(()=>readSeenReleases());
+ const recent=unseenTabs(seenReleases);
+ useEffect(()=>{if(releaseIdsFor(workspaceTab).some(id=>!seenReleases.has(id)))setSeenReleases(v=>markSeen(v,workspaceTab));},[workspaceTab]);
  // Guest accounts (no admin) see 시장 현황 · 종목 발굴 · 신규 순매수 추적 · 전략 검증 only; the server also refuses them the data of the others.
  const canSee=(tab:ReleaseTarget['tab']|'trading')=>canCollect||!ADMIN_TABS.has(tab);
  const navigateTo=(t:ReleaseTarget)=>{if(!canSee(t.tab))return;closeStock();setWorkspaceTab(t.tab);if(t.discovery)setDiscoveryView(t.discovery);if(!t.selector)return;let tries=0;const find=()=>{const el=document.querySelector<HTMLElement>(t.selector!);if(!el){if(tries++<180)window.setTimeout(find,250);return;}if(el instanceof HTMLDetailsElement)el.open=true;el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.remove('release-highlight');void el.offsetWidth;el.classList.add('release-highlight');window.setTimeout(()=>el.classList.remove('release-highlight'),2800);};window.setTimeout(find,50);};
