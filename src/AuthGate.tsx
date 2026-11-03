@@ -6,6 +6,10 @@ import './auth.css';
 
 type Member={id:string;isAdmin:boolean;expiresAt:number};
 async function authRequest(action:string,body?:object,signal?:AbortSignal){const response=await fetch(`/api/auth?action=${action}`,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,cache:'no-store',signal});const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error??'로그인 요청을 처리하지 못했습니다.'),{status:response.status});return data;}
+// Descope's console only takes an email or phone as a login ID, so accounts are created as <id>@supply-krx.vercel.app (a domain with no
+// mailbox; invitations off) and people type just the short ID here, e.g. master or guest.
+const LOGIN_DOMAIN='supply-krx.vercel.app';
+export const toLoginId=(id:string)=>{const v=id.trim();return v.includes('@')?v:`${v.toLowerCase()}@${LOGIN_DOMAIN}`;};
 // Accounts are issued by the administrator (Descope console); there is no sign-up here, and the server refuses users without an issued role.
 function LoginFrame({children}:{children:React.ReactNode}){return <main className="auth-page"><section className="auth-card"><div className="eyebrow">PENSION FLOW</div><h1>연기금 수급 연구소</h1><p className="auth-intro">관리자가 발급한 아이디로 로그인하세요.</p>{children}<footer><ShieldCheck size={15}/> 계정이 필요하면 관리자에게 문의해 주세요.</footer></section></main>;}
 function SessionGate(){
@@ -26,7 +30,7 @@ function SessionGate(){
   document.addEventListener('visibilitychange',wake);window.addEventListener('focus',wake);
   return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',wake);window.removeEventListener('focus',wake);};},[member]);
  async function logout(){setBusy(true);try{await authRequest('logout',{});setMember(null);await sdk.logout();setPassword('');setError('');}catch{setError('로그아웃을 완료하지 못했습니다. 다시 시도해 주세요.');}finally{setBusy(false);}}
- async function signIn(event:FormEvent){event.preventDefault();if(busy)return;setBusy(true);setError('');try{const response=await sdk.password.signIn(loginId.trim(),password);if(!response.ok)throw new Error();setPassword('');}catch{setError('아이디 또는 비밀번호가 올바르지 않습니다. 여러 번 틀리면 잠시 로그인이 잠길 수 있습니다.');}finally{setBusy(false);}}
+ async function signIn(event:FormEvent){event.preventDefault();if(busy)return;setBusy(true);setError('');try{const response=await sdk.password.signIn(toLoginId(loginId),password);if(!response.ok)throw new Error();setPassword('');}catch{setError('아이디 또는 비밀번호가 올바르지 않습니다. 여러 번 틀리면 잠시 로그인이 잠길 수 있습니다.');}finally{setBusy(false);}}
  async function sendCode(event:FormEvent){event.preventDefault();if(busy)return;setBusy(true);setError('');try{const address=email.trim();const response=await sdk.otp.signIn.email(address);if(!response.ok)throw new Error();setSentTo(address);setCode('');}catch{setError('인증코드를 보내지 못했습니다. 등록된 관리자 이메일인지 확인해 주세요.');}finally{setBusy(false);}}
  async function verifyCode(event:FormEvent){event.preventDefault();if(busy)return;setBusy(true);setError('');try{const response=await sdk.otp.verify.email(sentTo,code.trim());if(!response.ok)throw new Error();}catch{setError('인증코드가 올바르지 않거나 만료됐습니다.');}finally{setBusy(false);}}
  if(member&&isAuthenticated)return <Suspense fallback={<LoginFrame><p role="status">대시보드를 불러오고 있습니다.</p></LoginFrame>}><App canCollect={member.isAdmin} accountControls={<button className="button" disabled={busy} onClick={()=>void logout()}><LogOut size={16}/> 로그아웃</button>}/></Suspense>;
