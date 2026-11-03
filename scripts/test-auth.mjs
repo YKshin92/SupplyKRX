@@ -22,8 +22,22 @@ test('official SDK rejects cryptographically tampered JWT, incorrect audience/is
 });
 test('verified subject allowlist determines administrator; request fields cannot grant access',async()=>{
  assert.equal((await validateToken(token,{env,verify})).isAdmin,true);
- assert.equal((await validateToken(token,{env,verify:async()=>({token:{...claims,sub:'viewer-id',isAdmin:true}})})).isAdmin,false);
+ assert.equal((await validateToken(token,{env,verify:async()=>({token:{...claims,sub:'viewer-id',isAdmin:true,roles:['viewer']}})})).isAdmin,false);
  await assert.rejects(sessionUser({headers:{'x-user-id':'owner-id'}},{env,verify}),{status:401});
+});
+test('only issued accounts enter: admin IDs or the member role; self sign-ups are refused',async()=>{
+ const as=extra=>({env,verify:async()=>({token:{...claims,sub:'someone',...extra}})});
+ assert.deepEqual(await validateToken(token,as({roles:['viewer']})),{id:'someone',isAdmin:false,expiresAt:claims.exp});
+ for(const extra of [{},{roles:[]},{roles:['Viewer']},{roles:'viewer'},{roles:[['viewer']]},{isAdmin:true},{permissions:['viewer']},{tenants:{t1:{roles:['viewer']}}}])await assert.rejects(validateToken(token,as(extra)),{status:403});
+ assert.equal((await validateToken(token,{env:{...env,MEMBER_ROLE:'guest-pass'},verify:async()=>({token:{...claims,sub:'someone',roles:['guest-pass']}})})).isAdmin,false);
+ await assert.rejects(validateToken(token,{env:{...env,MEMBER_ROLE:''},verify:async()=>({token:{...claims,sub:'someone',roles:['']}})}),{status:403});
+ assert.equal((await validateToken(token,{env,verify:async()=>({token:{...claims,roles:[]}})})).isAdmin,true,'admin needs no role');
+ const handler=createAuthHandler({env,verify:async()=>({token:{...claims,sub:'someone'}})});
+ let res=response();await handler({method:'POST',query:{action:'session'},headers:{origin:'https://supply-krx.vercel.app'},body:{sessionToken:token}},res);
+ assert.equal(res.code,403);assert.match(res.headers['Set-Cookie'],/Max-Age=0/);assert.match(res.body.error,/관리자/);
+ res=response();await handler({method:'GET',query:{action:'me'},headers:{cookie:`${sessionCookie}=${token}`}},res);assert.equal(res.code,403);
+ const proxy=createProxy(async()=>{throw Object.assign(new Error(),{status:403});});
+ assert.equal((await proxy(new Request('https://supply-krx.vercel.app/data/live/manifest.json'))).status,403);
 });
 test('missing, malformed, duplicate, expired and wrong project sessions fail closed',async()=>{
  for(const value of ['',null,'tampered','a.b.c;Cookie=evil'])await assert.rejects(validateToken(value,{env,verify}),{status:401});

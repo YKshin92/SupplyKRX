@@ -10,7 +10,7 @@ const active=new Set(['queued','in_progress','waiting','pending','requested']);
 async function adminOnly(req,res){
  const {sessionUser}=await import('../server/auth.js');
  try{const user=await sessionUser(req);if(user.isAdmin)return true;res.status(403).json({error:'승인·반영은 관리자만 할 수 있습니다.'});}
- catch(error){res.status(error.status??401).json({error:error.status===503?'로그인 설정이 필요합니다.':'로그인이 필요합니다.'});}
+ catch(error){res.status(error.status??401).json({error:error.status===503?'로그인 설정이 필요합니다.':error.status===403?'접근 권한이 없는 계정입니다.':'로그인이 필요합니다.'});}
  return false;
 }
 export function createStrategyHandler(authorize=adminOnly,{fetchImpl=fetch,env=process.env}={}){return async function handler(req,res){
