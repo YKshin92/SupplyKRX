@@ -22,4 +22,5 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: npm ci
       - run: npm test
+      - run: node --experimental-strip-types scripts/trader-parity.mjs --synthetic
       - run: npm run build
