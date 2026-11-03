@@ -25,6 +25,11 @@ test('verified subject allowlist determines administrator; request fields cannot
  assert.equal((await validateToken(token,{env,verify:async()=>({token:{...claims,sub:'viewer-id',isAdmin:true,roles:['viewer']}})})).isAdmin,false);
  await assert.rejects(sessionUser({headers:{'x-user-id':'owner-id'}},{env,verify}),{status:401});
 });
+test('administrators may be listed in either admin variable',async()=>{
+ const as=sub=>({env:{...env,ADMIN_USER_IDS:' master-id , '},verify:async()=>({token:{...claims,sub}})});
+ assert.equal((await validateToken(token,as('master-id'))).isAdmin,true);assert.equal((await validateToken(token,as('owner-id'))).isAdmin,true);
+ await assert.rejects(validateToken(token,as('')),{status:401});await assert.rejects(validateToken(token,as('someone')),{status:403});
+});
 test('only issued accounts enter: admin IDs or the member role; self sign-ups are refused',async()=>{
  const as=extra=>({env,verify:async()=>({token:{...claims,sub:'someone',...extra}})});
  assert.deepEqual(await validateToken(token,as({roles:['viewer']})),{id:'someone',isAdmin:false,expiresAt:claims.exp});

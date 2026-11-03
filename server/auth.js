@@ -3,8 +3,9 @@ import DescopeClient from '@descope/node-sdk';
 export const sessionCookie='__Host-supply-session';
 const clients=new Map();
 const header=(req,name)=>req.headers?.get?req.headers.get(name):req.headers?.[name];
-export function config(env=process.env){return {projectId:(env.DESCOPE_PROJECT_ID??env.NEXT_PUBLIC_DESCOPE_PROJECT_ID??'').trim(),origin:env.AUTH_APP_ORIGIN??'https://supply-krx.vercel.app',admins:(env.COLLECTION_ADMIN_USER_IDS??'').split(',').map(v=>v.trim()).filter(Boolean),memberRole:(env.MEMBER_ROLE??'viewer').trim()};}
-// Only accounts the administrator issued may enter: the admin user IDs above, or users the admin gave the member role in the Descope console.
+export function config(env=process.env){return {projectId:(env.DESCOPE_PROJECT_ID??env.NEXT_PUBLIC_DESCOPE_PROJECT_ID??'').trim(),origin:env.AUTH_APP_ORIGIN??'https://supply-krx.vercel.app',admins:[env.COLLECTION_ADMIN_USER_IDS,env.ADMIN_USER_IDS].flatMap(v=>(v??'').split(',')).map(v=>v.trim()).filter(Boolean),memberRole:(env.MEMBER_ROLE??'viewer').trim()};}
+// Only accounts the administrator issued may enter: the admin user IDs above (COLLECTION_ADMIN_USER_IDS, plus ADMIN_USER_IDS for the
+// ID/password administrator account added 2026-11-04), or users the admin gave the member role in the Descope console.
 // Self-registered users (anyone can call Descope's public sign-up API with the project ID) carry no role and are refused here.
 export const NOT_MEMBER='관리자가 발급한 계정만 접속할 수 있습니다. 계정이 필요하면 관리자에게 문의해 주세요.';
 export function sameOrigin(req,env=process.env){return header(req,'origin')===config(env).origin;}

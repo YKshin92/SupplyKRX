@@ -6,8 +6,9 @@
 ## 누가 들어오는가 (서버에서 확인)
 
 - 서버(`server/auth.js` `validateToken`)는 Descope가 서명한 세션 JWT를 검증한 뒤 다음 둘 중 하나만 통과시킨다.
-  - 관리자: 사용자 ID가 Vercel 서버 환경 변수 `COLLECTION_ADMIN_USER_IDS`에 있는 사람 (수집·승인 가능).
-  - 회원: 관리자가 콘솔에서 역할 `viewer`(서버 환경 변수 `MEMBER_ROLE`로 바꿀 수 있음, 비우면 회원 없음)를 준 사람 (조회만).
+  - 관리자: 사용자 ID가 Vercel 서버 환경 변수 `COLLECTION_ADMIN_USER_IDS` 또는 `ADMIN_USER_IDS`(2026-11-04, master 계정)에 있는 사람 (모든 탭, 수집·승인 가능).
+  - 회원: 관리자가 콘솔에서 역할 `viewer`(서버 환경 변수 `MEMBER_ROLE`로 바꿀 수 있음, 비우면 회원 없음)를 준 사람. 시장 현황·종목 발굴·신규 순매수 추적·전략 검증만 본다(guest).
+- 계정: Descope 콘솔은 로그인 ID로 이메일·전화만 받아 `master@supply-krx.vercel.app`, `guest@supply-krx.vercel.app`(메일함 없는 주소, 초대 끔)로 만들고, 로그인 화면에서는 `master`·`guest`만 입력한다. 콘솔은 임시 비밀번호만 발급하므로 로그인 화면의 ‘비밀번호 바꾸기’(password.replace)로 각자 바꾼다.
 - 그 밖의 계정은 로그인에 성공해도 403(‘관리자가 발급한 계정만 접속할 수 있습니다’)으로 막고 세션 쿠키를 지운다.
   Descope 공개 API로 누가 직접 가입해도 역할이 없으므로 들어올 수 없다. 예전에 이메일로 가입한 계정도 같은 이유로 막힌다.
 - 역할은 JWT 최상위 `roles`만 본다(테넌트 역할·권한·요청 값은 보지 않음). 대소문자를 구분한다.
