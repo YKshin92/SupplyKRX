@@ -25,6 +25,12 @@ test('verified subject allowlist determines administrator; request fields cannot
  assert.equal((await validateToken(token,{env,verify:async()=>({token:{...claims,sub:'viewer-id',isAdmin:true,roles:['viewer']}})})).isAdmin,false);
  await assert.rejects(sessionUser({headers:{'x-user-id':'owner-id'}},{env,verify}),{status:401});
 });
+test('a member ID list admits exactly those IDs and ignores roles',async()=>{
+ const e={...env,MEMBER_USER_IDS:'guest-id'};const as=(sub,extra={})=>({env:e,verify:async()=>({token:{...claims,sub,...extra}})});
+ assert.equal((await validateToken(token,as('guest-id'))).isAdmin,false);
+ await assert.rejects(validateToken(token,as('someone',{roles:['viewer']})),{status:403});
+ assert.equal((await validateToken(token,as('owner-id'))).isAdmin,true);
+});
 test('administrators may be listed in either admin variable',async()=>{
  const as=sub=>({env:{...env,ADMIN_USER_IDS:' master-id , '},verify:async()=>({token:{...claims,sub}})});
  assert.equal((await validateToken(token,as('master-id'))).isAdmin,true);assert.equal((await validateToken(token,as('owner-id'))).isAdmin,true);

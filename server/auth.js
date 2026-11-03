@@ -3,7 +3,7 @@ import DescopeClient from '@descope/node-sdk';
 export const sessionCookie='__Host-supply-session';
 const clients=new Map();
 const header=(req,name)=>req.headers?.get?req.headers.get(name):req.headers?.[name];
-export function config(env=process.env){return {projectId:(env.DESCOPE_PROJECT_ID??env.NEXT_PUBLIC_DESCOPE_PROJECT_ID??'').trim(),origin:env.AUTH_APP_ORIGIN??'https://supply-krx.vercel.app',admins:[env.COLLECTION_ADMIN_USER_IDS,env.ADMIN_USER_IDS].flatMap(v=>(v??'').split(',')).map(v=>v.trim()).filter(Boolean),memberRole:(env.MEMBER_ROLE??'viewer').trim()};}
+export function config(env=process.env){return {projectId:(env.DESCOPE_PROJECT_ID??env.NEXT_PUBLIC_DESCOPE_PROJECT_ID??'').trim(),origin:env.AUTH_APP_ORIGIN??'https://supply-krx.vercel.app',admins:[env.COLLECTION_ADMIN_USER_IDS,env.ADMIN_USER_IDS].flatMap(v=>(v??'').split(',')).map(v=>v.trim()).filter(Boolean),memberRole:(env.MEMBER_ROLE??'viewer').trim(),members:(env.MEMBER_USER_IDS??'').split(',').map(v=>v.trim()).filter(Boolean)};}
 // Only accounts the administrator issued may enter: the admin user IDs above (COLLECTION_ADMIN_USER_IDS, plus ADMIN_USER_IDS for the
 // ID/password administrator account added 2026-11-04), or users the admin gave the member role in the Descope console.
 // Self-registered users (anyone can call Descope's public sign-up API with the project ID) carry no role and are refused here.
@@ -23,7 +23,9 @@ export async function validateToken(token,{env=process.env,verify}={}){
  }catch{throw Object.assign(new Error('invalid_session'),{status:401});}
  const isAdmin=settings.admins.includes(claims.sub);
  const roles=Array.isArray(claims.roles)?claims.roles.filter(v=>typeof v==='string'):[];
- if(!isAdmin&&!(settings.memberRole&&roles.includes(settings.memberRole)))throw Object.assign(new Error('not_member'),{status:403});
+ // MEMBER_USER_IDS set (2026-11-04: guest only): exactly those user IDs are members and roles are ignored. Unset: the member role decides.
+ const isMember=settings.members.length?settings.members.includes(claims.sub):!!settings.memberRole&&roles.includes(settings.memberRole);
+ if(!isAdmin&&!isMember)throw Object.assign(new Error('not_member'),{status:403});
  return {id:claims.sub,isAdmin,expiresAt:claims.exp};
 }
 export async function sessionUser(req,options){return validateToken(cookieToken(req),options);}
