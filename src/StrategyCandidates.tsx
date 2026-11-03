@@ -49,30 +49,48 @@ export default function StrategyCandidates({canAct,asOf}:{canAct:boolean;asOf:st
 
  if(loading)return <div className="chart-empty" role="status">전략 개선 후보를 불러오는 중…</div>;
  if(error)return <div className="no-results" role="alert">{error} <button className="button small" onClick={()=>setReload(v=>v+1)}>다시 불러오기</button></div>;
+ const open=rows.filter(c=>c.status!=='applied'&&c.status!=='withdrawn'),done=rows.filter(c=>c.status==='applied'||c.status==='withdrawn');
+ const STEPS:[Status,string,string][]=[['review','승인 대기','관리자가 검토 후 승인'],['approved','승인됨','반영 요청 전 · 취소 가능'],['pending','반영 대기',`${APPLY_TIME} 일괄 적용`],['applied','반영됨','운영 사이트에 적용 완료']];
+ const card=(c:Candidate)=><article key={c.id} className={`sc-card ${c.status}`} aria-labelledby={`sc-${c.id}`}>
+  <div className="sc-card-top">
+   <div className="sc-card-title">
+    <div className="sc-tags"><span className={`sc-chip ${c.status}`}>{LABEL[c.status]}</span>{c.goal&&GOAL[c.goal]?<span className="sc-tag">{GOAL[c.goal]}</span>:null}{c.label&&<span className="sc-tag">{c.label}</span>}</div>
+    <h3 id={`sc-${c.id}`}>{c.title}</h3>
+    <p className="sc-meta">{c.id} · 등록 {c.created}{c.approved_at?` · 승인 ${kst(c.approved_at)}`:''}{c.requested_at?` · 반영 요청 ${kst(c.requested_at)}`:''}</p>
+   </div>
+   {canAct&&(c.status==='review'||c.status==='failed'||c.status==='approved')&&<div className="sc-card-actions">
+    {c.status==='approved'?<button className="button" disabled={busy} onClick={()=>void send('unapprove',c.id)}>승인 취소</button>
+     :<button className="button primary" disabled={busy} onClick={()=>void send('approve',c.id)}>{c.status==='failed'?'다시 승인':'승인'}</button>}
+   </div>}
+  </div>
+  {c.status==='approved'&&<p className="sc-state approved">승인됨 · 위의 ‘반영 요청’을 누르면 {APPLY_TIME} 적용됩니다. 그 전까지는 사이트 규칙이 바뀌지 않습니다.</p>}
+  {c.status==='pending'&&<p className="sc-state pending">{APPLY_TIME} 일괄 적용 예정 · 적용이 끝나면 ‘반영됨’으로 바뀌고 휴대폰 알림이 갑니다.</p>}
+  {c.status==='failed'&&<p className="sc-state failed">반영하지 못했습니다{c.note?` · ${c.note}`:''}. 운영 사이트는 바꾸기 전 그대로이며, 다시 승인할 수 있습니다.</p>}
+  {c.status==='applied'&&<p className="sc-state applied">반영됨 {kst(c.applied_at)}{c.app_commit?` · 앱 ${c.app_commit.slice(0,7)}`:''}{c.note?` · ${c.note}`:''}</p>}
+  <div className="sc-card-body">
+   <div className="sc-main">
+    {c.summary&&<p>{c.summary}</p>}
+    <div className="sc-change"><b>바꾸는 내용</b><p>{c.change}</p></div>
+    {!!c.risks?.length&&<div className="sc-risks"><b>주의할 점</b><ul>{c.risks.map(r=><li key={r}>{r}</li>)}</ul></div>}
+    {!!c.scope?.length&&<details className="sc-scope"><summary>반영하면 바뀌는 곳 {c.scope.length}가지</summary><ul>{c.scope.map(s=><li key={s}>{s}</li>)}</ul></details>}
+   </div>
+   {!!c.metrics?.length&&<div className="sc-side"><h4>숫자 비교 <small>과거 8년 · 1억 기준</small></h4>
+    <table className="sc-metrics"><thead><tr><th scope="col">항목</th><th scope="col">지금</th><th scope="col">바꾸면</th></tr></thead>
+     <tbody>{c.metrics.map(m=><tr key={m.label}><th scope="row">{m.label}</th><td data-label="지금">{m.before}</td><td data-label="바꾸면">{m.after}</td></tr>)}</tbody></table></div>}
+  </div>
+  {c.source&&<p className="sc-source">근거 · {c.source}</p>}
+ </article>;
  return <div className="strategy-candidates">
-  <div className="sc-head"><div><h2>전략 개선 후보</h2><p>일일 개선 연구에서 검토가 괜찮다고 판단한 매매법 개선안입니다. 승인한 항목을 모아 반영을 요청하면 {APPLY_TIME} 일괄 적용 작업이 신호 계산·알림·화면·과거 8년 검증까지 함께 바꾸고 검증한 뒤 운영에 반영합니다.</p></div>
+  <div className="sc-head"><div><div className="eyebrow">IMPROVEMENT PIPELINE</div><h2>전략 개선 후보</h2><p>일일 개선 연구가 검토를 통과했다고 판단한 매매법 개선안입니다. 승인한 후보를 모아 반영을 요청하면 {APPLY_TIME} 일괄 적용 작업이 신호 계산·16시 알림·화면·과거 8년 검증까지 함께 바꾸고 검증한 뒤 운영에 반영합니다.</p></div>
    <button className="button small" onClick={()=>setReload(v=>v+1)}>새로 고침</button></div>
-  <ol className="sc-flow" aria-label="반영 순서"><li>연구가 후보 등록</li><li>승인</li><li>반영 요청</li><li>{APPLY_TIME} 일괄 적용·검증</li><li>반영됨</li></ol>
-  <div className="sc-counts" aria-label="상태별 후보 수">{(['review','approved','pending','applied','failed'] as Status[]).map(s=><span key={s} className={`sc-chip ${s}`}>{LABEL[s]} <b>{count(s)}</b></span>)}</div>
-  {canAct?<div className="sc-apply"><button className="button primary" disabled={busy||!approved.length} onClick={()=>void send('apply')}>승인된 {approved.length}건 반영 요청</button><span>{approved.length?`요청하면 ${APPLY_TIME} 함께 적용됩니다. 그 전까지는 사이트 규칙이 바뀌지 않습니다.`:'승인한 후보가 없습니다.'}</span></div>
-   :<p className="sc-note">승인·반영 요청은 관리자만 할 수 있습니다.</p>}
+  <ol className="sc-steps" aria-label="진행 단계와 후보 수">{STEPS.map(([s,label,hint])=><li key={s} className={`${s}${count(s)?' has':''}`}><span className="sc-step-count">{count(s)}</span><span className="sc-step-text"><b>{label}</b><small>{hint}</small></span></li>)}</ol>
+  {count('failed')>0&&<p className="sc-state failed">반영 실패 {count('failed')}건 · 아래 카드에서 이유를 확인하고 다시 승인할 수 있습니다.</p>}
+  {canAct?<div className="sc-actionbar"><div><b>반영 요청</b><span>{approved.length?`승인한 ${approved.length}건을 ${APPLY_TIME} 함께 적용합니다. 요청 전까지는 사이트 규칙이 바뀌지 않습니다.`:open.some(c=>c.status==='review'||c.status==='failed')?'아래 후보에서 ‘승인’을 누르면 여기서 한꺼번에 반영을 요청할 수 있습니다.':'지금 요청할 후보가 없습니다.'}</span></div>
+    <button className="button primary" disabled={busy||!approved.length} onClick={()=>void send('apply')}>승인된 {approved.length}건 반영 요청</button></div>
+   :<p className="sc-note">승인·반영 요청은 관리자만 할 수 있습니다. 목록은 누구나 볼 수 있습니다.</p>}
   {message&&<p className="sc-message" role="status">{message}{runUrl&&<> <a href={runUrl} target="_blank" rel="noopener noreferrer">실행 내역</a></>}</p>}
   {!rows.length&&<div className="no-results">아직 올라온 후보가 없습니다. 일일 개선 연구가 기준을 통과한 개선안을 찾으면 여기에 올립니다.</div>}
-  <div className="sc-list">{rows.map(c=><article key={c.id} className={`sc-card ${c.status}`} aria-labelledby={`sc-${c.id}`}>
-   <header><span className={`sc-chip ${c.status}`}>{LABEL[c.status]}</span><h3 id={`sc-${c.id}`}>{c.title}</h3>
-    <p className="sc-meta">{c.id} · 등록 {c.created}{c.goal&&GOAL[c.goal]?` · ${GOAL[c.goal]}`:''}{c.label?` · ${c.label}`:''}</p></header>
-   {c.summary&&<p>{c.summary}</p>}
-   <div className="sc-change"><b>바꾸는 내용</b><p>{c.change}</p></div>
-   {!!c.metrics?.length&&<div className="sc-table-scroll"><table className="sc-metrics"><thead><tr><th scope="col">항목</th><th scope="col">지금</th><th scope="col">바꾸면</th></tr></thead>
-    <tbody>{c.metrics.map(m=><tr key={m.label}><th scope="row">{m.label}</th><td>{m.before}</td><td>{m.after}</td></tr>)}</tbody></table></div>}
-   {!!c.risks?.length&&<div className="sc-risks"><b>주의할 점</b><ul>{c.risks.map(r=><li key={r}>{r}</li>)}</ul></div>}
-   {!!c.scope?.length&&<details className="sc-scope"><summary>반영하면 바뀌는 곳</summary><ul>{c.scope.map(s=><li key={s}>{s}</li>)}</ul></details>}
-   <footer>
-    <p className="sc-meta">{c.source?`근거: ${c.source}`:''}{c.approved_at?` · 승인 ${kst(c.approved_at)}`:''}{c.requested_at?` · 반영 요청 ${kst(c.requested_at)}`:''}{c.applied_at?` · 반영됨 ${kst(c.applied_at)}`:''}{c.app_commit?` · 앱 ${c.app_commit.slice(0,7)}`:''}</p>
-    {c.note&&<p className={c.status==='failed'?'sc-failed':'sc-meta'}>{c.status==='failed'?'반영하지 못한 이유: ':''}{c.note}</p>}
-    {canAct&&(c.status==='review'||c.status==='failed')&&<button className="button small" disabled={busy} onClick={()=>void send('approve',c.id)}>{c.status==='failed'?'다시 승인':'승인'}</button>}
-    {canAct&&c.status==='approved'&&<button className="button small" disabled={busy} onClick={()=>void send('unapprove',c.id)}>승인 취소</button>}
-   </footer>
-  </article>)}</div>
+  {!!open.length&&<div className="sc-list">{open.map(card)}</div>}
+  {!!done.length&&<details className="sc-done"><summary>반영된 후보 {done.length}건</summary><div className="sc-list">{done.map(card)}</div></details>}
  </div>;
 }
