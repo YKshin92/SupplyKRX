@@ -40,8 +40,9 @@ def _close(book: dict, code: str, fill, status: str, reason: str, today: str) ->
     return trade
 
 
-def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk) -> list[dict]:
-    """장 시작 직후. 시뮬레이션처럼 매수를 먼저(대기 신호, 점수 순) 하고 같은 날 매도 대금은 쓰지 않는다. 그다음 보유 종목 시가 청산."""
+def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk, *, buys: bool = True) -> list[dict]:
+    """장 시작 직후. 시뮬레이션처럼 매수를 먼저(대기 신호, 점수 순) 하고 같은 날 매도 대금은 쓰지 않는다. 그다음 보유 종목 시가 청산.
+    buys=False: 봇이 늦게 켜진 날 — 시가가 지나 매수는 하지 않고(대기 신호는 다음 거래일로) 시가 청산만 한다."""
     start_day(book, today)
     events = []
     if risk.stopped:
@@ -52,8 +53,10 @@ def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk) -> 
     base = book['equity_prev_close']
     if base is None:
         base = cash + sum(p['shares'] * (broker.quote(c).prev_close or p['entry_price']) for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values())
-    keep = []
-    for t in queue_order(book['pending']):
+    keep = [] if buys else list(book['pending'])
+    if not buys and book['pending']:
+        log(book, 'late', date=today, reason=f"장 시작 뒤에 켜져 오늘 매수는 건너뜀 · 대기 신호 {len(book['pending'])}건은 다음 거래일 시가에")
+    for t in (queue_order(book['pending']) if buys else []):
         if t['code'] in held:
             log(book, 'skip', date=today, code=t['code'], signal_date=t['signal_date'], reason='이미 보유 중인 종목 · 추가 매수 제외')
             continue
