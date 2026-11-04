@@ -26,19 +26,21 @@ class TodaySignalsTests(unittest.TestCase):
                 return f'{{d}},{code},{code},KOSPI,연기금 등,KRX,{buy},{sell},{buy - sell},1,1,0,{c},0,{vol},1,KRX,2026-10-31T08:00:00+00:00,unknown,{o},{max(o, c)},{min(o, c)},reported\n'
             for day in days:
                 lines = HEAD
-                for code, quiet_buy in (('000001', 0), ('000002', 5e7), ('000003', 0), ('000004', 0), ('000005', 0)):
+                for code, quiet_buy in (('000001', 0), ('000002', 5e7), ('000003', 0), ('000004', 0), ('000005', 0), ('000006', 0)):
                     if day == last:
                         vol = 400 if code == '000004' else 150
                         lines += row(code, int(4e8), 0, vol, o=100, c=97).format(d=day)
                     else:
                         buy = int(quiet_buy) if day == days[-30] else 0
-                        sell = int(5e7) if code == '000005' and day == days[-30] else 0  # sold within 3 months
+                        # 000005 sold 5천만 within 3 months (allowed, under 1억); 000006 sold 5천만 twice (1억 in total, not allowed)
+                        sell = int(5e7) if code in ('000005', '000006') and day == days[-30] or code == '000006' and day == days[-40] else 0
                         lines += row(code, buy, sell, 100).format(d=day)
                 (root / f'data/live/daily/{day}.csv').write_text(lines, encoding='utf-8')
             days_, rows = module.load(root)
             found = module.signals(days_, rows, last)
-            # 000002 bought and 000005 sold within 3 months (not quiet: 3개월 무거래); 000004 volume 4x; 000001 and 000003 qualify
-            self.assertEqual([s['code'] for s in found], ['000001', '000003'])
+            # 000002 bought within 3 months; 000006 sold 1억 in total within 3 months; 000004 volume 4x;
+            # 000001, 000003 and 000005 (5천만 sold, under 1억; excluded by the 11-02 '매도 0원' rule) qualify
+            self.assertEqual([s['code'] for s in found], ['000001', '000003', '000005'])
             self.assertEqual(found[0]['candle'], 'bear')
             self.assertEqual(found[0]['volume_ratio'], 1.5)
 

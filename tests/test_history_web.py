@@ -34,9 +34,11 @@ class HistoricalProjectionTests(unittest.TestCase):
             quality=json.loads((target/'history-quality.json').read_text());self.assertEqual(quality['metadata_missing'],0)
             (archive/index['days'][days[0]]['csv_path']).write_bytes(b'corrupted')
             with self.assertRaises(AssertionError):module.build(archive,live,target)
-    def test_quiet_3m_requires_no_pension_selling(self):
-        # 2026-11-02 rule (3개월 무거래): a 5천만 연기금 sell 30 sessions before an otherwise quiet 3억 buy must fail quiet_3m,
-        # while the same buy without that sell passes. The old 10-session check alone would accept both.
+    def test_quiet_3m_allows_small_pension_selling(self):
+        # 2026-11-04 rule (c001): no 연기금 buy and 연기금 sells under 1억 in total over the 3-month window.
+        # 000001 no sells -> passes; 000002 one 5천만 sell 30 sessions earlier -> passes (failed under the 11-02 '매도 0원' rule);
+        # 000003 two 5천만 sells (exactly 1억) -> fails; 000004 a 1천만 buy 50 sessions earlier -> fails. The old 10-session check
+        # alone would accept all four.
         import datetime as dt
         tempbase=ROOT/'work/test-history';tempbase.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=tempbase) as tmp:
@@ -48,26 +50,30 @@ class HistoricalProjectionTests(unittest.TestCase):
             signal=95
             for i,day in enumerate(days):
                 rows=[]
-                for code in ('000001','000002'):
+                for code in ('000001','000002','000003','000004'):
                     for investor in ('연기금 등','외국인','기관합계','사모'):
-                        buy=3e8 if i==signal and investor=='연기금 등' else 0
-                        sell=5e7 if code=='000002' and i==signal-30 and investor=='연기금 등' else 4e8 if code=='000001' and i==signal+3 and investor=='연기금 등' else 0
+                        pension=investor=='연기금 등'
+                        buy=3e8 if i==signal and pension else 1e7 if code=='000004' and i==signal-50 and pension else 0
+                        sell=5e7 if pension and (code in ('000002','000003') and i==signal-30 or code=='000003' and i==signal-40) else 4e8 if code=='000001' and i==signal+3 and pension else 0
                         rows.append(dict(code=code,date=day,name='Fixture'+code[-1],market='KOSDAQ',investor=investor,flow_status='reported',buy=buy,sell=sell,net=buy-sell,open=100,high=105,low=95,close=100,volume=100,change_pct=0,turnover=10000,collected_at='2026-06-01T00:00:00Z'))
                 raw=root/'daily.csv'
                 with raw.open('w',newline='',encoding='utf-8') as f:w=csv.DictWriter(f,fieldnames=rows[0].keys());w.writeheader();w.writerows(rows)
                 cp=f'data/history/daily/{day}.csv.gz';mp=f'data/history/metadata/{day}.json.gz'
-                meta={f'KOSDAQ:{c}':dict(code=c,market='KOSDAQ',market_cap=1e11,sector='FixtureSector',metadata_date=day) for c in ('000001','000002')}
+                meta={f'KOSDAQ:{c}':dict(code=c,market='KOSDAQ',market_cap=1e11,sector='FixtureSector',metadata_date=day) for c in ('000001','000002','000003','000004')}
                 for rel,data in [(cp,gzip.compress(raw.read_bytes())),(mp,gzip.compress(json.dumps(dict(date=day,instruments=meta)).encode()))]:
                     path=archive/rel;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
-                index['days'][day]=dict(csv_path=cp,csv_sha256=hashlib.sha256((archive/cp).read_bytes()).hexdigest(),metadata_path=mp,metadata_sha256=hashlib.sha256((archive/mp).read_bytes()).hexdigest(),stocks=2,rows=len(rows))
+                index['days'][day]=dict(csv_path=cp,csv_sha256=hashlib.sha256((archive/cp).read_bytes()).hexdigest(),metadata_path=mp,metadata_sha256=hashlib.sha256((archive/mp).read_bytes()).hexdigest(),stocks=4,rows=len(rows))
             (archive/'data/history/index.json').write_text(json.dumps(index));(archive/'data/history/request.json').write_text(json.dumps(dict(expected_sessions=days)))
             module.build(archive,live,target)
             manifest=json.loads((target/'tracking-history.json').read_text())
             events={e['code']:e for f in manifest['files'] for e in json.loads((target/f).read_text())}
-            self.assertEqual(set(events),{'000001','000002'})
+            self.assertEqual(set(events),{'000001','000002','000003','000004'})
             self.assertIs(events['000001']['quiet_3m'],True)
-            self.assertIs(events['000002']['quiet_3m'],False,'A 연기금 sell inside the 3-month window must fail 3개월 무거래')
-            self.assertEqual(events['000002']['prior']['10']['max_sell'],0,'The old 10-session window cannot see that sell')
+            self.assertIs(events['000002']['quiet_3m'],True,'연기금 sells under 1억 in the 3-month window are allowed')
+            self.assertIs(events['000003']['quiet_3m'],False,'연기금 sells of 1억 or more in total fail the 3-month rule')
+            self.assertIs(events['000004']['quiet_3m'],False,'Any 연기금 buy inside the 3-month window fails')
+            for code in ('000002','000003','000004'):
+                self.assertEqual(events[code]['prior']['10']['max_sell'],0,'The old 10-session window cannot see those trades')
             # 2026-11-04: simulation stocks carry 연기금 net sells (>= 3억) so the 이탈 매도 option can fire on the site.
             stocks={x['code']:x for p in sorted(target.glob('simulation-stocks-*.json')) for x in json.loads(p.read_text())}
             self.assertEqual(stocks['000001']['sells'],[[signal+3,400000000]])

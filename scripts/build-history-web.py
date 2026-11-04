@@ -10,6 +10,7 @@ from collector.simulation_portfolio import entry_score
 from collector.simulation import pension_sells
 from collector.corporate_context import published_reconciliation, corporate_assets
 NAMES=('buy','sell','net','open','high','low','close','volume','change_pct','turnover')
+QUIET_SELL_3M=1e8  # quiet_3m: 3-month 연기금 sell total must stay below this (buys must be 0)
 def dump(p,x):
     p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(x,ensure_ascii=False,allow_nan=False,separators=(',',':')),encoding='utf-8')
 def cut(day):
@@ -62,8 +63,9 @@ def build(archive,live,target,indices_path=None,metadata_root=None):
                     complete=boundary>=days[0] and [x[0] for x in pr]==pd and all(x[1] is not None and x[2] is not None for x in pr)
                     volumes=[x[3] for x in previous[-20:]]
                     vr=r['volume']/mean(volumes) if len(volumes)==20 and all(v is not None for v in volumes) and mean(volumes)>0 and r['volume'] is not None else None
-                    # quiet_3m (2026-11-02, user's rule): no 연기금 buying and no selling from the same date 3 months earlier through the previous session.
-                    extras[r['code']+':'+d]=dict(quiet_3m=all(x[1]==0 and x[2]==0 for x in pr) if complete else None,volume_ratio_20=vr)
+                    # quiet_3m (user's rule, 2026-11-04 c001): from the same date 3 months earlier through the previous session, no 연기금 buying
+                    # and 연기금 selling summing to less than 1억 (2026-11-02 ~ 11-04 it was no selling at all).
+                    extras[r['code']+':'+d]=dict(quiet_3m=(all(x[1]==0 for x in pr) and sum(x[2] for x in pr)<QUIET_SELL_3M) if complete else None,volume_ratio_20=vr)
                     wanted.add(r['code'])
             q.append((i,r['buy'],r['sell'],r['volume']))
         if d in idx['days']:assert count==idx['days'][d]['rows'],d

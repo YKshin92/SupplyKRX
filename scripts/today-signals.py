@@ -1,8 +1,9 @@
 """Today's 연기금 매매법 signals (the simulation's default conditions) from the live daily files, for the daily alert.
 
-Signal on day d: 연기금 net buy >= 3억; no 연기금 buy and no 연기금 sell on any session from d minus 3 calendar months
-(window must be fully observed; 3개월 무거래, from 2026-11-02); signal-day volume <= 3x the previous 20-session average. The older check
-'each of the 10 previous sessions has buy and sell below 1억' is kept in code but is implied by the 3-month rule. Same rules as scripts/build-history-web.py + publish-simulation.py (quiet3m-volume). Reference only.
+Signal on day d: 연기금 net buy >= 3억; no 연기금 buy on any session from d minus 3 calendar months and 연기금 sells in that
+window summing to less than 1억 (window must be fully observed; from 2026-11-04, before that no sells at all since 2026-11-02);
+signal-day volume <= 3x the previous 20-session average. The older check 'each of the 10 previous sessions has buy and sell below 1억'
+is kept in code but is implied by the 3-month rule. Same rules as scripts/build-history-web.py + publish-simulation.py (quiet3m-volume). Reference only.
 usage: today-signals.py --root <private data repo> [--date YYYY-MM-DD]   (prints JSON; with GITHUB_ACTIONS also a notice)
 """
 import argparse
@@ -16,6 +17,7 @@ from pathlib import Path
 from statistics import mean
 
 NUM = ('buy', 'sell', 'net', 'open', 'close', 'volume')
+QUIET_SELL_3M = 1e8  # 3-month 연기금 sell total must stay below this (buys must be 0); same as build-history-web.py
 
 
 def cut(day, months=3):
@@ -56,7 +58,8 @@ def signals(days, rows, day):
         if start < days[0]:
             continue  # the 3-month window is not fully observed
         window = [hist.get(d) for d in days[:i] if d >= start]
-        if any(not p or p['buy'] is None or p['sell'] is None for p in window) or any(p['buy'] != 0 or p['sell'] != 0 for p in window):
+        if any(not p or p['buy'] is None or p['sell'] is None for p in window) or any(p['buy'] != 0 for p in window) \
+                or sum(p['sell'] for p in window) >= QUIET_SELL_3M:
             continue
         vols = [hist.get(d, {}).get('volume') for d in days[max(0, i - 20):i]]
         if len(vols) != 20 or any(v is None for v in vols) or not mean(vols) > 0 or r['volume'] is None:

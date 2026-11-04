@@ -29,7 +29,7 @@ def positive(v) -> bool:
 
 
 def signal_passes(sig: dict) -> bool:
-    """운영 신호 조건(quiet3m-volume): 3개월 무거래 + 신호일 거래량 20일 평균 3배 이하. 순매수 3억 이상은 입력 단계에서 걸러져 있다."""
+    """운영 신호 조건(quiet3m-volume): 3개월 무매수(매도 합계 1억 미만, 2026-11-04부터) + 신호일 거래량 20일 평균 3배 이하. 순매수 3억 이상은 입력 단계에서 걸러져 있다."""
     vr = sig.get('volume_ratio_20')
     return sig.get('quiet_3m') is True and vr is not None and vr <= 3
 

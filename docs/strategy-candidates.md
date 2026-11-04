@@ -25,3 +25,8 @@
 - 승인·반영 요청은 `COLLECTION_ADMIN_USER_IDS`의 관리자만(프록시와 API 두 곳에서 확인). 일반 회원은 목록만 본다.
 - GitHub 호출은 수동 수집과 같은 `GITHUB_COLLECTION_TOKEN`(SupplyKRX-data Actions 읽기·쓰기만)을 쓴다. 새 토큰·권한 없음.
 - 기록 커밋은 워크플로의 기본 GITHUB_TOKEN(contents: write, 이 저장소만)으로 한다.
+
+## 반영 기록
+| 후보 | 반영일 | 바꾼 범위 |
+|---|---|---|
+| c001-quiet-sell-under-1e8 | 2026-11-05 | quiet_3m(빌더·16시 알림·연구 입력), 시뮬레이션·추적·상세 문구, 과거 8년 카드 재계산, 업데이트 내역, 테스트(implementation-progress D16) |
