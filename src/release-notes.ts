@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-04-flow-exit-fix',date:'2026-11-04',title:'시뮬레이션: ‘연기금 순매도 이탈 매도’가 실제로 적용되도록 수정',
+  targets:[{tab:'simulation',label:'전략 검증 · 시뮬레이션'}],
+  changes:['‘보유 중 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가 전량 매도’ 규칙이 화면에는 적용으로 나왔지만, 과거 자료를 합친 운영 입력에 연기금 순매도가 빠져 있어 한 번도 실행되지 않았습니다. 순매도(3억 이상인 날)를 넣어 실제로 적용되게 고쳤습니다.','영향(기본 설정, 2천만·평가자산 25%): 2026-01-01부터는 해당 거래가 없어 결과가 같습니다. 2023-10-23부터 보면 2건이 이탈 매도로 바뀌어 청산 평균 +7.58% → +7.84%, 쉬는 현금 그대로 +95.7% → +101.1%, KOSPI200 ETF와 함께 +325.0% → +322.4%(최대 낙폭은 같음)입니다.','과거 8년 검증 카드는 처음부터 순매도를 넣어 계산했으므로 바뀌지 않습니다.'],
+  verified:'과거 자료 재생성 단위 테스트(고치기 전 실패 확인)·같은 입력 전후 계산 2026-11-04',limits:['투자 권유 아님']},
  {id:'2026-11-03-candidate-hold',date:'2026-11-03',title:'전략 개선 후보에 ‘보류’ 추가',
   targets:[{tab:'candidates',label:'전략 개선 후보'}],
   changes:['검토한 후보를 승인하지 않고 미뤄 둘 수 있게 ‘보류’ 버튼을 넣었습니다. 보류한 후보는 ‘보류한 후보’ 묶음으로 옮겨지고 반영 요청에 들어가지 않습니다.','보류한 후보는 ‘보류 해제’로 승인 대기로 돌리거나 바로 ‘승인’할 수 있습니다. 승인한 후보를 보류하려면 먼저 승인을 취소합니다.'],

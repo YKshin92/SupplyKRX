@@ -51,7 +51,7 @@ class HistoricalProjectionTests(unittest.TestCase):
                 for code in ('000001','000002'):
                     for investor in ('연기금 등','외국인','기관합계','사모'):
                         buy=3e8 if i==signal and investor=='연기금 등' else 0
-                        sell=5e7 if code=='000002' and i==signal-30 and investor=='연기금 등' else 0
+                        sell=5e7 if code=='000002' and i==signal-30 and investor=='연기금 등' else 4e8 if code=='000001' and i==signal+3 and investor=='연기금 등' else 0
                         rows.append(dict(code=code,date=day,name='Fixture'+code[-1],market='KOSDAQ',investor=investor,flow_status='reported',buy=buy,sell=sell,net=buy-sell,open=100,high=105,low=95,close=100,volume=100,change_pct=0,turnover=10000,collected_at='2026-06-01T00:00:00Z'))
                 raw=root/'daily.csv'
                 with raw.open('w',newline='',encoding='utf-8') as f:w=csv.DictWriter(f,fieldnames=rows[0].keys());w.writeheader();w.writerows(rows)
@@ -68,4 +68,8 @@ class HistoricalProjectionTests(unittest.TestCase):
             self.assertIs(events['000001']['quiet_3m'],True)
             self.assertIs(events['000002']['quiet_3m'],False,'A 연기금 sell inside the 3-month window must fail 3개월 무거래')
             self.assertEqual(events['000002']['prior']['10']['max_sell'],0,'The old 10-session window cannot see that sell')
+            # 2026-11-04: simulation stocks carry 연기금 net sells (>= 3억) so the 이탈 매도 option can fire on the site.
+            stocks={x['code']:x for p in sorted(target.glob('simulation-stocks-*.json')) for x in json.loads(p.read_text())}
+            self.assertEqual(stocks['000001']['sells'],[[signal+3,400000000]])
+            self.assertEqual(stocks['000002']['sells'],[],'5천만 is below the 3억 floor')
 if __name__=='__main__':unittest.main()

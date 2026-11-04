@@ -7,6 +7,7 @@ from statistics import mean
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from collector.tracking import build_tracking
 from collector.simulation_portfolio import entry_score
+from collector.simulation import pension_sells
 from collector.corporate_context import published_reconciliation, corporate_assets
 NAMES=('buy','sell','net','open','high','low','close','volume','change_pct','turnover')
 def dump(p,x):
@@ -111,7 +112,8 @@ def build(archive,live,target,indices_path=None,metadata_root=None):
             if len(prior)!=10 or any(not p or any(p[k] is None or not 0<=p[k]<1e8 for k in ('buy','sell')) for p in prior):continue
             signals.append(dict(index=i,net=r['net'],score=entry_score(r,foreign.get(code,{}).get(d,{}))['total'],absent=sum(p['flow_status']=='absent_zero' for p in prior),**info))
         if signals:
-            r=hist[days[signals[0]['index']]];stocks.append(dict(code=code,name=r['name'],market=r['market'],signals=signals,prices=[{k:hist.get(d,{}).get(k) for k in ('open','high','low','close','volume','change_pct')} for d in days]))
+            r=hist[days[signals[0]['index']]];stocks.append(dict(code=code,name=r['name'],market=r['market'],signals=signals,prices=[{k:hist.get(d,{}).get(k) for k in ('open','high','low','close','volume','change_pct')} for d in days],
+                sells=pension_sells(hist,days)))  # 2026-11-04: 연기금 순매도 이탈 매도(flowExit)용. 빠져 있어 운영에서 이 매도가 한 번도 일어나지 않았음
     indices={};ip=indices_path or live/'simulation-indices.json'
     if ip.exists():
         raw=json.loads(ip.read_text(encoding='utf-8'))
