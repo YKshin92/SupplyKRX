@@ -4,8 +4,8 @@ import {ArrowDownRight,ArrowUpRight} from 'lucide-react';
 import {type Dataset,loadDataset,summarize,amountLabel,amountNumber,amountUnit,axisAmount,integer,sign} from './data';
 import {aggregateFlow,periodFlowTotal} from './market-flow';
 
-/** Investors shown in the flow panels and the synced summary cards. Keys are the collector investor names. */
-export const STAT_INVESTORS=[['기관합계','기관합계'],['연기금 등','연기금'],['사모','사모']] as const;
+/** Investors shown in the flow panels and the synced summary cards, in display order. Keys are the collector investor names. */
+export const STAT_INVESTORS=[['외국인','외국인'],['기관합계','기관합계'],['연기금 등','연기금'],['사모','사모']] as const;
 export type StatInvestor=typeof STAT_INVESTORS[number][0];
 const OTHER_INVESTORS=['외국인','기관합계','사모'];
 const UP='var(--flow-up)',DOWN='var(--flow-down)';
@@ -51,11 +51,10 @@ export default function MarketFlow({dataset,loaded,selected,onSelect}:{dataset:D
   }
   return <section className="market-flow" aria-label="조회 대상 선택 기간 순매수 흐름">
     <div className="market-flow-heading"><div><h2>투자자별 순매수 흐름</h2><p>{dates[0]} ~ {dates.at(-1)} · {dates.length}거래일 · 일별 합계 · 종목 필터와 무관한 데이터셋 전체 기준 · 제목을 누르면 아래 요약 카드가 그 투자자로 바뀝니다</p></div></div>
-    <div className="market-flow-panels market-flow-primary">
+    <div className="market-flow-panels market-flow-four">
       {STAT_INVESTORS.map(([key,name])=><Fragment key={key}>{panel(key,name,key)}</Fragment>)}
     </div>
-    <details className="market-foreign"><summary>외국인 보조 수급 펼치기</summary>{panel('외국인','외국인')}</details>
-    <p className="market-flow-note">기관합계에 연기금·사모가 포함됩니다. 세 금액을 더하지 않습니다. 시장 전체 수급이 아니며, 기간 미수집은 0원으로 추정하지 않습니다.</p>
+    <p className="market-flow-note">기관합계에 연기금·사모가 포함되므로 네 금액을 서로 더하지 않습니다. 외국인은 기타외국인 제외. 시장 전체 수급이 아니며, 기간 미수집은 0원으로 추정하지 않습니다.</p>
   </section>;
 }
 
@@ -72,6 +71,6 @@ export function FlowStats({dataset,loaded,selected,onSelect}:{dataset:Dataset;lo
   const up=count(n=>n>0),down=count(n=>n<0);
   return <section className="flow-stats" aria-label={`${name} 요약`}>
     <div className="flow-stats-toggle" role="group" aria-label="요약 카드 투자자">{STAT_INVESTORS.map(([k,label])=><button key={k} type="button" aria-pressed={selected===k} onClick={()=>onSelect(k)}>{label}</button>)}{status&&<span className="flow-stats-status">{status}</span>}</div>
-    <div className="stats"><article><span>{name} 기간 누적 순매수<small>{total?.partial?'확인된 값만':`${m.days}거래일`}</small></span><strong className={sign(total?.net??null)}>{amountNumber(total?.net??null)}<em>{amountUnit(total?.net??null)}</em></strong><p>최근일{last?` ${last.date.slice(5)}`:''} <b className={sign(last?.net??null)}>{amountLabel(last?.net??null)}</b><br/>{integer(source?.stocks.length??0)}종목 합산</p></article><article><span>최근일 {name} 순매수 종목</span><strong>{up??'-'}<em>종목</em><ArrowUpRight size={25} className="positive"/></strong><p>매수금액이 매도금액보다 큰 종목</p></article><article><span>최근일 {name} 순매도 종목</span><strong>{down??'-'}<em>종목</em><ArrowDownRight size={25} className="negative"/></strong><p>매도금액이 매수금액보다 큰 종목</p></article><article><span>수집 범위</span><strong>{m.days}<em>거래일</em></strong><p>{integer(source?.manifest.row_count??m.row_count)}행 · {selected==='기관합계'?'연기금·사모 포함':selected==='사모'?'기관합계의 일부':'연기금 등 합산'}</p></article></div>
+    <div className="stats"><article><span>{name} 기간 누적 순매수<small>{total?.partial?'확인된 값만':`${m.days}거래일`}</small></span><strong className={sign(total?.net??null)}>{amountNumber(total?.net??null)}<em>{amountUnit(total?.net??null)}</em></strong><p>최근일{last?` ${last.date.slice(5)}`:''} <b className={sign(last?.net??null)}>{amountLabel(last?.net??null)}</b><br/>{integer(source?.stocks.length??0)}종목 합산</p></article><article><span>최근일 {name} 순매수 종목</span><strong>{up??'-'}<em>종목</em><ArrowUpRight size={25} className="positive"/></strong><p>매수금액이 매도금액보다 큰 종목</p></article><article><span>최근일 {name} 순매도 종목</span><strong>{down??'-'}<em>종목</em><ArrowDownRight size={25} className="negative"/></strong><p>매도금액이 매수금액보다 큰 종목</p></article><article><span>수집 범위</span><strong>{m.days}<em>거래일</em></strong><p>{integer(source?.manifest.row_count??m.row_count)}행 · {selected==='기관합계'?'연기금·사모 포함':selected==='사모'?'기관합계의 일부':selected==='외국인'?'기타외국인 제외':'연기금 등 합산'}</p></article></div>
   </section>;
 }

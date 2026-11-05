@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-05-market-flow-four',date:'2026-11-05',title:'시장 현황: 투자자별 순매수 흐름 4칸을 같은 크기로',
+  targets:[{tab:'market',selector:'.market-flow',label:'시장 현황 · 투자자별 순매수 흐름'},{tab:'market',selector:'.flow-stats',label:'시장 현황 · 요약 카드'}],
+  changes:['외국인 순매수 흐름을 접혀 있던 ‘보조 수급’에서 꺼내, 외국인 · 기관합계 · 연기금 · 사모 순서로 네 칸을 같은 크기로 나란히 놓았습니다. 넓은 화면에서는 한 줄에 4칸, 노트북·태블릿에서는 2×2, 휴대폰에서는 한 칸씩 보입니다.','요약 카드의 투자자 선택에도 외국인을 넣었습니다. 각 칸 제목을 누르면 아래 요약 카드가 그 투자자 기준으로 바뀝니다.'],
+  verified:'화면 구문·빌드 확인, 넓은/중간/좁은 화면 배치 확인 2026-11-05',limits:['기관합계에 연기금·사모가 포함되므로 네 금액을 서로 더하지 않음']},
  {id:'2026-11-05-quiet-sell-under-1e8',date:'2026-11-05',title:'신호 조건 완화: 직전 3개월 연기금 매수 0원 + 매도 합계 1억 미만',
   targets:[{tab:'simulation',label:'전략 검증 · 시뮬레이션 · 과거 8년 검증'},{tab:'cases',label:'신규 순매수 추적'},{tab:'signals',label:'신호 성과 검증'},{tab:'candidates',label:'전략 개선 후보 c001'}],
   changes:['3개월 조건 ‘연기금 매수·매도 0원’을 ‘매수 0원 + 매도 합계 1억 미만’으로 바꿨습니다. 3개월 안에 소액만 판 종목(리밸런싱·잔여 정리일 가능성)은 다시 신호로 봅니다. 순매수 3억 이상, 거래량 20일 평균 3배 이하, 3개월 자료가 하루라도 빠지면 제외하는 규칙은 그대로입니다. 시뮬레이션, 신규 순매수 추적, 신호 성과 검증의 연기금 신호, 매일 16시 신호 알림, 자동매매 봇 신호에 모두 적용됩니다.','과거 8년(1억, 2019-01-02 ~ 2026-10-30): 신호 102건 → 116건, 거래당 평균 +6.3% → +6.6%, 연평균(최대 낙폭)은 평가자산 15% 12.1% → 14.8%(−12.7% → −13.4%), 20% 16.7% → 18.7%(−14.5% → −16.2%), 25% 19.2% → 23.7%(−16.7% → −21.0%), 15% + KOSPI200 ETF 28.2% → 30.4%입니다.','과거 8년 검증 카드를 새 조건으로 다시 계산했습니다. 25%에서는 현금이 모자라 늦게 사는 경우가 다시 늘었습니다(현금 그대로 10건, 최대 42거래일).'],
