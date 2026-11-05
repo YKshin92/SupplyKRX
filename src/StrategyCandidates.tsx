@@ -84,7 +84,7 @@ export default function StrategyCandidates({canAct,asOf}:{canAct:boolean;asOf:st
      {!!c.risks?.length&&<div className="sc-risks"><b>주의할 점</b><ul>{c.risks.map(r=><li key={r}>{r}</li>)}</ul></div>}
      {!!c.scope?.length&&<details className="sc-scope"><summary>반영하면 바뀌는 곳 {c.scope.length}가지</summary><ul>{c.scope.map(x=><li key={x}>{x}</li>)}</ul></details>}
     </div>
-    {!!c.metrics?.length&&<div className="sc-side"><h4>숫자 비교 <small>과거 8년 · 1억 기준</small></h4>
+    {!!c.metrics?.length&&<div className="sc-side"><h4>숫자 비교 <small>과거 검증 · 1억 기준</small></h4>
      <table className="sc-metrics"><thead><tr><th scope="col">항목</th><th scope="col">지금</th><th scope="col">바꾸면</th></tr></thead>
       <tbody>{c.metrics.map(m=><tr key={m.label}><th scope="row">{m.label}</th><td data-label="지금">{m.before}</td><td data-label="바꾸면">{m.after}</td></tr>)}</tbody></table></div>}
    </div>
@@ -92,7 +92,7 @@ export default function StrategyCandidates({canAct,asOf}:{canAct:boolean;asOf:st
   </div>}
  </article>;};
  return <div className="strategy-candidates">
-  <div className="sc-head"><div><div className="eyebrow">IMPROVEMENT PIPELINE</div><h2>전략 개선 후보</h2><p>일일 개선 연구가 검토를 통과했다고 판단한 매매법 개선안입니다. 승인한 후보를 모아 반영을 요청하면 {APPLY_TIME} 일괄 적용 작업이 신호 계산·16시 알림·화면·과거 8년 검증까지 함께 바꾸고 검증한 뒤 운영에 반영합니다.</p></div>
+  <div className="sc-head"><div><div className="eyebrow">IMPROVEMENT PIPELINE</div><h2>전략 개선 후보</h2><p>일일 개선 연구가 검토를 통과했다고 판단한 매매법 개선안입니다. 승인한 후보를 모아 반영을 요청하면 {APPLY_TIME} 일괄 적용 작업이 신호 계산·16시 알림·화면·과거 10년 검증까지 함께 바꾸고 검증한 뒤 운영에 반영합니다.</p></div>
    <button className="button small" onClick={()=>setReload(v=>v+1)}>새로 고침</button></div>
   <ol className="sc-steps" aria-label="진행 단계와 후보 수">{STEPS.map(([s,label,hint])=><li key={s} className={`${s}${count(s)?' has':''}`}><span className="sc-step-count">{count(s)}</span><span className="sc-step-text"><b>{label}</b><small>{hint}</small></span></li>)}</ol>
   {count('failed')>0&&<p className="sc-state failed">반영 실패 {count('failed')}건 · 아래 카드에서 이유를 확인하고 다시 승인할 수 있습니다.</p>}

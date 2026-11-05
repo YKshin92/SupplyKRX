@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-05-history10',date:'2026-11-05',title:'과거 검증을 10년(2017~2026)으로 늘림',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 10년 검증'}],
+  changes:['과거 검증 카드를 2019~2026년 8년에서 2017~2026년 10년으로 늘렸습니다. 신호는 143건(연 14건), 1억 원 · 평가자산 15%씩이면 2.90억 원(+190%), 최대 낙폭 −13.4%, 같은 기간 KOSPI +183%(−43.9%)입니다.','표에 2017~18 열을 더했습니다. 지금 규칙은 2019~2026년을 보고 정했기 때문에 2017~18년이 규칙을 정할 때 보지 않은 유일한 구간입니다. 이 구간 신호 27건의 거래당 평균은 −0.2%, 승률 30%로 이후 기간보다 크게 낮았습니다.','연도별 표·점검(시작 달, 이탈 매도, 거래세, 늦은 매수, 주문 규모)·200일선 필터 결과를 10년 숫자로 바꿨습니다. 시뮬레이션 계산 기준의 주문 규모 문장도 10년 기준(중앙값 0.4~0.7%, ETF 0.9%)으로 고쳤습니다.'],
+  verified:'2016~2018년 KRX 수급 자료 보강(684거래일)·미국 지수 2015-06부터 보강, 같은 입력을 2019년 시작으로 계산해 이전 8년 카드 숫자 재현 후 10년 계산 2026-11-05',limits:['2017~18년 성과가 약해 지금 규칙의 성과가 2019년 이후 시장에 기대고 있을 수 있음','2016년 자료는 3개월 조건·200일선 준비 구간으로만 씀']},
  {id:'2026-11-05-market-flow-four',date:'2026-11-05',title:'시장 현황: 투자자별 순매수 흐름 4칸을 같은 크기로',
   targets:[{tab:'market',selector:'.market-flow',label:'시장 현황 · 투자자별 순매수 흐름'},{tab:'market',selector:'.flow-stats',label:'시장 현황 · 요약 카드'}],
   changes:['외국인 순매수 흐름을 접혀 있던 ‘보조 수급’에서 꺼내, 외국인 · 기관합계 · 연기금 · 사모 순서로 네 칸을 같은 크기로 나란히 놓았습니다. 넓은 화면에서는 한 줄에 4칸, 노트북·태블릿에서는 2×2, 휴대폰에서는 한 칸씩 보입니다.','요약 카드의 투자자 선택에도 외국인을 넣었습니다. 각 칸 제목을 누르면 아래 요약 카드가 그 투자자 기준으로 바뀝니다.'],
