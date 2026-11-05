@@ -7,7 +7,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 def verify(target):
     reports={}
-    for view in ('latest','1m','2m','3m'):
+    for view in ('latest','5d','20d','1m','2m','3m'):
         base=target/'flow-ranks';manifest=json.loads((base/f'{view}.json').read_text(encoding='utf-8'))
         if manifest['state']!='ready':raise ValueError('Rank manifest unavailable')
         folder=(base/manifest['generation']).resolve()
@@ -35,7 +35,16 @@ def verify(target):
                 points=0 if value<=0 else 12.5*((n-expected)/(n-1) if n>1 else 1)
                 if any(not math.isclose(p['points'],points,abs_tol=1e-8) for p in group):raise ValueError('Incorrect rank points')
                 higher+=len(group)
+        ranked=sorted([s for s in stocks if s['score'] is not None],key=lambda s:-s['score'])
+        for i,s in enumerate(ranked):
+            same=[t for t in ranked if t['score']==s['score']];first=next(k for k,t in enumerate(ranked) if t['score']==s['score'])
+            if not math.isclose(s['score_rank'],first+1+(len(same)-1)/2,abs_tol=1e-8):raise ValueError('Incorrect score rank')
         for stock in stocks:
+            if stock['score'] is None and stock['score_rank'] is not None:raise ValueError('Unscored stock ranked')
+            if stock['rank_change'] is not None and not math.isclose(stock['rank_change'],stock['previous_score_rank']-stock['score_rank'],abs_tol=1e-8):raise ValueError('Incorrect rank change')
+            pts=[stock['components']['연기금 등:absolute']['points'],stock['components']['연기금 등:relative']['points']]
+            if stock['pension_score'] is not None and (stock['score'] is None or any(p is None for p in pts) or not math.isclose(stock['pension_score'],sum(pts)*4,abs_tol=1e-6)):raise ValueError('Incorrect pension score')
+            if stock['pension']['signal'] and not (stock['pension']['quiet_3m'] and stock['pension']['net']>=3e8):raise ValueError('Signal marker without its conditions')
             parts=stock['components'];points=[p['points'] for p in parts.values()]
             if len(parts)!=8:raise ValueError('Expected eight components')
             if stock['score'] is not None and (any(p is None for p in points) or not math.isclose(stock['score'],sum(points),abs_tol=1e-8)):raise ValueError('Incorrect total score')

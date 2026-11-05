@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-06-flow-ranks',date:'2026-11-06',title:'수급 순위: 집계 기간 선택, 전일 대비 변동, 연기금 첫 매수·매매법 신호 표시, 연기금 점수',
+  targets:[{tab:'explore',selector:'.rank-explorer',label:'종목 발굴 · 수급 순위'}],
+  changes:['집계 기간을 최근일 · 5일 · 20일 · 3개월 중에서 고릅니다(기본 20일). 지금까지는 3개월 누적만 있어 하루가 지나도 순위가 거의 그대로였습니다.','전일 대비 열: 같은 기간을 전 거래일 기준으로 다시 계산한 8항목 순위와 비교해 ▲▼ 변동과 NEW(전일에 점수 없음)를 보여 줍니다. 표 위 “기준일에 새로 보이는 종목”에 매매법 신호 · 연기금 첫 매수 · 순위 급등/신규 진입 종목을 모아 둡니다.','연기금 표시: 3개월 무매수(매수 0원·매도 1억 미만) → 첫 매수 → 매매법 신호(3억 이상·거래량 3배 이하)를 종목 옆에 달고, “3개월 무매수 종목만” 필터를 더했습니다.','기본 정렬을 연기금 점수(연기금 두 항목, 100점 만점)로 바꾸고 8항목 합계는 참고 열로 남겼습니다. 외국인·기관합계·사모의 시총 대비 상위 5% 종목에는 “되돌림 주의”를 표시합니다(과거 검증에서 다음 5일 평균이 시장보다 낮았음).'],
+  verified:'순위 생성 테스트(기간·전일 비교·연기금 표시) · 독립 검증 스크립트 · 실제 자료 생성 확인 2026-11-06',limits:['3개월 이력이 빠진 종목(신규 상장 등)은 연기금 표시가 없음','연기금 점수 자체의 수익 검증은 아직 없음 · 8항목 합계의 전진 검증은 계속 기록','전일 순위는 전 거래일 시총 자료가 있을 때만 계산']},
  {id:'2026-11-05-market-polish',date:'2026-11-05',title:'시장 현황 다듬기: 일봉 전일 대비 %, 아래 안내 상자 삭제, 맨 위로 버튼',
   targets:[{tab:'market',selector:'.market-overview',label:'시장 현황'}],
   changes:['시총 상위 종목과 지수의 일봉 차트에서 시가·고가·저가·종가마다 전 거래일 종가 대비 등락률을 함께 보여 줍니다(종목 발굴의 종목 상세 분석 일봉과 같은 방식).','시장 현황 맨 아래의 ‘시장 파악에서 종목 발굴로’ 안내 상자를 없앴습니다.','어느 화면이든 한 화면 넘게 내려가면 오른쪽 아래에 ‘맨 위로’ 버튼이 나타납니다.'],

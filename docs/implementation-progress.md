@@ -522,3 +522,8 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - 국내 지수 거래량: scripts/collect-market-indices.py(NAVER siseJson, 최근 400일, 거래량 천주×1000 → 주, 최신 세션의 수집 종목 거래량 합과 비율 점검) → 비공개 data/live/market-indices.json, collect.yml 에서 실행. prepare-local 이 history-indices → simulation-indices → market-indices 순으로 날짜별 덮어씀.
 - 국내: 지수 → 전체 수급 흐름(MarketFlow·FlowStats, `flow` prop) → 시총 상위 30 + 외국인·기관합계·연기금·사모 순매수 대금 열(최근일·5일 합·20일 합, `useInvestorDatasets` 자료). 미국: 지수 → 시총 상위 50(`US_TOP`, collect-us-market.py --top 기본 50, JSON 키는 top30 유지).
 - 같은 날 다듬기: RsiStockDetail·IndexChart 일봉 툴팁을 종목 상세 분석(CandleTip)과 같이 시가·고가·저가·종가별 전일 종가 대비 %로. 시장 현황의 하단 '시장 파악에서 종목 발굴로' 상자 제거(시장 탭은 list-panel 없이 렌더). App `ScrollTop`(한 화면 넘게 내려가면 '맨 위로').
+
+### 2026-11-06 수급 순위 개편 (사용자 요청 1~4)
+- collector/publish_flow_ranks.py: 뷰 latest/5d/20d/1m/2m/3m(`VIEWS`), 전 거래일 같은 창 순위(`score_rank`·`previous_score_rank`·`rank_change`·`new_entry`, 전일 시총 스냅샷 있을 때만), `pension_markers`(quiet_3m·first_buy·signal·volume_ratio_20; 이력 빠지면 None), `pension_score`(연기금 두 항목×4), `caution`(외국인·기관합계·사모 시총 대비 상위 5%). 버전 문자열과 8항목 `score`는 그대로 둬 전진 검증(score_snapshots) 호환.
+- scripts/verify-flow-ranks.py: 6개 뷰, score_rank·rank_change·pension_score·signal 조건 검증. tests/test_rank_projection.py 에 창·전일 비교·표시 테스트.
+- 화면 FlowRankExplorer: 집계 기간 버튼(localStorage 기억, 기본 20d), '기준일에 새로 보이는 종목'(매매법 신호·연기금 첫 매수·순위 급등/신규), 연기금 점수 기본 정렬, 8항목 합계 참고 열, 전일 대비 열, 배지, '3개월 무매수 종목만' 필터. 실제 자료 생성 30초, 6뷰 19MB(뷰당 3조각).
