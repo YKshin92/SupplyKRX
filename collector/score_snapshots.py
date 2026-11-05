@@ -5,6 +5,9 @@ import gzip,hashlib,json,math,re
 from .core import save_json
 
 VERSION='flow-rank-equal8-v1'
+# Shard fields allowed into an observation. The 2026-11-06 additions are all known on the as-of day
+# (previous-session rank, 연기금 markers, cap-relative caution); no outcome enters.
+SNAPSHOT_FIELDS={'code','market','name','market_cap','components','score','known_points','score_rank','previous_score_rank','rank_change','new_entry','pension_score','caution','pension'}
 KST=timezone(timedelta(hours=9))
 
 def digest(data):return hashlib.sha256(data).hexdigest()
@@ -33,7 +36,7 @@ def read_snapshot(path,verify_parts=True):
             if digest(data)!=part['raw_sha256']:raise ValueError('Invalid score observation contents')
             stocks=json.loads(data)
             for s in stocks:
-                if set(s)-{'code','market','name','market_cap','components','score','known_points'}:raise ValueError('Outcomes cannot enter score observations')
+                if set(s)-SNAPSHOT_FIELDS:raise ValueError('Outcomes cannot enter score observations')
                 if s['code'] in codes or not re.fullmatch('[0-9A-Z]{6}',s['code']):raise ValueError('Duplicate/invalid score stock')
                 codes.add(s['code']);count+=1;complete+=s['score'] is not None
             if len(stocks)!=part['stocks']:raise ValueError('Score observation part count mismatch')
@@ -64,7 +67,7 @@ def freeze_scores(root,projection,now=None):
     complete=sum(s['score'] is not None for s in all_stocks)
     if not complete:return dict(state='unavailable',reason='8항목 총점 미확보')
     for s in all_stocks:
-        if set(s)-{'code','market','name','market_cap','components','score','known_points'}:raise ValueError('Outcomes cannot enter score observations')
+        if set(s)-SNAPSHOT_FIELDS:raise ValueError('Outcomes cannot enter score observations')
         if s['score'] is not None and (not math.isfinite(s['score']) or not 0<=s['score']<=100.000001):raise ValueError('Invalid observed score')
     calendar_path=root/'data/live/calendar.json';calendar=json.loads(calendar_path.read_text(encoding='utf-8'))
     days=[d for d in calendar['sessions'] if m['first_date']<=d<=day]
