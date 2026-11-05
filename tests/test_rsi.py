@@ -1,3 +1,4 @@
+from pathlib import Path
 import unittest
 from collector.rsi import cutler_series, summarize, PERIOD
 
@@ -102,6 +103,31 @@ class RsiReferenceTests(unittest.TestCase):
         self.assertEqual(out['top30'][0]['rsi'], 0.0)  # warm-up restarted after the missing session, then 15 falling sessions
         self.assertIsNone(out['top30'][1]['rsi'])
         self.assertIsNone(us_rsi(None))
+
+    def test_index_charts_carry_six_months_of_ohlcv(self):
+        from collector.rsi import us_rsi, INDEX_CHART_SESSIONS, US_TOP
+        self.assertEqual((INDEX_CHART_SESSIONS, US_TOP), (126, 50))
+        days = [f'2026-{1 + i // 28:02}-{1 + i % 28:02}' for i in range(200)]
+        idx = {d: dict(open=99 + i, high=101 + i, low=98 + i, close=100 + i, volume=1000 + i) for i, d in enumerate(days)}
+        stocks = [dict(rank=r, symbol=f'S{r}', name=f'S{r}', prices={}) for r in range(60, 0, -1)]
+        out = us_rsi(dict(indices={'NASDAQ': dict(symbol='^IXIC', prices=idx)}, stocks=stocks))
+        series = out['indices']['NASDAQ']['series']
+        self.assertEqual(len(series), 126)
+        self.assertEqual(series[-1], dict(date=days[-1], close=299, rsi=100.0, cutler=100.0, open=298, high=300, low=297, volume=1199))
+        self.assertEqual([s['rank'] for s in out['top30']], list(range(1, 51)))
+
+    def test_market_index_collector_scales_naver_volume(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('mi', Path(__file__).resolve().parents[1] / 'scripts/collect-market-indices.py')
+        mi = importlib.util.module_from_spec(spec); spec.loader.exec_module(mi)
+        rows = [['날짜', '시가', '고가', '저가', '종가', '거래량', '외국인소진율'],
+                ['20261104', 10, 12, 9, 11, 450123, 30.1], ['20261105', 11, 13, 10, 12, 0, 30.2], ['20261001', 1, 1, 1, 1, 5, 1]]
+        out = mi.parse(rows, '2026-11-01', '2026-11-05')
+        self.assertEqual(out['2026-11-04'], dict(date='2026-11-04', open=10, high=12, low=9, close=11, volume=450123000))
+        self.assertIsNone(out['2026-11-05']['volume'])  # a zero is not a session volume: left empty, never filled
+        self.assertNotIn('2026-10-01', out)
+        with self.assertRaises(ValueError):
+            mi.parse([rows[0], ['20261104', 10, 9, 12, 11, 1, 1]], '2026-11-01', '2026-11-05')
 
 
 if __name__ == '__main__':

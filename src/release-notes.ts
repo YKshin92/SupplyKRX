@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-05-market-overview',date:'2026-11-05',title:'시장 현황 재구성: 첫 화면, 국내·미국 지수 6개월 일봉, 시총 상위 투자자별 순매수',
+  targets:[{tab:'market',selector:'.market-overview',label:'시장 현황'}],
+  changes:['사이트에 들어오면 시장 현황이 먼저 열립니다.','맨 위에서 국내 / 미국을 고릅니다. 국내는 KOSPI·KOSDAQ, 미국은 S&P500·NASDAQ의 최근 6개월(약 126거래일) 일봉 아래에 거래량과 RSI(14)를 같은 날짜 축으로 보여 줍니다.','국내는 지수 차트 아래에 전체 수급 흐름(외국인 · 기관합계 · 연기금 · 사모)과 요약 카드, 그 아래에 국내 시가총액 상위 30을 둡니다. 상위 30 표에 종목별 외국인 · 기관합계 · 연기금 · 사모 순매수 대금 열을 더했고, 최근일 · 5일 합 · 20일 합을 고를 수 있습니다.','미국은 투자자별 수급 자료가 없어 지수 차트 바로 아래에 시가총액 상위 50(기존 30)을 보여 줍니다.'],
+  verified:'RSI 계산 테스트(6개월 OHLCV·미국 상위 50·지수 거래량 단위)·화면 구문 확인·배포 화면 확인 2026-11-05',limits:['국내 지수 거래량은 NAVER 지수 거래량(천 주를 주로 환산)이며 이번 변경 뒤 수집분부터 표시','미국 상위 50은 다음 미국 자료 수집부터 50개로 늘어남','기관합계에 연기금·사모가 포함되므로 네 금액을 서로 더하지 않음']},
  {id:'2026-11-05-history10',date:'2026-11-05',title:'과거 검증을 10년(2017~2026)으로 늘림',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 시뮬레이션 · 과거 10년 검증'}],
   changes:['과거 검증 카드를 2019~2026년 8년에서 2017~2026년 10년으로 늘렸습니다. 신호는 143건(연 14건), 1억 원 · 평가자산 15%씩이면 2.90억 원(+190%), 최대 낙폭 −13.4%, 같은 기간 KOSPI +183%(−43.9%)입니다.','표에 2017~18 열을 더했습니다. 지금 규칙은 2019~2026년을 보고 정했기 때문에 2017~18년이 규칙을 정할 때 보지 않은 유일한 구간입니다. 이 구간 신호 27건의 거래당 평균은 −0.2%, 승률 30%로 이후 기간보다 크게 낮았습니다.','연도별 표·점검(시작 달, 이탈 매도, 거래세, 늦은 매수, 주문 규모)·200일선 필터 결과를 10년 숫자로 바꿨습니다. 시뮬레이션 계산 기준의 주문 규모 문장도 10년 기준(중앙값 0.4~0.7%, ETF 0.9%)으로 고쳤습니다.'],

@@ -46,7 +46,8 @@ index_path=args.root/'data/live/simulation-indices.json'
 us_path=args.root/'data/live/us-market.json'
 # Wilder RSI depends on where it starts: use the 3-year index history, overlaid by the live index file.
 rsi_indices={'indices':{}}
-for path in (args.root/'data/history-indices.json',index_path):
+# Later files win per date: market-indices.json (시장 현황 charts) adds the index volume to the same NAVER OHLC.
+for path in (args.root/'data/history-indices.json',index_path,args.root/'data/live/market-indices.json'):
     if path.exists():
         for name,value in json.loads(path.read_text(encoding='utf-8')).get('indices',{}).items():
             rsi_indices['indices'].setdefault(name,{'prices':{}})['prices'].update(value.get('prices',{}))

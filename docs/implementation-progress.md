@@ -515,3 +515,9 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - 2017~18(규칙을 정할 때 보지 않은 구간): 신호 27건 거래당 −0.2%, 승률 30%(익절 6·손절 19·이탈 2), 이탈 매도 끄면 −1.7%. 15% 계좌 −1.5%(KOSPI +0.7%). 2019~23 +6.2%(70건), 2024~26 +7.2%(46건).
 - 점검: 시작 달 15% 11.4~13.2%, 25% 17.9~20.8%. 이탈 매도 끄기 15% 10.5%, 25% 15.5%. 거래세 0.15~0.30% 15% −0.2~+0.2%p. 늦은 매수 15% 0, 20% 4(최대 3일), 25% 12(최대 42일)·ETF 8(최대 11일). 주문 중간값 15% 0.4%, 25% 0.7%, 25% ETF 0.9%(2026년 중간값 2.6억, 최대 31%). 200일선 필터 15% ETF 8.84 → 6.95억(채택 안 함).
 - 화면: HistoryValidation '과거 10년 검증 (2017~2026)', 표에 2017~18 열. Simulation 주문 규모 문장, 전략 개선 후보 문구('과거 검증 · 1억 기준', '과거 10년 검증까지').
+
+### 2026-11-05 시장 현황 재구성 (사용자 요청)
+- 첫 화면을 시장 현황으로(`workspaceTab` 기본 'market'). 맨 위 국내/미국 선택(App `marketRegion`, 헤더 '조회 기간 최근 3달'은 국내일 때만).
+- 지수 카드(IndexRsi `IndexChart`): 최근 6개월(collector/rsi.py `INDEX_CHART_SESSIONS` 126) 일봉 → 거래량 → RSI(14) Wilder, 같은 syncId. 지수 series 가 OHLCV(`_series_ohlcv`)로 바뀜(국내·미국).
+- 국내 지수 거래량: scripts/collect-market-indices.py(NAVER siseJson, 최근 400일, 거래량 천주×1000 → 주, 최신 세션의 수집 종목 거래량 합과 비율 점검) → 비공개 data/live/market-indices.json, collect.yml 에서 실행. prepare-local 이 history-indices → simulation-indices → market-indices 순으로 날짜별 덮어씀.
+- 국내: 지수 → 전체 수급 흐름(MarketFlow·FlowStats, `flow` prop) → 시총 상위 30 + 외국인·기관합계·연기금·사모 순매수 대금 열(최근일·5일 합·20일 합, `useInvestorDatasets` 자료). 미국: 지수 → 시총 상위 50(`US_TOP`, collect-us-market.py --top 기본 50, JSON 키는 top30 유지).

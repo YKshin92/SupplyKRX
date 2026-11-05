@@ -20,6 +20,8 @@ Rules (also published in the output so the UI can state them):
 from .simulation import price_break
 from .price_adjust import adjust_history
 STOCK_DETAIL_SESSIONS = 130  # ~6 calendar months of sessions for the per-stock detail file
+INDEX_CHART_SESSIONS = 126  # 시장 현황 index charts: about 6 calendar months of daily candles, volume and RSI
+US_TOP = 50  # 미국 시가총액 상위 shown in 시장 현황 (domestic stays 30)
 
 PERIOD = 14
 LOW, HIGH = 30, 70
@@ -153,8 +155,9 @@ def latest_caps(metadata_dir, as_of):
     return days[-1], {c: v.get('market_cap') for c, v in data.get('instruments', {}).items() if v.get('market_cap')}
 
 
-def us_rsi(us, chart_sessions=62, top=30):
-    """US block from the private us-market.json (split-adjusted closes, US sessions from the S&P 500 series)."""
+def us_rsi(us, chart_sessions=62, top=US_TOP, index_sessions=INDEX_CHART_SESSIONS):
+    """US block from the private us-market.json (split-adjusted closes, US sessions from the S&P 500 series).
+    Indices carry daily OHLCV for the 6-month charts; `top30` keeps its key name but holds the top `top` companies."""
     if not us or not us.get('indices'):
         return None
     calendar = sorted(set().union(*[set(v.get('prices', {})) for v in us['indices'].values()]))
@@ -164,8 +167,9 @@ def us_rsi(us, chart_sessions=62, top=30):
         return _rounded(summarize(series)), _series_out(series, chart_sessions)
     indices = {}
     for name, v in us['indices'].items():
-        s, series = one(v.get('prices', {}), False)
-        indices[name] = dict(symbol=v.get('symbol'), summary=s, series=series)
+        prices = v.get('prices', {})
+        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=False)
+        indices[name] = dict(symbol=v.get('symbol'), summary=_rounded(summarize(full)), series=_series_ohlcv(full, prices, index_sessions))
     stocks = []
     for item in sorted(us.get('stocks', []), key=lambda x: x['rank'])[:top]:
         prices = item.get('prices', {})
@@ -178,7 +182,8 @@ def us_rsi(us, chart_sessions=62, top=30):
                 price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)
 
 
-def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30, warmup=None, keep=None):
+def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir=None, us=None, top=30, warmup=None, keep=None, us_top=US_TOP,
+                index_sessions=INDEX_CHART_SESSIONS):
     """rows: collector rows (pension rows carry the stock's daily OHLCV). Writes target/rsi/latest.json."""
     from .core import save_json
     pension = [r for r in rows if r['investor'] == '연기금 등']
@@ -224,7 +229,7 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
             continue
         days = sorted(d for d in prices if d <= as_of)
         series = cutler_series(prices, days, require_volume=False)
-        index_out[name] = dict(summary=_rounded(summarize(series)), series=_series_out(series, chart_sessions))
+        index_out[name] = dict(summary=_rounded(summarize(series)), series=_series_ohlcv(series, prices, index_sessions))
     for s in stocks:
         for k in ('rsi', 'prev_rsi', 'cutler'):
             if s[k] is not None:
@@ -238,7 +243,7 @@ def publish_rsi(rows, calendar, indices, target, chart_sessions=62, metadata_dir
                   below30=sum(s['state'] == 'below30' for s in computed), entries_today=sum(s['entry_today'] for s in computed),
                   missing=dict(warmup=sum(s['reason'] == 'warmup' for s in stocks), flat=sum(s['reason'] == 'flat' for s in stocks),
                                invalid=sum(s['reason'] == 'invalid' for s in stocks), break_reset=sum(s['reason'] == 'break' for s in stocks)),
-                  indices=index_out, domestic_top30=domestic, us=us_rsi(us, chart_sessions, top), stocks=stocks)
+                  indices=index_out, domestic_top30=domestic, us=us_rsi(us, chart_sessions, us_top, index_sessions), stocks=stocks)
     save_json(target / 'rsi' / 'latest.json', result)
     if keep is not None:  # full series for the signal lab (not published)
         keep.update(history=by_code, series=series_by_code, sessions=sessions,

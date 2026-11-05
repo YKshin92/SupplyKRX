@@ -34,3 +34,28 @@
 .rsi-trend-toggle{margin-left:8px;vertical-align:middle}.rsi-trend-toggle[aria-pressed=true]{background:var(--blue);color:#fff;border-color:var(--blue)}
 .rsi-trend-note{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11px;color:var(--muted);margin:6px 0 0}.rsi-trend-note i{display:inline-block;width:16px;height:0;border-top:2px solid}.rsi-trend-note i.up{border-color:var(--rsi-high-line)}.rsi-trend-note i.down{border-color:var(--rsi-low-line);margin-left:6px}
 .rsi-event.high{background:var(--rsi-high-line)}
+/* 시장 현황 (2026-11-05): region toggle, 6-month index candles + volume + RSI, investor net columns in the top table */
+.market-overview{display:flex;flex-direction:column;gap:0}
+.market-overview>.flow-overview,.market-overview>.flow-stats{margin-bottom:18px}
+.index-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:10px}
+.index-chart-card{border:1px solid var(--border);border-radius:8px;padding:12px 12px 10px;min-width:0}
+.index-chart-card.below30{border-color:#9dbbe6}.index-chart-card.above70{border-color:#e7a3ab}
+.index-chart-card h5{font-size:12px;margin:10px 0 2px;color:var(--muted);font-weight:600}.index-chart-card h5 small{font-weight:400;margin-left:4px}
+.index-chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.index-chart-head>div:first-child{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.index-chart-head strong{font-size:15px}.index-chart-close{font-size:22px;font-weight:700;font-family:Arial,sans-serif}
+.index-chart-change{font-size:13px;font-weight:700}.index-chart-change.positive{color:var(--up,#d23f4c)}.index-chart-change.negative{color:var(--down,#2f6fd0)}
+.index-chart-head small{flex-basis:100%;font-size:11px;color:var(--muted)}
+.index-chart-rsi{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;justify-content:flex-end;text-align:right}
+.index-chart-rsi>span{font-size:11px;color:var(--muted)}.index-chart-rsi b{font-size:20px;font-family:Arial,sans-serif}
+.index-chart-rsi em{font-style:normal;font-size:11px;font-weight:700}.index-chart-rsi small{flex-basis:100%;font-size:10px;color:var(--muted)}
+.index-chart-price{height:240px}.index-chart-volume .volume-chart{height:72px;margin-top:0}.index-chart-volume .micro-warning{margin:4px 0}
+.index-chart-rsi-line{height:150px}
+.market-region{margin-left:auto}
+.top-flow-controls{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:6px 0 8px;font-size:12px}
+.top-flow-controls>span{font-weight:700}.top-flow-controls small{color:var(--muted);font-size:11px}
+.rsi-top-table th.flow-col,.rsi-top-table td.flow-col{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rsi-top-table td.flow-col.positive{color:var(--up,#d23f4c)}.rsi-top-table td.flow-col.negative{color:var(--down,#2f6fd0)}
+.rsi-top-table th.flow-col{background:var(--soft,#f4f7fb)}[data-theme=dark] .rsi-top-table th.flow-col{background:#1d2b40}
+@media(max-width:900px){.index-chart-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.index-chart-price{height:210px}.index-chart-rsi-line{height:130px}.index-chart-rsi{justify-content:flex-start;text-align:left}.market-region{margin-left:0}}

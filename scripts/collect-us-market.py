@@ -6,7 +6,8 @@
   Only completed sessions are kept: a bar dated today in New York is dropped until 16:20 New York time (16:00 close plus
   20 minutes for the final print). The morning KST run lands about 30 minutes after the close in winter; the 16:00 KST
   collection fetches the whole history again, so any late revision of that close is replaced the same day.
-- Indices: S&P 500 (^GSPC) and Nasdaq Composite (^IXIC).
+- Indices: S&P 500 (^GSPC) and Nasdaq Composite (^IXIC), daily OHLCV.
+- Companies: the top 50 by market cap (--top).
 The output is monitoring reference data only; it never enters signals, scores or the simulation.
 """
 import argparse
@@ -84,7 +85,7 @@ def bars(symbol, now):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=Path, default=ROOT)
-    parser.add_argument('--top', type=int, default=30)
+    parser.add_argument('--top', type=int, default=50)  # 시장 현황 shows the US top 50 (2026-11-05)
     args = parser.parse_args()
     now = datetime.now(timezone.utc)
     result = dict(schema_version=1, collected_at=now.isoformat(timespec='seconds'), cap_date=now.astimezone(NY).date().isoformat(),
