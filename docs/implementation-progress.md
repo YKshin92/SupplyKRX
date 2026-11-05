@@ -521,3 +521,4 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - 지수 카드(IndexRsi `IndexChart`): 최근 6개월(collector/rsi.py `INDEX_CHART_SESSIONS` 126) 일봉 → 거래량 → RSI(14) Wilder, 같은 syncId. 지수 series 가 OHLCV(`_series_ohlcv`)로 바뀜(국내·미국).
 - 국내 지수 거래량: scripts/collect-market-indices.py(NAVER siseJson, 최근 400일, 거래량 천주×1000 → 주, 최신 세션의 수집 종목 거래량 합과 비율 점검) → 비공개 data/live/market-indices.json, collect.yml 에서 실행. prepare-local 이 history-indices → simulation-indices → market-indices 순으로 날짜별 덮어씀.
 - 국내: 지수 → 전체 수급 흐름(MarketFlow·FlowStats, `flow` prop) → 시총 상위 30 + 외국인·기관합계·연기금·사모 순매수 대금 열(최근일·5일 합·20일 합, `useInvestorDatasets` 자료). 미국: 지수 → 시총 상위 50(`US_TOP`, collect-us-market.py --top 기본 50, JSON 키는 top30 유지).
+- 같은 날 다듬기: RsiStockDetail·IndexChart 일봉 툴팁을 종목 상세 분석(CandleTip)과 같이 시가·고가·저가·종가별 전일 종가 대비 %로. 시장 현황의 하단 '시장 파악에서 종목 발굴로' 상자 제거(시장 탭은 list-panel 없이 렌더). App `ScrollTop`(한 화면 넘게 내려가면 '맨 위로').

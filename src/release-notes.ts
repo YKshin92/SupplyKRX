@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-05-market-polish',date:'2026-11-05',title:'시장 현황 다듬기: 일봉 전일 대비 %, 아래 안내 상자 삭제, 맨 위로 버튼',
+  targets:[{tab:'market',selector:'.market-overview',label:'시장 현황'}],
+  changes:['시총 상위 종목과 지수의 일봉 차트에서 시가·고가·저가·종가마다 전 거래일 종가 대비 등락률을 함께 보여 줍니다(종목 발굴의 종목 상세 분석 일봉과 같은 방식).','시장 현황 맨 아래의 ‘시장 파악에서 종목 발굴로’ 안내 상자를 없앴습니다.','어느 화면이든 한 화면 넘게 내려가면 오른쪽 아래에 ‘맨 위로’ 버튼이 나타납니다.'],
+  verified:'화면 구문 확인·배포 번들 확인 2026-11-05'},
  {id:'2026-11-05-market-overview',date:'2026-11-05',title:'시장 현황 재구성: 첫 화면, 국내·미국 지수 6개월 일봉, 시총 상위 투자자별 순매수',
   targets:[{tab:'market',selector:'.market-overview',label:'시장 현황'}],
   changes:['사이트에 들어오면 시장 현황이 먼저 열립니다.','맨 위에서 국내 / 미국을 고릅니다. 국내는 KOSPI·KOSDAQ, 미국은 S&P500·NASDAQ의 최근 6개월(약 126거래일) 일봉 아래에 거래량과 RSI(14)를 같은 날짜 축으로 보여 줍니다.','국내는 지수 차트 아래에 전체 수급 흐름(외국인 · 기관합계 · 연기금 · 사모)과 요약 카드, 그 아래에 국내 시가총액 상위 30을 둡니다. 상위 30 표에 종목별 외국인 · 기관합계 · 연기금 · 사모 순매수 대금 열을 더했고, 최근일 · 5일 합 · 20일 합을 고를 수 있습니다.','미국은 투자자별 수급 자료가 없어 지수 차트 바로 아래에 시가총액 상위 50(기존 30)을 보여 줍니다.'],

@@ -6,6 +6,8 @@ import {useMemo,useState} from 'react';
 import {rsiTrendlines} from './rsi-trend';
 import {TrendNote} from './StockRsiPanel';
 import type {RsiPoint} from './rsi-data';
+import {priceChange,percentLabel} from './price-change';
+import {sign} from './data';
 
 const Y=70;
 /** Top-30 row detail: daily candles, volume and a large RSI panel on one shared date axis. */
@@ -23,7 +25,7 @@ export default function RsiStockDetail({name,sub,series,currency,onClose}:{name:
    <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
    <XAxis dataKey="date" tickFormatter={v=>String(v).slice(5)} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={18}/>
    <YAxis domain={['auto','auto']} width={Y} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>currency==='USD'?`$${Number(v).toFixed(0)}`:Number(v).toLocaleString('ko-KR')}/>
-   <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof data)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label}</strong><div>시가 {money(r.open)} · 고가 {money(r.high)}</div><div>저가 {money(r.low)} · 종가 {money(r.close)}</div><div>거래량 {r.volume==null?'—':r.volume.toLocaleString('ko-KR')}주</div><div>RSI {r.rsi==null?'—':r.rsi.toFixed(1)}</div></div>;}}/>
+   <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof data)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label}</strong>{(['open','high','low','close'] as const).map((key,i)=>{const change=priceChange(r[key],r.previousClose);return <div key={key}>{['시가','고가','저가','종가'][i]}: {money(r[key])} <span className={sign(change)}>({percentLabel(change)})</span></div>;})}<div>거래량: {r.volume==null?'—':r.volume.toLocaleString('ko-KR')}주</div><div>RSI: {r.rsi==null?'—':r.rsi.toFixed(1)}</div><small>전 거래일 종가 대비 · 기준가 미확인 시 —</small></div>;}}/>
    <Bar dataKey="wick" name="일봉" shape={<Candle/>} isAnimationActive={false}/>
   </ComposedChart></ResponsiveContainer></div>:<p className="micro-warning">일봉 시가·고가·저가 미수집 · 다음 수집 뒤 표시</p>}
   <h5>거래량</h5>

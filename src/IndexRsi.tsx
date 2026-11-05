@@ -7,6 +7,7 @@ import RsiChart,{zoneEntries} from './RsiChart';
 import RsiSpark from './RsiSpark';
 import {readRsi,stateLabel,reasonLabel,unsettled,type RsiData,type RsiIndex,type RsiSummary,type RsiPoint} from './rsi-data';
 import {type Dataset,type Stock,integer,sign} from './data';
+import {priceChange,percentLabel} from './price-change';
 import {STAT_INVESTORS,type InvestorDatasets} from './MarketFlow';
 import './rsi.css';
 
@@ -48,8 +49,7 @@ function IndexChart({name,x}:{name:string;x?:RsiIndex}){
    <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
    <XAxis dataKey="date" tickFormatter={v=>String(v).slice(5)} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={24}/>
    <YAxis domain={['auto','auto']} width={Y} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>Number(v).toLocaleString('ko-KR',{maximumFractionDigits:0})}/>
-   <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof data)[number]|undefined;if(!active||!r)return null;const c=r.close!=null&&r.previousClose?(r.close/r.previousClose-1)*100:null;
-    return <div className="chart-tip"><strong>{label}</strong><div>시가 {points(r.open)} · 고가 {points(r.high)}</div><div>저가 {points(r.low)} · 종가 {points(r.close)} <span className={sign(c)}>{pct(c)}</span></div><div>거래량 {r.volume==null?'—':`${integer(r.volume)}주`}</div></div>;}}/>
+   <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof data)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label}</strong>{(['open','high','low','close'] as const).map((key,i)=>{const change=priceChange(r[key],r.previousClose);return <div key={key}>{['시가','고가','저가','종가'][i]}: {points(r[key])} <span className={sign(change)}>({percentLabel(change)})</span></div>;})}<div>거래량: {r.volume==null?'—':`${integer(r.volume)}주`}</div><div>RSI: {r.rsi==null?'—':r.rsi.toFixed(1)}</div><small>전 거래일 종가 대비</small></div>;}}/>
    <Bar dataKey="wick" name="일봉" shape={<Candle/>} isAnimationActive={false}/>
   </ComposedChart></ResponsiveContainer></div>
   <h5>거래량</h5>

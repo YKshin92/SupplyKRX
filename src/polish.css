@@ -105,3 +105,7 @@ table{font-variant-numeric:tabular-nums}
 [data-theme=dark] .chase-warning b{color:#ffb35c}
 .candle-tag{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;font-size:10.5px;font-weight:600;line-height:17px;vertical-align:1px;white-space:nowrap}.candle-tag.bull{background:#fdecee;color:#c23a4d}.candle-tag.bear{background:#e8f0fc;color:#2462b8}.candle-tag.flat{background:#eef1f5;color:#6b778a}[data-theme=dark] .candle-tag.bull{background:#4a2730;color:#ff9aa8}[data-theme=dark] .candle-tag.bear{background:#1f3352;color:#8dbbff}[data-theme=dark] .candle-tag.flat{background:#2a3546;color:#a9b5c6}
 :root{--quiet-zone:rgba(34,160,90,.09);--hold-zone:rgba(139,92,246,.08)}[data-theme=dark]{--quiet-zone:rgba(80,200,140,.12);--hold-zone:rgba(167,139,250,.12)}
+/* 맨 위로 (2026-11-05) */
+.scroll-top{position:fixed;right:22px;bottom:26px;z-index:40;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--panel-bg,#fff);color:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px #132c4726;cursor:pointer}
+.scroll-top:hover{background:#eef4fd}[data-theme=dark] .scroll-top{background:#1d2b40;color:#9ec3ff}[data-theme=dark] .scroll-top:hover{background:#263a56}
+@media(max-width:760px){.scroll-top{right:12px;bottom:16px;width:40px;height:40px}}
