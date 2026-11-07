@@ -18,8 +18,10 @@ function SessionGate(){
  const [loginId,setLoginId]=useState(''),[password,setPassword]=useState(''),[show,setShow]=useState(false),[busy,setBusy]=useState(false);
  // 비밀번호 바꾸기: an issued (temporary) password is replaced with the person's own one (Descope password.replace; no sign-in needed).
  // guest is one shared account (2026-11-04), so the change form is not offered on the normal login page: only the administrator's
- // address /?password=change shows it, and the shared guest password cannot be changed from here at all (the administrator resets it
- // in the Descope console). The API itself still accepts a change by anyone who knows the current password.
+ // address /?password=change shows it. Since 2026-11-07 that form also changes the shared guest password, because the Descope console
+ // only issues random passwords and the administrator wants to choose the shared one. The API itself always accepted a change by
+ // anyone who knows the current password, so this screen was never the safeguard; if a guest changes it, the administrator resets it
+ // in the console (Set / Expire Password, 'Force user to change password on next login' off).
  const canChange=new URLSearchParams(window.location.search).get('password')==='change';
  const [change,setChange]=useState(false),[next,setNext]=useState(''),[confirm,setConfirm]=useState(''),[notice,setNotice]=useState('');
  useEffect(()=>{if(!isAuthenticated||!sessionToken){setMember(null);return;}const controller=new AbortController();setChecking(true);authRequest('session',{sessionToken},controller.signal).then(setMember).catch(e=>{if(e.name==='AbortError')return;setMember(null);setError(e.message);if(e.status===403)void sdk.logout();}).finally(()=>{if(!controller.signal.aborted)setChecking(false);});return()=>controller.abort();},[isAuthenticated,sessionToken]);
@@ -34,13 +36,13 @@ function SessionGate(){
   return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',wake);window.removeEventListener('focus',wake);};},[member]);
  async function logout(){setBusy(true);try{await authRequest('logout',{});setMember(null);await sdk.logout();setPassword('');setError('');}catch{setError('로그아웃을 완료하지 못했습니다. 다시 시도해 주세요.');}finally{setBusy(false);}}
  async function signIn(event:FormEvent){event.preventDefault();if(busy)return;setBusy(true);setError('');try{const response=await sdk.password.signIn(toLoginId(loginId),password);if(!response.ok)throw new Error();setPassword('');}catch{setError('아이디 또는 비밀번호가 올바르지 않습니다. 여러 번 틀리면 잠시 잠길 수 있습니다.');}finally{setBusy(false);}}
- async function replacePassword(event:FormEvent){event.preventDefault();if(busy)return;if(toLoginId(loginId)===toLoginId('guest')){setError('공용 guest 계정의 비밀번호는 여기서 바꿀 수 없습니다. 관리자가 Descope 콘솔에서 바꿉니다.');return;}if(next!==confirm){setError('새 비밀번호가 서로 다릅니다.');return;}setBusy(true);setError('');setNotice('');
-  try{const response=await sdk.password.replace(toLoginId(loginId),password,next);if(!response.ok)throw new Error(response.error?.errorDescription??'');setPassword('');setNext('');setConfirm('');setChange(false);setNotice('비밀번호를 바꿨습니다. 새 비밀번호로 로그인하세요.');}
+ async function replacePassword(event:FormEvent){event.preventDefault();if(busy)return;if(next!==confirm){setError('새 비밀번호가 서로 다릅니다.');return;}setBusy(true);setError('');setNotice('');
+  try{const response=await sdk.password.replace(toLoginId(loginId),password,next);if(!response.ok)throw new Error(response.error?.errorDescription??'');setPassword('');setNext('');setConfirm('');setChange(false);setNotice(toLoginId(loginId)===toLoginId('guest')?'guest 비밀번호를 바꿨습니다. 새 비밀번호로 로그인하고, guest를 쓰는 분들께 새 비밀번호를 알려 주세요.':'비밀번호를 바꿨습니다. 새 비밀번호로 로그인하세요.');}
   catch(e){const why=(e as Error).message;setError(`비밀번호를 바꾸지 못했습니다.${why?` (${why})`:''} 아이디·지금 비밀번호를 확인하고, 새 비밀번호가 규칙(최소 길이 등)에 맞는지 확인해 주세요.`);}finally{setBusy(false);}}
  if(member&&isAuthenticated)return <Suspense fallback={<LoginFrame><p role="status">대시보드를 불러오고 있습니다.</p></LoginFrame>}><App canCollect={member.isAdmin} accountControls={<button className="button" disabled={busy} onClick={()=>void logout()}><LogOut size={16}/> 로그아웃</button>}/></Suspense>;
  return <LoginFrame>{isSessionLoading||checking?<p role="status">로그인을 확인하고 있습니다.</p>:change?<><form onSubmit={replacePassword}>
   <label htmlFor="cp-id">아이디</label><input id="cp-id" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required maxLength={64} value={loginId} onChange={e=>setLoginId(e.target.value)}/>
-  <label htmlFor="cp-old">지금 비밀번호 (받은 임시 비밀번호)</label><input id="cp-old" type={show?'text':'password'} autoComplete="current-password" required maxLength={64} value={password} onChange={e=>setPassword(e.target.value)}/>
+  <label htmlFor="cp-old">지금 비밀번호</label><input id="cp-old" type={show?'text':'password'} autoComplete="current-password" required maxLength={64} value={password} onChange={e=>setPassword(e.target.value)}/>
   <label htmlFor="cp-new">새 비밀번호</label><input id="cp-new" type={show?'text':'password'} autoComplete="new-password" required maxLength={64} value={next} onChange={e=>setNext(e.target.value)}/>
   <label htmlFor="cp-new2">새 비밀번호 확인</label><input id="cp-new2" type={show?'text':'password'} autoComplete="new-password" required maxLength={64} value={confirm} onChange={e=>setConfirm(e.target.value)}/>
   <label className="auth-check"><input type="checkbox" checked={show} onChange={e=>setShow(e.target.checked)}/> 비밀번호 보이기</label>

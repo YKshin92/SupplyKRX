@@ -9,7 +9,10 @@
   - 관리자: 사용자 ID가 Vercel 서버 환경 변수 `COLLECTION_ADMIN_USER_IDS` 또는 `ADMIN_USER_IDS`(2026-11-04, master 계정)에 있는 사람 (모든 탭, 수집·승인 가능).
   - 회원: 관리자가 콘솔에서 역할 `viewer`(서버 환경 변수 `MEMBER_ROLE`로 바꿀 수 있음, 비우면 회원 없음)를 준 사람. 시장 현황·종목 발굴·신규 순매수 추적·전략 검증만 본다(guest).
 - 계정: Descope 콘솔은 로그인 ID로 이메일·전화만 받아 `master@supply-krx.vercel.app`, `guest@supply-krx.vercel.app`(메일함 없는 주소, 초대 끔)로 만들고, 로그인 화면에서는 `master`·`guest`만 입력한다. 콘솔은 임시 비밀번호만 발급하므로 로그인 화면의 ‘비밀번호 바꾸기’(password.replace)로 각자 바꾼다.
-- guest는 master 외 모든 사람이 함께 쓰는 공용 계정이다(2026-11-04). 그래서 로그인 화면에는 '비밀번호 바꾸기'가 보이지 않고 관리자 주소 `/?password=change`에서만 나오며, guest 비밀번호는 그 화면에서도 바꿀 수 없다(관리자가 콘솔에서 Set/Expire Password, 강제 변경 끔 → 받은 비밀번호를 새 공용 비밀번호로 공유). 모두 내보낼 때는 콘솔 guest ⋮ → Force Logout. 한 사람의 로그아웃은 자기 세션만 끝낸다.
+- guest는 master 외 모든 사람이 함께 쓰는 공용 계정이다(2026-11-04). 그래서 로그인 화면에는 '비밀번호 바꾸기'가 보이지 않고 관리자 주소 `/?password=change`에서만 나온다. 모두 내보낼 때는 콘솔 guest ⋮ → Force Logout. 한 사람의 로그아웃은 자기 세션만 끝낸다.
+- guest 비밀번호 (2026-11-07부터): 관리자가 `/?password=change`에서 아이디 `guest`, 지금 비밀번호, 새 비밀번호로 직접 정한다(전에는 이 화면에서 막았음). 콘솔은 무작위 비밀번호만 만들기 때문이다. Descope API는 원래 지금 비밀번호를 아는 누구의 변경이든 받으므로 화면에서 막는 것은 보호 장치가 아니었다.
+- 콘솔에서 다시 발급할 때(guest가 비밀번호를 바꿔 버렸거나 잊었을 때): Users → guest ⋮ → Set / Expire Password → 'Set a temporary password for the user' 켬 → **'Force user to change password on next login' 끔**(기본 켜짐) → Set Password → 창에 나온 비밀번호 복사. 누를 때마다 새 비밀번호가 되고 앞의 것은 못 쓴다. 강제 변경을 켠 채 두면 로그인 때 `E062909 Expired password`로 막힌다(그때는 위 화면에서 바꾸면 풀린다). 토글을 끈 채 'Expire Password'만 누르면 지금 비밀번호가 만료만 된다.
+- 로그인이 안 될 때는 콘솔 Audit and Troubleshoot → LoginFailed 행 → Data의 `error_message`로 이유를 본다(`E062901` 비밀번호 틀림, `E062909` 만료). 10번 틀리면 15분 잠긴다.
 - 2026-11-04부터 접근은 **master와 guest 두 계정뿐**이다: 관리자 = master(`COLLECTION_ADMIN_USER_IDS`, `ADMIN_USER_IDS`), 회원 = guest(`MEMBER_USER_IDS`). `MEMBER_USER_IDS`가 있으면 그 ID만 회원이고 역할은 보지 않는다. 임시 계정을 새로 줄 때는 콘솔에서 계정을 만든 뒤 그 사용자 ID를 `MEMBER_USER_IDS`에 쉼표로 더하고 재배포한다(빼면 다음 세션 갱신 때 막힌다). 관리자 이메일 인증 임시 로그인은 master 확인 후 없앴다.
 - 그 밖의 계정은 로그인에 성공해도 403(‘관리자가 발급한 계정만 접속할 수 있습니다’)으로 막고 세션 쿠키를 지운다.
   Descope 공개 API로 누가 직접 가입해도 역할이 없으므로 들어올 수 없다. 예전에 이메일로 가입한 계정도 같은 이유로 막힌다.

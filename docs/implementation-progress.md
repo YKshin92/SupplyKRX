@@ -527,3 +527,8 @@ collector/price_adjust.py와 src/price-adjust.ts가 같은 규칙을 쓴다. 실
 - collector/publish_flow_ranks.py: 뷰 latest/5d/20d/1m/2m/3m(`VIEWS`), 전 거래일 같은 창 순위(`score_rank`·`previous_score_rank`·`rank_change`·`new_entry`, 전일 시총 스냅샷 있을 때만), `pension_markers`(quiet_3m·first_buy·signal·volume_ratio_20; 이력 빠지면 None), `pension_score`(연기금 두 항목×4), `caution`(외국인·기관합계·사모 시총 대비 상위 5%). 버전 문자열과 8항목 `score`는 그대로 둬 전진 검증(score_snapshots) 호환.
 - scripts/verify-flow-ranks.py: 6개 뷰, score_rank·rank_change·pension_score·signal 조건 검증. tests/test_rank_projection.py 에 창·전일 비교·표시 테스트.
 - 화면 FlowRankExplorer: 집계 기간 버튼(localStorage 기억, 기본 20d), '기준일에 새로 보이는 종목'(매매법 신호·연기금 첫 매수·순위 급등/신규), 연기금 점수 기본 정렬, 8항목 합계 참고 열, 전일 대비 열, 배지, '3개월 무매수 종목만' 필터. 실제 자료 생성 30초, 6뷰 19MB(뷰당 3조각).
+
+### 2026-11-07 guest 비밀번호 직접 정하기 (사용자 요청)
+- Descope 콘솔 정리(관리자 직접): 비밀번호 최소 10자·10회 실패 15분 잠금, OTP API 끔, 자가 가입 차단, 옛 이메일 사용자 5개 비활성, 로그인 유지 12주·세션 10분.
+- 콘솔 'Set / Expire Password'는 무작위 비밀번호만 만들어서, AuthGate `replacePassword`의 guest 차단을 뺐다. 관리자 주소 `/?password=change`에서 guest도 바꾼다(일반 로그인 화면에는 여전히 없음). 바꾼 뒤 guest면 '쓰는 분들께 알려 주세요' 안내.
+- 재발급·진단 순서는 docs/login.md.
