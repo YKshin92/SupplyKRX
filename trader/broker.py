@@ -131,6 +131,27 @@ def order_payload(account: str, code: str, shares: int, price: int | None = None
     return body
 
 
+QUOTE_BASE_URL = 'https://api.nhplug.com:8443'
+
+
+def live_quote_call(path: str, body: dict, call=None, env=os.environ):
+    """시세 조회만 실전 서버로 보낸다. 모의 서버는 시세 API를 주지 않는다(IGW40023, 2026-11-09 확인).
+    토큰은 원래 실전 인증 서버에서만 나오므로 같은 토큰을 쓴다. 주문·잔고 경로는 여기로 올 수 없다."""
+    if not path.startswith('/krstock/quote/'):
+        raise LiveGuardError(f'실전 서버에는 시세 조회만 보낼 수 있습니다({path}).')
+    if call is None:
+        from nhplug import call
+    old = env.get('NHPLUG_BASE_URL')
+    env['NHPLUG_BASE_URL'] = QUOTE_BASE_URL
+    try:
+        return call(path, body)
+    finally:
+        if old is None:
+            env.pop('NHPLUG_BASE_URL', None)
+        else:
+            env['NHPLUG_BASE_URL'] = old
+
+
 class PlugBroker:
     """나무 PLUG 연결(모의투자 우선). call은 nhplug.call — 시험에서는 가짜를 넣는다."""
     BUY = '/krstock/order/v1/cashBuy'
@@ -138,12 +159,14 @@ class PlugBroker:
     PRICE = '/krstock/quote/v1/currentPrice'
     BALANCE = '/krstock/inquiry/v1/balance'
 
-    def __init__(self, *, mode: str, account: str, account_type: str, base_url: str, call=None, env=os.environ):
+    def __init__(self, *, mode: str, account: str, account_type: str, base_url: str, call=None, quote_call=None, env=os.environ):
         check_target(mode, base_url, account, account_type, env)
+        call_given = call is not None
         if call is None:
             from nhplug import call as sdk_call  # PC에만 설치(pip install git+https://github.com/PLUG-OpenAPI/nhplug-sdk)
             call = sdk_call
         self.mode, self.account, self._call = mode, account, call
+        self._quote_call = quote_call or (lambda path, body: live_quote_call(path, body, call=self._call if call_given else None, env=env))
         self.responses: list[dict] = []   # 원문 응답 기록(해석 확인용)
 
     def _send(self, path, body):
@@ -153,7 +176,9 @@ class PlugBroker:
 
     # 응답 해석은 모의 서버 실제 응답으로 확인한 뒤 채운다. 확인 전에는 봇이 이 경로로 주문하지 않는다.
     def quote(self, code):
-        res = self._send(self.PRICE, dict(iem_cd=code, market_cd='KRX'))
+        body = dict(iem_cd=code, market_cd='KRX')
+        res = self._quote_call(self.PRICE, body)   # 시세는 실전 서버(조회 전용), 주문·잔고는 모의 서버
+        self.responses.append(dict(path=self.PRICE, body=body, response=res))
         o = (res or {}).get('Output_0') or {}
         num = lambda k: float(o[k]) if o.get(k) not in (None, '') else None
         return Quote(code, num('stck_prpr'), num('stck_oprc'), num('stck_sdpr'))  # 필드명: 현재가는 SDK 예제 확인, 시가·기준가는 확인 필요

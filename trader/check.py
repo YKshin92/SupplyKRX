@@ -71,12 +71,13 @@ def main():
         except Exception as e:
             say('✗', f'계좌 목록 조회 실패: {e}')
         try:
-            res = call('/krstock/quote/v1/currentPrice', {'iem_cd': a.code, 'market_cd': 'KRX'})
+            from .broker import live_quote_call  # 모의 서버는 시세를 주지 않아 시세만 실전 서버(조회 전용)
+            res = live_quote_call('/krstock/quote/v1/currentPrice', {'iem_cd': a.code, 'market_cd': 'KRX'})
             fields['currentPrice'] = shape(res)
             o = (res or {}).get('Output_0') or {}
             say('✓' if o.get('stck_prpr') else '!', f"현재가 {a.code}: {o.get('stck_prpr')} (응답 {res.get('rsp_cd')} {res.get('rsp_msg')})")
         except Exception as e:
-            say('✗', f'현재가 조회 실패: {e} (회사 방화벽이 8443 포트를 막는지 확인)')
+            say('✗', f'현재가 조회 실패: {e} (실전 서버 시세 조회 · 회사 방화벽이 8443 포트를 막는지도 확인)')
         if mock_acct and mock:
             try:
                 res = call('/krstock/inquiry/v1/balance', {'act_no': mock_acct, 'bnc_bse_cd': '5', 'ltg_aot_dit_cd': '9', 'aet_bse': '2', 'qut_dit_cd': 'UNT', 'aly_qut_cd': '1'})

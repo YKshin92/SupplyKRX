@@ -176,3 +176,15 @@ class ReportAndMailboxTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_live_quote_call_only_quotes_and_restores_server():
+    from trader.broker import LiveGuardError, live_quote_call
+    import pytest
+    env = {'NHPLUG_BASE_URL': 'https://moapi.nhplug.com:8443'}
+    seen = []
+    res = live_quote_call('/krstock/quote/v1/currentPrice', {'iem_cd': '005930'}, call=lambda p, b: seen.append(env['NHPLUG_BASE_URL']) or {'ok': 1}, env=env)
+    assert res == {'ok': 1} and seen == ['https://api.nhplug.com:8443'] and env['NHPLUG_BASE_URL'] == 'https://moapi.nhplug.com:8443'
+    for path in ('/krstock/order/v1/cashBuy', '/krstock/inquiry/v1/balance'):
+        with pytest.raises(LiveGuardError):
+            live_quote_call(path, {}, call=lambda p, b: {}, env=env)
