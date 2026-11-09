@@ -58,5 +58,5 @@ if (-not [Environment]::GetEnvironmentVariable('SUPPLYKRX_TRADER_TOKEN', 'User')
   $t = $null
 }
 Write-Host ''
-Write-Host '설치 완료. 다음: 연결 시험(주문 없음)  ->  & "$env:USERPROFILE\supplykrx-trader\.venv\Scripts\python.exe" -m trader.check'
+Write-Host '설치 완료. 다음: 연결 시험(주문 없음)  ->  cd "$env:USERPROFILE\supplykrx-trader\app"; & "$env:USERPROFILE\supplykrx-trader\.venv\Scripts\python.exe" -X utf8 -m trader.check'
 Write-Host '자동 실행 등록은 register-task.ps1 (평일 08:40 과 로그온 때 시작).'
