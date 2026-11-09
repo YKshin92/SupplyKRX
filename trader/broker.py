@@ -180,7 +180,7 @@ class PlugBroker:
         res = self._quote_call(self.PRICE, body)   # 시세는 실전 서버(조회 전용), 주문·잔고는 모의 서버
         self.responses.append(dict(path=self.PRICE, body=body, response=res))
         o = (res or {}).get('Output_0') or {}
-        num = lambda k: float(o[k]) if o.get(k) not in (None, '') else None
+        num = lambda k: float(o[k]) if o.get(k) not in (None, '', 0, '0') else None   # 장 시작 전 시가 0 은 '아직 없음'
         return Quote(code, num('stck_prpr'), num('stck_oprc'), num('stck_prdy_clpr'))  # 필드명 실제 응답으로 확인(2026-11-09): 현재가·시가·전일 종가
 
     def cash(self):
