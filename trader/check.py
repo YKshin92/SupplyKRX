@@ -34,6 +34,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--state', default=str(DEFAULT_STATE))
     ap.add_argument('--code', default='005930')
+    ap.add_argument('--save-account', action='store_true', help='찾은 모의 계좌(유형 03)를 config.json 의 account 에 넣는다(화면에는 끝 4자리만)')
+    ap.add_argument('--config', default=str(DEFAULT_STATE / 'config.json'))
     a = ap.parse_args()
     out, fields, ok = [], {}, True
 
@@ -68,6 +70,16 @@ def main():
                 say('·', f"계좌 {mask(r.get('acct_no'))} 유형 {r.get('acct_type')}{' (모의투자)' if r.get('acct_type') == '03' else ''}")
             mock_acct = next((r.get('acct_no') for r in rows if r.get('acct_type') == '03'), None)
             say('✓' if mock_acct else '!', '모의투자 계좌(유형 03) ' + ('있음' if mock_acct else '없음 → 나무 앱에서 모의투자 신청이 필요할 수 있습니다'))
+            if mock_acct and a.save_account:
+                cfg_path = Path(a.config)
+                cfg = json.loads(cfg_path.read_text(encoding='utf-8-sig')) if cfg_path.exists() else {}
+                if cfg.get('account_type', '03') != '03':
+                    say('!', 'config.json 의 account_type 이 03(모의)이 아니라 계좌를 넣지 않았습니다.')
+                else:
+                    cfg['account'], cfg['account_type'] = mock_acct, '03'
+                    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+                    cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8')
+                    say('✓', f'config.json 에 모의 계좌 {mask(mock_acct)} 를 넣었습니다({cfg_path}).')
         except Exception as e:
             say('✗', f'계좌 목록 조회 실패: {e}')
         try:
