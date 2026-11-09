@@ -181,7 +181,7 @@ class PlugBroker:
         self.responses.append(dict(path=self.PRICE, body=body, response=res))
         o = (res or {}).get('Output_0') or {}
         num = lambda k: float(o[k]) if o.get(k) not in (None, '') else None
-        return Quote(code, num('stck_prpr'), num('stck_oprc'), num('stck_sdpr'))  # 필드명: 현재가는 SDK 예제 확인, 시가·기준가는 확인 필요
+        return Quote(code, num('stck_prpr'), num('stck_oprc'), num('stck_prdy_clpr'))  # 필드명 실제 응답으로 확인(2026-11-09): 현재가·시가·전일 종가
 
     def cash(self):
         raise NotImplementedError('잔고 응답 필드는 모의투자 키 발급 후 확인합니다.')
