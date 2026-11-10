@@ -148,6 +148,13 @@ class Day:
         if not self.mailbox:
             return
         try:
+            if prices is None:  # 시작·체결 직후 보고에도 현재가·평가손익이 보이도록 보유 종목 시세를 한 번 받는다
+                prices = {}
+                for code in book['positions']:
+                    try:
+                        prices[code] = self.broker.quote(code).price
+                    except Exception:
+                        pass
             st = build_state(book, cash=self.broker.cash(), prices=prices or {}, mode=self.cfg.mode, stopped=self.stopped(),
                              settings=self.s, daily_max_buy=self.cfg.daily_max_buy, initial=book.get('initial') or self.cfg.initial_cash)
             st['alerts'] = self.alerts[-20:]
