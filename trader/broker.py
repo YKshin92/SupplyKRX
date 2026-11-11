@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlparse
@@ -177,7 +178,16 @@ class PlugBroker:
     # 응답 해석은 모의 서버 실제 응답으로 확인한 뒤 채운다. 확인 전에는 봇이 이 경로로 주문하지 않는다.
     def quote(self, code):
         body = dict(iem_cd=code, market_cd='KRX')
-        res = self._quote_call(self.PRICE, body)   # 시세는 실전 서버(조회 전용), 주문·잔고는 모의 서버
+        for attempt in range(3):   # 일시적인 네트워크·SSL 끊김은 2·4초 쉬고 다시(2026-11-11 SSLEOFError 로 봇이 멈춘 일)
+            try:
+                res = self._quote_call(self.PRICE, body)   # 시세는 실전 서버(조회 전용), 주문·잔고는 모의 서버
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
+        if len(self.responses) > 200:
+            del self.responses[:100]
         self.responses.append(dict(path=self.PRICE, body=body, response=res))
         o = (res or {}).get('Output_0') or {}
         num = lambda k: float(o[k]) if o.get(k) not in (None, '', 0, '0') else None   # 장 시작 전 시가 0 은 '아직 없음'

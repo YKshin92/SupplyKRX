@@ -124,10 +124,17 @@ class Day:
     clock: Clock
     s: Settings
     alerts: list = field(default_factory=list)
+    quote_failures: int = 0
 
     @property
     def book_path(self):
         return self.state_dir / 'book.json'
+
+    def safe_price(self, code: str, field_name: str):
+        try:
+            return getattr(self.broker.quote(code), field_name)
+        except Exception:
+            return None
 
     def stopped(self) -> bool:
         if is_stopped(self.state_dir):
@@ -184,7 +191,7 @@ class Day:
         # 1) 지난 거래일 공급 파일을 아직 반영 안 했으면(어제 PC가 일찍 꺼짐 등) 지금 반영. 종가는 전일 종가(prev_close)로.
         feed = self.feed()
         if feed and feed['as_of'] < today and feed['as_of'] != book.get('feed_applied'):
-            closes = {c: self.broker.quote(c).prev_close or p.get('last_close') or p['entry_price'] for c, p in book['positions'].items()}
+            closes = {c: self.safe_price(c, 'prev_close') or p.get('last_close') or p['entry_price'] for c, p in book['positions'].items()}
             self.apply_feed(book, feed, closes)
         save(book, self.book_path); self.publish(book)
         # 2) 장 시작
@@ -201,7 +208,13 @@ class Day:
             risk = Risk(self.cfg.daily_max_buy, self.stopped())
             prices, changed = {}, False
             for code in list(book['positions']):
-                q = self.broker.quote(code)
+                try:
+                    q = self.broker.quote(code)
+                except Exception as e:   # 시세 한 번 실패로 하루 감시가 멈추지 않게: 이번 회차만 건너뛴다
+                    self.quote_failures += 1
+                    if self.quote_failures in (1, 10, 100):
+                        self.alerts.append(f'{code} 시세 조회 실패 {self.quote_failures}회째 · 다음 회차에 다시 · {type(e).__name__}')
+                    continue
                 prices[code] = q.price
                 if q.price and on_price(book, self.broker, today, code, q.price, self.s, risk):
                     changed = True
@@ -213,7 +226,7 @@ class Day:
         while self.clock.now() <= deadline:
             feed = self.feed()
             if feed and feed['as_of'] == today:
-                closes = {c: self.broker.quote(c).price or p['entry_price'] for c, p in book['positions'].items()}
+                closes = {c: self.safe_price(c, 'price') or p['entry_price'] for c, p in book['positions'].items()}
                 self.apply_feed(book, feed, closes)
                 break
             self.clock.sleep(300)
