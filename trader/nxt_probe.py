@@ -33,7 +33,7 @@ def num(row: dict, key: str):
 
 
 def fetch(code: str, market: str, days: int, call=live_quote_call):
-    res = call(PATH, {'Input_0': {'market_cd': market, 'iem_cd': code, 'array_cnt': str(days)}})
+    res = call(PATH, {'market_cd': market, 'iem_cd': code, 'array_cnt': str(days)})  # SDK 가 Input_0 으로 감싼다
     if (res or {}).get('rsp_cd') not in (None, '00000'):
         return dict(error=f"{res.get('rsp_cd')} {res.get('rsp_msg')}")
     rows = (res or {}).get('Output_0') or []
