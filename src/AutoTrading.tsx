@@ -18,6 +18,8 @@ const tone=(v:number|null|undefined)=>v==null||v===0?'':v>0?'up':'down';
 const MODE={paper:'모의투자',live:'실전',['dry-run']:'가상 시험'} as const;
 const STATUS:Record<string,string>={take:'익절',stop:'손절',flow:'연기금 매도',buy:'매수',sell:'매도',skip:'제외',halt:'자동 주문 중지',flow_flag:'시가 매도 예약',stopped:'정지 중'};
 const minutesAgo=(iso:string)=>Math.max(0,Math.round((Date.now()-Date.parse(iso))/6e4));
+// 장중(평일 09:00~15:20 KST)에는 봇이 1분마다 보고한다. 10분 넘게 끊기면 손절·익절 감시가 멈춘 것일 수 있다(2026-11-11 SSL 오류로 멈춘 일).
+export function marketOpenKst(now=new Date()){const k=new Date(now.getTime()+9*36e5),d=k.getUTCDay(),m=k.getUTCHours()*60+k.getUTCMinutes();return d>=1&&d<=5&&m>=540&&m<=920;}
 
 export default function AutoTrading({initial}:{initial?:Payload}){
  const [data,setData]=useState<Payload|null>(initial??null),[error,setError]=useState(''),[loading,setLoading]=useState(!initial);
@@ -25,15 +27,16 @@ export default function AutoTrading({initial}:{initial?:Payload}){
  const load=useCallback(async(signal?:AbortSignal)=>{setLoading(true);try{const r=await fetch('/api/trading',{credentials:'same-origin',cache:'no-store',signal});const d=await r.json();if(!r.ok)throw Error(d.error??'자동매매 상태를 불러오지 못했습니다.');setData(d);setError('');}catch(e){if((e as Error).name!=='AbortError')setError((e as Error).message);}finally{if(!signal?.aborted)setLoading(false);}},[]);
  useEffect(()=>{if(initial)return;const c=new AbortController();void load(c.signal);const t=setInterval(()=>{if(document.visibilityState==='visible')void load();},60000);return()=>{c.abort();clearInterval(t);};},[load,initial]);
  async function control(action:'stop'|'resume'){setBusy(true);setMessage('');try{const r=await fetch('/api/trading',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Trading-Request':'1'},body:JSON.stringify({action})});const d=await r.json();if(!r.ok)throw Error(d.error??'요청을 보내지 못했습니다.');setMessage(action==='stop'?'긴급 정지를 요청했습니다. 1분 안팎으로 기록되고, 봇은 다음 확인 때(주문 직전마다) 새 주문을 멈춥니다.':'재개를 요청했습니다. 1분 안팎으로 기록되면 봇이 다시 주문합니다.');setConfirm(false);setTimeout(()=>void load(),45000);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
- const s=data?.state,requested=!!data?.control?.stopped,stale=s?minutesAgo(s.updated_at):null;
+ const s=data?.state,requested=!!data?.control?.stopped,stale=s?minutesAgo(s.updated_at):null,silent=!!s&&stale!=null&&marketOpenKst()&&stale>10;
  return <section className="auto-trading" aria-labelledby="at-title">
   <div className="at-head"><div><div className="eyebrow">AUTO TRADING · 관리자 전용</div><h2 id="at-title">자동매매</h2>
    <p>PC에서 도는 봇의 계좌 상태입니다. 규칙은 '전략 검증 · 시뮬레이션' 기본값과 같고, 사이트는 주문을 내지 않습니다.</p></div>
    <div className="at-head-actions">{s&&<span className={`at-mode ${s.mode}`}>{MODE[s.mode]}</span>}<button className="button" disabled={loading} onClick={()=>void load()}>{loading?'불러오는 중…':'새로 고침'}</button></div></div>
   {error&&<p className="at-error" role="alert">{error}</p>}
+  {silent&&<p className="at-error" role="alert">장중인데 봇 보고가 {stale}분째 없습니다. 손절·익절 감시가 멈췄을 수 있으니 PC(절전·네트워크)와 작업 스케줄러 'SupplyKRX Trader'를 확인하세요.</p>}
   {data&&<div className={`at-control${requested?' stopped':''}`}>
    <div><b>{requested?(s?.stopped?'긴급 정지 중':'정지 요청됨 · 봇 반영 대기'):s?'운영 중':'봇 연결 전'}</b>
-    <span>{s?`마지막 보고 ${new Date(s.updated_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} (${stale}분 전)`:'봇이 아직 연결되지 않았습니다.'}{s&&stale!=null&&stale>15?' · 봇 응답이 늦습니다. PC와 봇이 켜져 있는지 확인하세요.':''}</span></div>
+    <span>{s?`마지막 보고 ${new Date(s.updated_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} (${stale}분 전)`:'봇이 아직 연결되지 않았습니다.'}{s&&!silent&&!marketOpenKst()?' · 장 시간 밖(봇은 장 마감 뒤 신호 반영 후 꺼짐)':''}</span></div>
    {confirm?<div className="at-confirm"><span>{requested?'자동 주문을 다시 시작할까요?':'새 주문을 모두 멈출까요? 보유 종목은 그대로 둡니다.'}</span><button className={`button ${requested?'primary':'danger'}`} disabled={busy} onClick={()=>void control(requested?'resume':'stop')}>{busy?'요청 중…':requested?'재개':'정지'}</button><button className="button" disabled={busy} onClick={()=>setConfirm(false)}>취소</button></div>
     :<button className={`button ${requested?'primary':'danger'}`} onClick={()=>setConfirm(true)}>{requested?'자동매매 재개':'긴급 정지'}</button>}
   </div>}
