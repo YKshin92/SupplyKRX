@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-14-remove-signal-lab',date:'2026-11-14',title:'신호 성과 검증 탭 삭제 · 자동매매 봇 멈춤 경고',
+  targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 · 시뮬레이션 (연기금 신호 성과는 여기와 자동매매 탭에서)'}],
+  changes:['관리자 전용 ‘신호 성과 검증’ 탭을 없앴습니다. 연기금 신호 성과는 전략 검증 · 시뮬레이션(과거 10년 검증 포함)과 같은 내용이고, RSI 30 하향 진입·상승 다이버전스는 +30%/−10% 승률 26~30%(손익분기 25%)로 효과가 약했으며, 사전 기록에는 연기금 신호가 빠져 있었습니다. 연기금 신호의 실제 성과는 자동매매 탭의 가상 매매로 쌓습니다.','자동매매 탭: 평일 장중(09:00~15:20)에 봇 보고가 10분 넘게 없으면 빨간 경고를 띄웁니다.'],
+  verified:'화면·빌드 확인 2026-11-14',limits:['지금까지 쌓인 사전 기록(signal-log) 파일은 지우지 않고 비공개 저장소에 남김']},
  {id:'2026-11-06-flow-ranks',date:'2026-11-06',title:'수급 순위: 집계 기간 선택, 전일 대비 변동, 연기금 첫 매수·매매법 신호 표시, 연기금 점수',
   targets:[{tab:'explore',selector:'.rank-explorer',label:'종목 발굴 · 수급 순위'}],
   changes:['집계 기간을 최근일 · 5일 · 20일 · 3개월 중에서 고릅니다(기본 20일). 지금까지는 3개월 누적만 있어 하루가 지나도 순위가 거의 그대로였습니다.','전일 대비 열: 같은 기간을 전 거래일 기준으로 다시 계산한 8항목 순위와 비교해 ▲▼ 변동과 NEW(전일에 점수 없음)를 보여 줍니다. 표 위 “기준일에 새로 보이는 종목”에 매매법 신호 · 연기금 첫 매수 · 순위 급등/신규 진입 종목을 모아 둡니다.','연기금 표시: 3개월 무매수(매수 0원·매도 1억 미만) → 첫 매수 → 매매법 신호(3억 이상·거래량 3배 이하)를 종목 옆에 달고, “3개월 무매수 종목만” 필터를 더했습니다.','기본 정렬을 연기금 점수(연기금 두 항목, 100점 만점)로 바꾸고 8항목 합계는 참고 열로 남겼습니다. 외국인·기관합계·사모의 시총 대비 상위 5% 종목에는 “되돌림 주의”를 표시합니다(과거 검증에서 다음 5일 평균이 시장보다 낮았음).'],

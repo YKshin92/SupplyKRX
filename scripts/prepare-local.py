@@ -53,9 +53,7 @@ for path in (args.root/'data/history-indices.json',index_path,args.root/'data/li
             rsi_indices['indices'].setdefault(name,{'prices':{}})['prices'].update(value.get('prices',{}))
 rsi=publish_rsi(rows,calendar,rsi_indices,args.target,metadata_dir=args.root/'data/live/metadata/daily',us=json.loads(us_path.read_text(encoding='utf-8')) if us_path.exists() else None,warmup=args.root/'data/live/rsi-warmup.json.gz',keep=(rsi_keep:={}))
 print(f"RSI: {rsi['computed']}/{rsi['population']} computed, {rsi['below30']} below 30, {rsi['entries_today']} entries. Private/local only.")
-from collector.signal_lab import publish_signal_lab
-lab=publish_signal_lab(args.root,args.target,rsi_keep,{k:v['prices'] for k,v in rsi_indices['indices'].items()},rsi['as_of'],rows=rows)
-print('Signal lab: '+', '.join(f"{s['key']} {s['backtest']['signals']}+{s['forward']['signals']}" for s in lab['strategies'])+f" · today {len(lab['today'])}. Private/local only.")
+# 신호 성과 검증(signal-lab) 화면은 2026-11-14 사용자 결정으로 삭제했다(연기금 신호는 시뮬레이션·자동매매와 겹치고 RSI 계열은 효과가 약함).
 from collector.new_highs import publish_new_highs
 from collector.signal_lab import rank_entries
 highs=publish_new_highs(rows,rsi_keep,rsi['as_of'],args.target,rsi_stocks=rsi['stocks'],rank_top=rank_entries(args.root)[1].get(rsi['as_of']))
