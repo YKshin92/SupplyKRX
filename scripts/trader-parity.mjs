@@ -14,7 +14,7 @@ if(!file)throw Error('usage: trader-parity.mjs <simulation-input.json|--syntheti
 let data;
 if(file==='--synthetic'){file=FIXTURE;data=JSON.parse(readFileSync(file,'utf8'));if(!starts.length)starts=[data.sessions[0]];}
 else{data=JSON.parse(readFileSync(file,'utf8'));if(data.stock_files)data.stocks=data.stock_files.flatMap(f=>JSON.parse(readFileSync(join(dirname(file),f),'utf8')));}
-const base={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:25,minBuy:3e6,costs:{buy:0.015,sell:0.215}};
+const base={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:20,minBuy:3e6,costs:{buy:0.015,sell:0.215}};  // 사이트 기본값(2026-11-19 20%)
 const close=(a,b,tol=0.01)=>a==null||b==null?a==b:Math.abs(a-b)<=tol;
 // 변형: 기본값 + 규칙의 다른 갈래(현금 부족·부분 매수·대기, 연기금 순매도 청산, 짧은 익절/손절)를 지나가게 하는 설정.
 const variants=[['기본',{},{}],['소액 계좌(현금 부족·부분 매수)',{initial:8e6},{initial:8e6}],['짧은 익절·손절',{take:10,stop:5},{take:10,stop:5}],['큰 비중(현금 부족)',{percent:60},{percent:60}],['긴 보유(연기금 매도 청산)',{take:100,stop:50},{take:100,stop:50}]];

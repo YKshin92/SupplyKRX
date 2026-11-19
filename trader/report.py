@@ -39,7 +39,12 @@ def build_state(book: dict, *, cash: float, prices: dict[str, float], mode: str,
                               take_price=_round(take), stop_price=_round(stop), signal_date=p['signal_date'],
                               sell_at_next_open=bool(p.get('flow_flag'))))
     halted = [dict(code=c, name=h['name'], shares=h['shares'], invested=_round(h['invested']), reason=h.get('reason')) for c, h in sorted(book['halted'].items())]
-    held_value = sum(p['value'] or 0 for p in positions) + sum(h['invested'] or 0 for h in halted)
+    idle_book = book.get('idle') or {}
+    idle = None
+    if idle_book.get('shares'):
+        px = prices.get(idle_book['code']) or idle_book.get('last_close')
+        idle = dict(code=idle_book['code'], shares=idle_book['shares'], price=px, value=_round(idle_book['shares'] * px) if px else None)
+    held_value = sum(p['value'] or 0 for p in positions) + sum(h['invested'] or 0 for h in halted) + ((idle or {}).get('value') or 0)
     equity = cash + held_value
     closed = [dict(code=t['code'], name=t['name'], signal_date=t['signal_date'], entry_date=t['entry_date'], entry_price=t['entry_price'],
                    exit_date=t['exit_date'], exit_price=t['exit_price'], shares=t['shares'], invested=_round(t['invested']), pnl=_round(t['pnl']),
@@ -52,7 +57,7 @@ def build_state(book: dict, *, cash: float, prices: dict[str, float], mode: str,
         schema=SCHEMA, updated_at=now.isoformat(timespec='seconds'), mode=mode, stopped=stopped,
         settings=settings.asdict(), daily_max_buy=daily_max_buy, bought_today=_round((book.get('day') or {}).get('bought', 0)),
         balance=dict(cash=_round(cash), equity=_round(equity), held_value=_round(held_value),
-                     unrealized=_round(sum(p['pnl'] or 0 for p in positions)), positions=positions, halted=halted,
+                     unrealized=_round(sum(p['pnl'] or 0 for p in positions)), positions=positions, halted=halted, idle_etf=idle,
                      pending=[dict(code=t['code'], name=t['name'], signal_date=t['signal_date'], score=t['score'], reason=t.get('reason')) for t in book['pending']]),
         history=dict(closed=list(reversed(closed)), orders=list(reversed(book['orders'][-300:]))),
         performance=dict(

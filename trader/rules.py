@@ -1,7 +1,8 @@
 """매매 규칙 — 사이트 시뮬레이션(src/simulation-engine.ts, 자본 모드·percent 크기·minBuy·비용·flowExit)과 같은 규칙.
 
 리플레이(trader/replay.py, 과거 일봉으로 시뮬레이션과 대조)와 실제 봇(trader/bot.py)이 이 함수들을 함께 쓴다.
-여기에는 주문·네트워크 호출이 없다. 기업행사(분할·무상증자) 정산과 쉬는 현금 ETF는 아직 다루지 않는다.
+여기에는 주문·네트워크 호출이 없다. 기업행사(분할·무상증자) 정산은 아직 다루지 않는다.
+쉬는 현금 ETF(idle_etf_limit > 0, 2026-11-19)는 봇만 한다(리플레이에는 없음): 사이트 시뮬레이션의 '상한' 규칙과 같은 순서지만 정수 주식이다.
 """
 from __future__ import annotations
 
@@ -13,12 +14,16 @@ from dataclasses import dataclass, asdict
 class Settings:
     take: float = 30.0          # 익절선: 매수가 대비 +%
     stop: float = 10.0          # 손절선: 매수가 대비 −%
-    percent: float = 25.0       # 주문 크기: 전날 종가 기준 평가자산의 %
+    percent: float = 20.0       # 주문 크기: 전날 종가 기준 평가자산의 % (2026-11-19 사용자 결정 25 → 20)
     min_buy: float = 3_000_000  # 최소 매수금액(현금이 모자라면 남은 현금으로 사되 이 금액 이상일 때만)
     buy_cost: float = 0.015     # 매수 수수료 %(원가에 포함)
     sell_cost: float = 0.215    # 매도 수수료+거래세 %(매도대금에서 차감)
     flow_exit: bool = True      # 보유 중 연기금 순매도 > 신호일 순매수면 다음 거래일 시가 전량 매도
     max_open_gap: float = 0.35  # 시가가 전날 종가 대비 ±35% 넘게 벌어지면 그날은 사지 않음(시가 단절)
+    idle_etf_limit: float = 0.0     # 쉬는 현금 ETF 상한: 전날 종가 평가자산의 %(0 = 안 함). 2026-11-19 사용자 결정 30
+    idle_etf_code: str = '069500'   # KODEX 200
+    idle_band: float = 5.0          # ETF 금액이 목표에서 평가자산의 이 % 넘게 벗어날 때만 시가에 맞춘다
+    idle_fee: float = 0.015         # ETF 매매 수수료 %(국내 주식형 ETF 는 거래세 없음)
 
     def asdict(self) -> dict:
         return asdict(self)
@@ -136,3 +141,17 @@ def price_problem(previous: dict | None, r: dict | None) -> str | None:
         if abs(change) > 35 or abs(o / previous['close'] - 1) > .35 or (cp is not None and abs(change - cp) > 5):
             return '가격 단절 · 기업행사 확인 필요'
     return None
+
+
+def idle_order(value: float, cash: float, price: float, base: float, s: Settings) -> int:
+    """쉬는 현금 ETF 조정 수량(+ 매수, − 매도, 0 그대로). 목표 = min(상한 × 전날 평가자산, 현금 + ETF). 띠 안이면 0."""
+    if s.idle_etf_limit <= 0 or not positive(price) or not base or base <= 0:
+        return 0
+    target = min(s.idle_etf_limit / 100 * base, cash + value)
+    diff = target - value
+    if abs(diff) <= s.idle_band / 100 * base:
+        return 0
+    unit = price * (1 + s.idle_fee / 100)
+    if diff > 0:
+        return max(0, math.floor(min(diff, cash) / unit))
+    return -min(round(value / price), math.ceil(-diff / price))

@@ -27,7 +27,7 @@ export type SimInput={version:number;sessions:string[];stocks:Candidate[];stock_
 /** maxWait (capital mode): a signal not bought within this many trading days after the first possible open is skipped
  *  (0 = next open only). cap (capital mode): one order is at most this fraction of the signal day's traded value
  *  (close × volume, known after that close). Left out, signals wait without limit and orders are uncapped (original rule). */
-export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][]};maxWait?:number;cap?:number};
+export type Settings={mode:'capital'|'unlimited';initial:number;budget:number;take:number;stop:number;start:string;filter?:'standard'|'quiet3m'|'quiet3m-volume';flowExit?:boolean;sizing?:'fixed'|'percent';percent?:number;minBuy?:number;costs?:{buy:number;sell:number};idle?:{kind:'deposit'|'index';rate?:number;series?:string|string[];fee?:number;gainTax?:number|number[];reinvest?:'close'|'next-open';gate?:(boolean|null)[][];limit?:number};maxWait?:number;cap?:number};
 /** delisted: the stock's prices end for good while held (delisting, merger); settled at the last available close. */
 export type Status='pending'|'skipped'|'score_missing'|'excluded'|'open'|'unresolved'|'take'|'stop'|'flow'|'delisted';
 export type Horizon={status:string;stock:number|null;index:number|null;excess:number|null};
@@ -62,6 +62,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
  if(s.cap!=null&&!(Number.isFinite(s.cap)&&s.cap>0&&s.cap<=1))throw Error('주문 상한 비율을 확인해 주세요.');
  if(s.minBuy!=null&&(!Number.isFinite(s.minBuy)||s.minBuy<0||s.minBuy>1e8))throw Error('최소 매수금액 범위를 확인해 주세요.');
  if(s.costs&&![s.costs.buy,s.costs.sell].every(v=>Number.isFinite(v)&&v>=0&&v<=5))throw Error('수수료·세금 비율을 확인해 주세요.');
+ if(s.idle?.limit!=null&&!(Number.isFinite(s.idle.limit)&&s.idle.limit>0&&s.idle.limit<=1))throw Error('ETF 최대 비중을 확인해 주세요.');
  if(s.idle&&s.idle.kind==='deposit'&&!(Number.isFinite(s.idle.rate??0.025)&&(s.idle.rate??0.025)>=0&&(s.idle.rate??0.025)<=0.2))throw Error('예금 금리를 확인해 주세요.');
  const buyRate=(s.costs?.buy??0)/100,sellRate=(s.costs?.sell??0)/100,costed=!!s.costs&&(buyRate>0||sellRate>0);
  const idleIndex=s.mode==='capital'&&s.idle?.kind==='index',idleFee=(s.idle?.fee??0)/100,taxes=s.idle?.gainTax;
@@ -124,8 +125,21 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   }
   if(idleIndex){
    if(tradable){
-    const live=legs.map((_,k)=>k).filter(k=>on(k,i));
-    if(buys<=parked){const spare=parked-buys;if(spare>0&&live.length){live.forEach(k=>buyLeg(legs[k],spare/live.length,opens[k]!,days[i]));parked=0;}else parked=spare;}
+    const live=legs.map((_,k)=>k).filter(k=>on(k,i)),lim=s.idle!.limit;
+    if(lim!=null){
+     // Limit mode (2026-11-19): idle cash goes into the ETF only up to limit × the previous close's equity. Buys use cash first and
+     // then sell ETF; then, if the ETF is more than 5% of that equity away from its target, it is moved to the target at the open.
+     // Sale proceeds stay in cash until the next open (no close reinvestment), the same order as the bot (trader/bot.py idle_rebalance).
+     if(buys<=parked)parked-=buys;
+     else{const total=sum(legs.map((l,k)=>l.units*liq[k])),f=total>0?Math.min(1,(buys-parked)/total):0;
+      legs.forEach((l,k)=>{parked+=sellLeg(l,l.units*f,opens[k]!);});parked-=buys;parked=Math.max(0,parked);}
+     const base=ledger.at(-1)?.equity??s.initial,value=sum(legs.map((l,k)=>l.units*opens[k]!)),target=Math.min(lim*base,parked+value);
+     if(Math.abs(value-target)>0.05*base){
+      if(target>value&&live.length){const amount=Math.min(target-value,parked);live.forEach(k=>buyLeg(legs[k],amount/live.length,opens[k]!,days[i]));parked-=amount;}
+      else if(value>0){const f=Math.min(1,(value-target)/value);legs.forEach((l,k)=>{parked+=sellLeg(l,l.units*f,opens[k]!);});}
+     }
+    }
+    else if(buys<=parked){const spare=parked-buys;if(spare>0&&live.length){live.forEach(k=>buyLeg(legs[k],spare/live.length,opens[k]!,days[i]));parked=0;}else parked=spare;}
     else{const total=sum(legs.map((l,k)=>l.units*liq[k])),f=total>0?Math.min(1,(buys-parked)/total):0;
      legs.forEach((l,k)=>sellLeg(l,l.units*f,opens[k]!));parked=0;}
     legs.forEach((l,k)=>l.last=opens[k]!);
@@ -184,7 +198,7 @@ export function runSimulation(data:SimInput,s:Settings,corporate?:CorporateConte
   if(idleIndex){
    parked=cash;const closes=legs.map(l=>l.P![i]?.close);legs.forEach((l,k)=>{if(positive(closes[k]))l.last=closes[k]!;});
    const live=legs.map((_,k)=>k).filter(k=>on(k,i));
-   if(parked>0&&s.idle!.reinvest!=='next-open'&&closes.every(positive)&&live.length){live.forEach(k=>buyLeg(legs[k],parked/live.length,closes[k]!,days[i]));parked=0;}
+   if(parked>0&&s.idle!.limit==null&&s.idle!.reinvest!=='next-open'&&closes.every(positive)&&live.length){live.forEach(k=>buyLeg(legs[k],parked/live.length,closes[k]!,days[i]));parked=0;}
    cash=parked+idleValue();for(const l of legs){l.valueDays++;l.valueSum+=l.units*(l.last??0);}
   }
   const held=trades.filter(t=>t.status==='open'||t.status==='unresolved'),unknown=held.filter(t=>t.pnl==null);

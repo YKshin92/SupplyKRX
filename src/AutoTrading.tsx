@@ -6,7 +6,7 @@ type Position={code:string;name:string;shares:number;entry_date:string;entry_pri
 type Closed={code:string;name:string;signal_date:string;entry_date:string;entry_price:number;exit_date:string;exit_price:number;shares:number;invested:number;pnl:number;return_pct:number;status:string;reason:string};
 type Order={kind:string;date:string;code?:string;shares?:number;price?:number;amount?:number;status?:string;reason?:string;signal_date?:string};
 export type TradingState={schema:1;updated_at:string;mode:'paper'|'live'|'dry-run';stopped:boolean;daily_max_buy:number;bought_today:number;
- balance:{cash:number;equity:number;held_value:number;unrealized:number;positions:Position[];halted:{code:string;name:string;shares:number;invested:number;reason:string|null}[];pending:{code:string;name:string;signal_date:string;score:number|null;reason:string|null}[]};
+ balance:{cash:number;equity:number;held_value:number;unrealized:number;positions:Position[];halted:{code:string;name:string;shares:number;invested:number;reason:string|null}[];idle_etf?:{code:string;shares:number;price:number|null;value:number|null}|null;pending:{code:string;name:string;signal_date:string;score:number|null;reason:string|null}[]};
  history:{closed:Closed[];orders:Order[]};
  performance:{start:string|null;base:number|null;return_pct:number|null;realized:number;closed:number;wins:number;win_rate:number|null;avg_return_pct:number|null;mdd_pct:number|null;equity:{date:string;equity:number;cash:number}[]}};
 type Payload={state:TradingState|null;control:{stopped:boolean;at?:string}|null;fetched_at:string};
@@ -62,6 +62,7 @@ function Balance({s}:{s:TradingState}){const b=s.balance;return <div className="
  {b.positions.length?<div className="at-table-wrap"><table className="at-table"><thead><tr><th>종목</th><th>수량</th><th>매수가</th><th>현재가</th><th>평가손익</th><th>익절선 / 손절선</th></tr></thead><tbody>
   {b.positions.map(p=><tr key={p.code}><th scope="row">{p.name}<small>{p.code} · {p.entry_date} 매수{p.sell_at_next_open?' · 다음 시가 매도 예약':''}</small></th><td data-label="수량">{p.shares.toLocaleString('ko-KR')}주</td><td data-label="매수가">{won(p.entry_price)}</td><td data-label="현재가">{won(p.price)}</td><td data-label="평가손익" className={tone(p.pnl)}>{won(p.pnl)}<small>{pct(p.return_pct)}</small></td><td data-label="익절선 / 손절선">{won(p.take_price)}<small>{won(p.stop_price)}</small></td></tr>)}
  </tbody></table></div>:<p className="at-note">보유 종목이 없습니다.</p>}
+ {b.idle_etf&&<p className="at-idle">쉬는 현금 ETF: KODEX 200({b.idle_etf.code}) {b.idle_etf.shares.toLocaleString('ko-KR')}주{b.idle_etf.value!=null?` · 평가 ${Math.round(b.idle_etf.value).toLocaleString('ko-KR')}원`:''}</p>}
  {!!b.halted.length&&<><h3>확인 필요 <small>자동 주문 중지</small></h3><ul className="at-list warn">{b.halted.map(h=><li key={h.code}><b>{h.name}</b> {h.shares.toLocaleString('ko-KR')}주 · {h.reason}</li>)}</ul></>}
  <h3>매수 대기 신호 <small>{b.pending.length}건</small></h3>
  {b.pending.length?<ul className="at-list">{b.pending.map(p=><li key={p.code+p.signal_date}><b>{p.name}</b> {p.signal_date} 신호 · 점수 {p.score??'—'}{p.reason?` · ${p.reason}`:''}</li>)}</ul>:<p className="at-note">대기 중인 신호가 없습니다.</p>}

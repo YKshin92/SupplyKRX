@@ -20,9 +20,9 @@ const BENCH=[{key:'KOSPI',label:'KOSPI',color:'var(--foreign-bar)'},{key:'KOSDAQ
 const ETF_NAMES:Record<string,{name:string;code:string}>={ETF_KOSPI200:{name:'KODEX 200',code:'069500'},ETF_SP500:{name:'TIGER 미국S&P500',code:'360750'},ETF_NASDAQ100:{name:'TIGER 미국나스닥100',code:'133690'},KOSPI:{name:'KOSPI 지수',code:'가격지수'}};
 const days=(v:number|null)=>v==null?'—':`${v.toFixed(1)}거래일`;
 const labels:Record<Status,string>={take:'익절',stop:'손절',flow:'수급 이탈 매도',delisted:'가격 종료 정산',open:'보유 중',pending:'매수 대기',skipped:'중복·보유 중 신호 제외',unresolved:'가격 미확인',excluded:'매수 제외',score_missing:'점수 미확인'};
-/** Default view (user's choice 2026-11-02): from 2026-01-01, 2,000만, 25% of equity per signal, +30/-10, fees and tax on,
- *  연기금 net-sell exit on, idle cash in the KOSPI200 ETF. Costs match COSTS below (2026 rates). */
-const initial:Settings={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,start:'2026-01-01',filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:25,minBuy:3e6,costs:{buy:0.015,sell:0.215},idle:{kind:'index',series:['ETF_KOSPI200']}};
+/** Default view (user's choice 2026-11-02, sizing and ETF limit 2026-11-19): from 2026-01-01, 2,000만, 20% of equity per signal,
+ *  +30/-10, fees and tax on, 연기금 net-sell exit on, idle cash in the KOSPI200 ETF up to 30% of equity. Costs match COSTS below. */
+const initial:Settings={mode:'capital',initial:20e6,budget:5e6,take:30,stop:10,start:'2026-01-01',filter:'quiet3m-volume',flowExit:true,sizing:'percent',percent:20,minBuy:3e6,costs:{buy:0.015,sell:0.215},idle:{kind:'index',series:['ETF_KOSPI200'],limit:.3}};
 /** One month as a bar spanning its first to last trading day on the daily axis (inset so neighbouring months do not touch). */
 const MonthBar=(p:{x?:number;y?:number;width?:number;height?:number;fill?:string})=><rect x={(p.x??0)+1} y={p.y??0} width={Math.max((p.width??0)-2,1)} height={Math.max(p.height??0,0)} fill={p.fill} rx={2}/>;
 type MonthRow={month:string;first:string;last:string;signals:number;bought:number};
@@ -46,7 +46,7 @@ const hasSeries=(input:SimInput,o:typeof IDLE[number])=>!!o.series?.every(k=>inp
 function effective(s:Settings,input:SimInput|null):Settings{
  if(s.mode!=='capital'||s.idle?.kind!=='index')return s;
  const o=idleOption(s);if(!o.series||input&&!hasSeries(input,o))return {...s,idle:undefined};
- return {...s,idle:{kind:'index',series:o.series,fee:s.costs?COSTS.buy:0,gainTax:o.series.map((_,k)=>s.costs?o.tax?.[k]??0:0)}};
+ return {...s,idle:{kind:'index',series:o.series,fee:s.costs?COSTS.buy:0,gainTax:o.series.map((_,k)=>s.costs?o.tax?.[k]??0:0),...(s.idle.limit!=null?{limit:s.idle.limit}:{})}};
 }
 /** How much one signal buys, in words (capital mode can size by % of equity and has a minimum order). */
 function sizeText(s:Settings){const percent=s.mode==='capital'&&s.sizing==='percent';const base=percent?`평가자산의 ${s.percent}%`:`종목당 ${won(s.budget)}`;return s.mode==='capital'&&s.minBuy!=null?`${base} · 최소 ${won(s.minBuy)}`:base;}
@@ -102,7 +102,7 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
     <li>매도: 매수가 대비 <b>+{settings.take}% 익절 / −{settings.stop}% 손절</b> · 같은 날 둘 다 닿으면 손절로 계산</li>
     <li>자금이 모자라면 신호일 수급 점수(연기금 35 + 외국인 15점 → 100점 환산)가 높은 종목부터 · 이미 보유한 종목은 다시 사지 않음</li>
     {settings.flowExit&&<li>보유 중 연기금 순매도가 신호일 순매수보다 큰 날이 나오면 다음 거래일 시가에 전량 매도</li>}
-    {settings.mode==='capital'&&settings.idle&&<li>쉬는 현금: {settings.idle.kind==='index'?<><b>{idleOption(settings).short}</b>에 넣어 둠{(idleOption(settings).series?.length??0)>1?' (살 때 1/3씩, 팔 때 같은 비율로 · 리밸런싱 없음)':''} · 매수일 시가에 현금을 먼저 쓰고 모자라면 ETF를 팔아 마련, 남은 현금은 시가에 ETF 매수 · 익절·손절·이탈 매도 대금은 그날 종가에 ETF 매수{settings.costs?` · ETF 매매 수수료 ${COSTS.buy}%${idleOption(settings).tax?.some(Boolean)?` · 해외지수 ETF 매매차익 15.4% 과세`:''}`:''} (위험이 지수 수준으로 커짐)</>:'예금·MMF 연 2.5%로 이자'}</li>}
+    {settings.mode==='capital'&&settings.idle&&<li>쉬는 현금: {settings.idle.kind==='index'?<><b>{idleOption(settings).short}</b>에 넣어 둠{(idleOption(settings).series?.length??0)>1?' (살 때 1/3씩, 팔 때 같은 비율로 · 리밸런싱 없음)':''} · {settings.idle.limit!=null?<>평가자산의 <b>{Math.round(settings.idle.limit*100)}%까지만</b> · 매수일 시가에 현금을 먼저 쓰고 모자라면 ETF를 팔아 마련 · 목표와 5% 넘게 벌어진 날 시가에 맞춤 · 매도 대금은 다음 날 시가까지 현금</>:'매수일 시가에 현금을 먼저 쓰고 모자라면 ETF를 팔아 마련, 남은 현금은 시가에 ETF 매수 · 익절·손절·이탈 매도 대금은 그날 종가에 ETF 매수'}{settings.costs?` · ETF 매매 수수료 ${COSTS.buy}%${idleOption(settings).tax?.some(Boolean)?` · 해외지수 ETF 매매차익 15.4% 과세`:''}`:''} (위험이 지수 수준으로 커짐)</>:'예금·MMF 연 2.5%로 이자'}</li>}
    </ol></div>
    <p className="simulation-method-note">8항목 수급 점수(네 투자자 순위)는 이 매매법과 별개인 연구로, 수급 순위 화면에서 전진 검증 중입니다. 여기 매수·매도에는 쓰지 않습니다.</p>
   </section>
@@ -120,9 +120,10 @@ export default function Simulation({asOf,watch,toggle,metadata}:{asOf:string;wat
    <label>손절 · %<input type="number" min="1" max="50" value={settings.stop} onChange={e=>change('stop',Number(e.target.value))}/></label>
   </div>
   <label className="simulation-option simulation-idle"><span><b>쉬는 현금</b><small>신호가 없어 남은 현금을 어디에 둘지. ETF는 국내 상장 ETF의 수정주가(원화, 미국 지수는 환율 포함)로 계산해 분배금이 다시 투자된 것처럼 반영됩니다(분배금 세금 제외). 매수일 시가에 현금이 모자라면 ETF를 팔아 쓰고, 매도 대금은 그날 종가에 다시 ETF를 삽니다.</small></span><select aria-label="쉬는 현금" disabled={settings.mode==='unlimited'} value={idleOption(settings).value} onChange={e=>{const o=IDLE.find(x=>x.value===e.target.value)!;change('idle',o.series?{kind:'index',series:o.series}:o.value==='deposit'?{kind:'deposit',rate:0.025}:undefined);}}>{IDLE.map(o=><option key={o.value} value={o.value} disabled={!!o.series&&!!input&&!hasSeries(input,o)}>{o.label}</option>)}</select></label>
+  {settings.mode==='capital'&&settings.idle?.kind==='index'&&<label className="simulation-option simulation-idle"><span><b>ETF 최대 비중 · 평가자산 %</b><small>쉬는 현금을 ETF에 넣는 상한. 비우면 쉬는 현금 전부. 상한을 두면 전날 종가 평가자산 × 상한까지만 넣고, 목표와 평가자산의 5% 넘게 벌어진 날에만 시가에 맞추며, 매도 대금은 다음 날 시가까지 현금으로 둡니다(봇과 같은 규칙).</small></span><input type="number" aria-label="ETF 최대 비중" min="1" max="100" step="5" value={settings.idle.limit==null?'':Math.round(settings.idle.limit*100)} onChange={e=>{const idle=settings.idle!;const v=e.target.value===''?undefined:Math.min(100,Math.max(1,Number(e.target.value)))/100;const rest={...idle};delete rest.limit;change('idle',v==null?rest:{...rest,limit:v});}}/></label>}
   <label className="simulation-option"><input type="checkbox" checked={!!settings.costs} onChange={e=>change('costs',e.target.checked?COSTS:undefined)}/><span><b>수수료·세금 반영</b><small>매수 수수료 {COSTS.buy}% · 매도 수수료 0.015% + 증권거래세 0.20%(2026년 세율). 증권사·연도별 세율에 따라 다릅니다.</small></span></label>
   <label className="simulation-option"><input type="checkbox" checked={!!settings.flowExit} onChange={e=>change('flowExit',e.target.checked)}/><span><b>연기금 순매도 이탈 매도</b><small>매수 후 어느 하루 연기금 순매도가 신호일 순매수보다 크면 다음 거래일 시가에 전량 매도 (익절·손절은 그대로 적용)</small></span></label>
-  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수(매도 1억 미만) + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}${s.costs?' · 수수료·세금 반영':''}${capital&&s.idle?` · 쉬는 현금 ${idleOption(s).short}`:''}`:'데이터 준비 중'}</p>
+  <p className="simulation-applied" role="status" aria-live="polite">{busy?'설정에 맞춰 계산 중…':s?`적용: ${result.first_date} ~ ${result.as_of} · 조건 3개월 무매수(매도 1억 미만) + 거래량 20일 평균 3배 이하 · ${capital?`초기 ${won(s.initial)} · `:''}${sizeText(s)} · 익절 +${s.take}% / 손절 −${s.stop}%${s.flowExit?' · 연기금 순매도 이탈 매도':''}${s.costs?' · 수수료·세금 반영':''}${capital&&s.idle?` · 쉬는 현금 ${idleOption(s).short}${s.idle.limit!=null?` 최대 ${Math.round(s.idle.limit*100)}%`:''}`:''}`:'데이터 준비 중'}</p>
   {settings.mode==='capital'&&settings.idle?.kind==='index'&&input&&!effective(settings,input).idle&&<div className="notice">{idleOption(settings).short} 가격 자료가 아직 없어 쉬는 현금을 그대로 두고 계산했습니다.</div>}
   {error&&<div className="notice" role="alert">{error} <button className="button small" onClick={()=>setAttempt(v=>v+1)}>다시 불러오기</button></div>}
   {result&&summary&&<div aria-busy={busy} className={busy?'simulation-pending':''}>

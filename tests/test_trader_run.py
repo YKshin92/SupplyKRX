@@ -196,6 +196,9 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(all('16:00' <= t[11:16] <= '19:55' for t in times))
             self.assertEqual({r['market'] for r in rec['rows']}, {'KRX', 'UNT'})
             self.assertEqual(len(rec['rows']), len(times) * len(rec['codes']) * 2)
+            self.assertTrue(set(rec['a']) <= set(rec['codes']))
+        stage1_days = sum(1 for p in files.values() if set(p['codes']) - set(p['a']))
+        self.assertGreater(stage1_days, 0, 'stage-1 signals outside A are recorded too')
 
     def test_config_validation(self):
         with tempfile.TemporaryDirectory() as d:

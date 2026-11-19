@@ -166,3 +166,19 @@ test('maxWait skips signals not bought in time; cap limits an order to a share o
  r=run([a]);assert.equal(r.trades[0].shares,3);
  assert.throws(()=>run([a],{cap:2}),/주문 상한/);assert.throws(()=>run([a],{maxWait:-1}),/대기 기한/);
 });
+test('idle ETF limit: only up to limit × previous equity, moved at the open when more than 5% off, no close reinvestment',()=>{
+ const a=candidate('A',null,sessions.map(()=>price()));  // never bought: only idle cash moves
+ const d=input([a]);const bar=(o,c)=>({open:o,high:Math.max(o,c),low:Math.min(o,c),close:c});
+ d.indices.X=[bar(100,100),bar(100,100),bar(200,200),bar(200,200),bar(200,200)];
+ const r=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X'],limit:.3}});
+ // day0: target .3×400 = 120 -> 1.2 units. day1: on target. day2 open 200: 240 vs target .3×400=120 -> sell 0.6 units (cash 400).
+ // day2 close equity 400+120 = 520. day3: target .3×520 = 156, 120 is 36 off (> 26) -> buy 0.18 units. day4: 156 vs 156.
+ assert.ok(Math.abs(r.ledger[0].equity-400*scale)<1e-6);
+ assert.ok(Math.abs(r.ledger[2].equity-520*scale)<1e-6);
+ assert.ok(Math.abs(r.account.idle_value-156*scale)<1e-6);
+ assert.ok(Math.abs(r.account.equity-520*scale)<1e-6);
+ assert.throws(()=>runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X'],limit:1.5}}),/ETF 최대 비중/);
+ // without a limit the whole idle cash follows the ETF
+ const all=runSimulation(d,{...settings,initial:400*scale,budget:300*scale,idle:{kind:'index',series:['X']}});
+ assert.ok(Math.abs(all.account.equity-800*scale)<1e-6);
+});

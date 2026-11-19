@@ -66,8 +66,8 @@ class DryRunBroker:
     def quote(self, code: str) -> Quote:
         return self.quotes.get(code) or Quote(code, None)
 
-    def buy(self, code, shares, *, reference):
-        amount = shares * reference * (1 + self.buy_cost / 100)
+    def buy(self, code, shares, *, reference, fee=None):
+        amount = shares * reference * (1 + (self.buy_cost if fee is None else fee) / 100)
         if shares <= 0 or amount > self._cash + 1e-7:
             return None
         self._cash -= amount
@@ -76,10 +76,10 @@ class DryRunBroker:
         self.fills.append(fill)
         return fill
 
-    def sell(self, code, shares, *, reference):
+    def sell(self, code, shares, *, reference, fee=None):
         if shares <= 0 or self._held.get(code, 0) < shares:
             return None
-        amount = shares * reference * (1 - self.sell_cost / 100)
+        amount = shares * reference * (1 - (self.sell_cost if fee is None else fee) / 100)
         self._cash += amount
         self._held[code] -= shares
         if not self._held[code]:

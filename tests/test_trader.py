@@ -10,7 +10,7 @@ from trader.report import build_state, max_drawdown
 from trader.sync import Mailbox
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'trader-synthetic.json'
-S = Settings()
+S = Settings(percent=25.0)  # 규칙 경계 시험은 예전 기본값(25%)으로 고정
 
 
 class RuleTests(unittest.TestCase):
@@ -188,3 +188,40 @@ def test_live_quote_call_only_quotes_and_restores_server():
     for path in ('/krstock/order/v1/cashBuy', '/krstock/inquiry/v1/balance'):
         with pytest.raises(LiveGuardError):
             live_quote_call(path, {}, call=lambda p, b: {}, env=env)
+
+
+class IdleEtfTests(unittest.TestCase):
+    """쉬는 현금 ETF(2026-11-19 사용자 결정: 종목당 20%, ETF 상한 평가자산 30%)."""
+    def test_idle_order_band_and_cap(self):
+        from trader.rules import idle_order
+        s = Settings(idle_etf_limit=30.0)
+        self.assertEqual(idle_order(0, 100e6, 10_000, 100e6, Settings()), 0, 'off by default')
+        n = idle_order(0, 100e6, 10_000, 100e6, s)
+        self.assertEqual(n, int(30e6 // (10_000 * 1.00015)))
+        self.assertEqual(idle_order(28e6, 72e6, 10_000, 100e6, s), 0, 'within the 5%p band')
+        self.assertLess(idle_order(40e6, 60e6, 10_000, 100e6, s), 0, 'above the cap sells')
+        self.assertEqual(idle_order(0, 10e6, 10_000, 100e6, s), int(10e6 // (10_000 * 1.00015)), 'never more than spare cash')
+
+    def test_bot_buys_etf_after_stocks_and_funds_buys_from_it(self):
+        from trader.bot import at_open, Risk
+        from trader.book import load
+        s = Settings(idle_etf_limit=30.0)
+        broker = DryRunBroker(100e6)
+        broker.quotes = {'069500': Quote('069500', 10_000, 10_000, 10_000), 'AAA': Quote('AAA', 1_000, 1_000, 1_000)}
+        book = load('/nonexistent')
+        book['equity_prev_close'] = 100e6
+        at_open(book, broker, '2026-03-02', s, Risk(1e12, False))
+        self.assertGreater(book['idle']['shares'], 0)
+        self.assertAlmostEqual(book['idle']['shares'] * 10_000, 30e6, delta=10_000)
+        # 현금을 거의 다 ETF 로 돌린 계좌에서 신호를 사면 모자라는 만큼 ETF 를 판다
+        s2 = Settings(idle_etf_limit=100.0)
+        broker2 = DryRunBroker(100e6); broker2.quotes = dict(broker.quotes)
+        book2 = load('/nonexistent'); book2['equity_prev_close'] = 100e6
+        at_open(book2, broker2, '2026-03-02', s2, Risk(1e12, False))
+        before = book2['idle']['shares']
+        book2['pending'] = [dict(code='AAA', name='A', signal_date='2026-03-02', signal_net=5e8, score=80)]
+        at_open(book2, broker2, '2026-03-03', s2, Risk(1e12, False))
+        self.assertIn('AAA', book2['positions'])
+        self.assertLess(book2['idle']['shares'], before)
+        self.assertGreaterEqual(broker2.cash(), -1e-6)
+        self.assertEqual(broker2.holdings().get('069500', 0), book2['idle']['shares'])

@@ -7,12 +7,13 @@ usage: python -m trader.bot status|stop|resume [--state DIR]
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
 from .book import load, save, start_day, held_codes, log
 from .broker import Broker
-from .rules import Settings, queue_order, size_buy, open_gap_problem, exit_at_open, exit_on_price, flow_exit_due, positive
+from .rules import idle_order, Settings, queue_order, size_buy, open_gap_problem, exit_at_open, exit_on_price, flow_exit_due, positive
 
 DEFAULT_STATE = Path.home() / '.supplykrx-trader'
 
@@ -40,6 +41,31 @@ def _close(book: dict, code: str, fill, status: str, reason: str, today: str) ->
     return trade
 
 
+def _idle_trade(book: dict, broker: Broker, today: str, s: Settings, n: int, price: float, reason: str):
+    """쉬는 현금 ETF 를 n주(+ 매수 / − 매도) 시가에 사고판다. 장부 book['idle'] 에 주식 수를 둔다."""
+    idle = book.setdefault('idle', dict(code=s.idle_etf_code, shares=0))
+    code = idle['code']
+    fill = broker.buy(code, n, reference=price, fee=s.idle_fee) if n > 0 else broker.sell(code, -n, reference=price, fee=s.idle_fee)
+    if fill is None:
+        return None
+    idle['shares'] += fill.shares if n > 0 else -fill.shares
+    idle['last_close'] = price
+    return log(book, 'idle', date=today, code=code, shares=n, price=price, amount=fill.amount, reason=reason)
+
+
+def idle_rebalance(book: dict, broker: Broker, today: str, s: Settings, base: float) -> dict | None:
+    """장 시작 매수 뒤, 시가 청산 전에(사이트 시뮬레이션 '상한' 규칙과 같은 순서) 쉬는 현금 ETF 를 목표에 맞춘다."""
+    if s.idle_etf_limit <= 0:
+        return None
+    idle = book.setdefault('idle', dict(code=s.idle_etf_code, shares=0))
+    q = broker.quote(idle['code'])
+    price = q.open or q.price
+    if not positive(price):
+        return None
+    n = idle_order(idle['shares'] * price, broker.cash(), price, base, s)
+    return _idle_trade(book, broker, today, s, n, price, f'쉬는 현금 ETF 목표 = min(평가자산 {s.idle_etf_limit:g}%, 쉬는 돈)') if n else None
+
+
 def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk, *, buys: bool = True) -> list[dict]:
     """장 시작 직후. 시뮬레이션처럼 매수를 먼저(대기 신호, 점수 순) 하고 같은 날 매도 대금은 쓰지 않는다. 그다음 보유 종목 시가 청산.
     buys=False: 봇이 늦게 켜진 날 — 시가가 지나 매수는 하지 않고(대기 신호는 다음 거래일로) 시가 청산만 한다."""
@@ -52,7 +78,9 @@ def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk, *, 
     cash = broker.cash()
     base = book['equity_prev_close']
     if base is None:
-        base = cash + sum(p['shares'] * (broker.quote(c).prev_close or p['entry_price']) for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values())
+        idle0 = book.get('idle') or {}
+        base = cash + sum(p['shares'] * (broker.quote(c).prev_close or p['entry_price']) for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values()) \
+            + (idle0.get('shares') or 0) * (broker.quote(idle0['code']).prev_close or idle0.get('last_close') or 0 if idle0.get('shares') else 0)
     keep = [] if buys else list(book['pending'])
     if not buys and book['pending']:
         log(book, 'late', date=today, reason=f"장 시작 뒤에 켜져 오늘 매수는 건너뜀 · 대기 신호 {len(book['pending'])}건은 다음 거래일 시가에")
@@ -65,7 +93,18 @@ def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk, *, 
         if problem:
             keep.append(dict(t, reason=problem + ' · 다음 거래일 재검토'))
             continue
-        shares, cost, why = size_buy(q.open, cash, base, s)
+        idle = book.get('idle') or {}
+        etf_px = None
+        if idle.get('shares'):
+            eq_ = broker.quote(idle['code'])
+            etf_px = eq_.open or eq_.price
+        spare = cash + (idle['shares'] * etf_px * (1 - s.idle_fee / 100) if etf_px else 0)
+        shares, cost, why = size_buy(q.open, spare, base, s)
+        if shares and cost > cash + 1e-7 and etf_px:   # 모자라는 만큼 ETF 를 먼저 판다(사이트와 같음)
+            need = math.ceil((cost - cash) / (etf_px * (1 - s.idle_fee / 100)))
+            sold = _idle_trade(book, broker, today, s, -min(need, idle['shares']), etf_px, '종목 매수 대금 마련')
+            if sold:
+                cash = broker.cash()
         if not shares:
             keep.append(dict(t, reason=why))
             continue
@@ -83,6 +122,10 @@ def at_open(book: dict, broker: Broker, today: str, s: Settings, risk: Risk, *, 
                                             entry_date=today, signal_date=t['signal_date'], signal_net=t['signal_net'], score=t['score'], flow_flag=None)
         events.append(log(book, 'buy', date=today, code=t['code'], shares=fill.shares, price=fill.price, amount=fill.amount, signal_date=t['signal_date']))
     book['pending'] = keep
+    if buys:
+        ev = idle_rebalance(book, broker, today, s, base)
+        if ev:
+            events.append(ev)
     for code, pos in list(book['positions'].items()):
         if pos['entry_date'] == today:
             continue  # 오늘 시가에 산 종목은 시가 청산 대상이 아니다(장중 감시는 함)
@@ -125,7 +168,13 @@ def after_close(book: dict, broker: Broker, today: str, closes: dict[str, float]
             flagged.append(code)
             log(book, 'flow_flag', date=today, code=code, reason='연기금 순매도 > 신호일 순매수 · 다음 거래일 시가 매도 예약')
     cash = broker.cash()
-    book['equity_prev_close'] = cash + sum(p['shares'] * closes[c] for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values())
+    idle = book.get('idle') or {}
+    etf = 0.0
+    if idle.get('shares'):
+        px = closes.get(idle['code']) or idle.get('last_close') or 0
+        idle['last_close'] = px or idle.get('last_close')
+        etf = idle['shares'] * (px or 0)
+    book['equity_prev_close'] = cash + sum(p['shares'] * closes[c] for c, p in book['positions'].items()) + sum(h['invested'] for h in book['halted'].values()) + etf
     for c, p in book['positions'].items():
         p['last_close'] = closes[c]
     history = [h for h in book['equity_history'] if h['date'] != today]

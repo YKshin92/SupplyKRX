@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-19-etf-limit',date:'2026-11-19',title:'시뮬레이션 기본값: 종목당 20% · 쉬는 현금 ETF 최대 30%',
+  targets:[{tab:'simulation',selector:'.simulation-idle',label:'전략 검증 · 시뮬레이션 · 쉬는 현금'}],
+  changes:['계좌 목표(연 10~12%, 최대 낙폭 −20% 안)에 맞춰 기본값을 바꿨습니다. 신호마다 전날 종가 평가자산의 25% → 20%를 사고, 쉬는 현금은 KOSPI200 ETF에 평가자산의 30%까지만 넣습니다.','‘ETF 최대 비중’ 칸을 더했습니다. 상한을 두면 목표(전날 평가자산 × 상한, 쉬는 돈보다 많을 수 없음)에서 평가자산의 5% 넘게 벌어진 날에만 시가에 맞추고, 익절·손절·이탈 매도 대금은 다음 날 시가까지 현금으로 둡니다. 칸을 비우면 예전처럼 쉬는 현금 전부를 ETF에 넣습니다.','과거 10년(2017~2026, 수수료·세금 + 슬리피지 0.3%) 연구 계산: 20%·ETF 30%는 연 19.7%, 최대 낙폭 −18.8%, 최악 연도 −5.5%였습니다. 25%·ETF 전부는 연 26.8%, 최대 낙폭 −41.1%였습니다. 지난 10년은 강세장이라 앞으로는 더 낮게 보는 것이 맞습니다.','자동매매 봇도 같은 순서(매수 → ETF 맞추기 → 시가 청산)로 쉬는 현금 ETF를 다룰 수 있게 했습니다(가상 체결, 정수 주식).'],
+  verified:'엔진 시험(상한·5% 띠·종가 재투자 없음) · 봇 시험(ETF로 매수 대금 마련·장부와 계좌 일치) 2026-11-19',limits:['과거 10년 검증 카드의 표는 아직 15/20/25% × 현금/ETF 전부 기준(상한 열 없음)','봇 ETF는 정수 주식이라 사이트 계산과 몇 만 원 차이가 날 수 있음']},
  {id:'2026-11-14-remove-signal-lab',date:'2026-11-14',title:'신호 성과 검증 탭 삭제 · 자동매매 봇 멈춤 경고',
   targets:[{tab:'simulation',selector:'.history-validation',label:'전략 검증 · 시뮬레이션 (연기금 신호 성과는 여기와 자동매매 탭에서)'}],
   changes:['관리자 전용 ‘신호 성과 검증’ 탭을 없앴습니다. 연기금 신호 성과는 전략 검증 · 시뮬레이션(과거 10년 검증 포함)과 같은 내용이고, RSI 30 하향 진입·상승 다이버전스는 +30%/−10% 승률 26~30%(손익분기 25%)로 효과가 약했으며, 사전 기록에는 연기금 신호가 빠져 있었습니다. 연기금 신호의 실제 성과는 자동매매 탭의 가상 매매로 쌓습니다.','자동매매 탭: 평일 장중(09:00~15:20)에 봇 보고가 10분 넘게 없으면 빨간 경고를 띄웁니다.'],

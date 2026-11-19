@@ -98,13 +98,13 @@ class ShadowBroker(DryRunBroker):
         tmp.write_text(json.dumps(dict(cash=self._cash, held=self._held)), encoding='utf-8')
         tmp.replace(self.path)
 
-    def buy(self, code, shares, *, reference):
-        fill = super().buy(code, shares, reference=reference)
+    def buy(self, code, shares, *, reference, fee=None):
+        fill = super().buy(code, shares, reference=reference, fee=fee)
         self._keep()
         return fill
 
-    def sell(self, code, shares, *, reference):
-        fill = super().sell(code, shares, reference=reference)
+    def sell(self, code, shares, *, reference, fee=None):
+        fill = super().sell(code, shares, reference=reference, fee=fee)
         self._keep()
         return fill
 
@@ -113,6 +113,9 @@ def reconcile(book: dict, broker) -> list[str]:
     """계좌 보유와 장부가 다르면 문제 목록. 다르면 그날 새 매수를 하지 않는다(사람이 확인)."""
     want = {c: p['shares'] for c, p in book['positions'].items()}
     want.update({c: h['shares'] for c, h in book['halted'].items()})
+    idle = book.get('idle') or {}
+    if idle.get('shares'):
+        want[idle['code']] = want.get(idle['code'], 0) + idle['shares']
     have = broker.holdings()
     issues = [f'{c}: 장부 {want.get(c, 0)}주 / 계좌 {have.get(c, 0)}주' for c in sorted(set(want) | set(have)) if want.get(c, 0) != have.get(c, 0)]
     return issues
@@ -140,6 +143,13 @@ class Day:
         except Exception:
             return None
 
+    def idle_close(self, book: dict, field_name: str) -> dict:
+        idle = book.get('idle') or {}
+        if not idle.get('shares'):
+            return {}
+        px = self.safe_price(idle['code'], field_name) or idle.get('last_close') or idle.get('avg')
+        return {idle['code']: px} if px else {}
+
     def stopped(self) -> bool:
         if is_stopped(self.state_dir):
             return True
@@ -161,7 +171,7 @@ class Day:
         try:
             if prices is None:  # 시작·체결 직후 보고에도 현재가·평가손익이 보이도록 보유 종목 시세를 한 번 받는다
                 prices = {}
-                for code in book['positions']:
+                for code in list(book['positions']) + ([book['idle']['code']] if (book.get('idle') or {}).get('shares') else []):
                     try:
                         prices[code] = self.broker.quote(code).price
                     except Exception:
@@ -181,10 +191,14 @@ class Day:
         book['feed_applied'] = feed['as_of']
         log(book, 'feed', date=feed['as_of'], reason=f'신호 공급 반영 · 새 대기 신호 {len(added)}건')
 
-    def watch_aftermarket(self, book: dict, today: str) -> int:
+    def watch_aftermarket(self, book: dict, today: str, feed: dict | None = None) -> int:
         """오늘 새로 생긴 대기 신호 종목의 애프터마켓(16:00~20:00) 시세를 일정 간격으로 남긴다. 주문은 하지 않는다.
         '신호일 종가 매수'(2026-11-01 연구에서 통과)를 실제로 얼마에 살 수 있었는지 다음 날 시가와 비교하려는 기록이다."""
-        codes = [p['code'] for p in book['pending'] if p.get('signal_date') == today]
+        # A 신호(대기열)만 보면 한 해 14건 남짓이라, 오늘 공급 파일의 1단계 신호(연기금 3억 이상 + 직전 10일 조용, 3개월·거래량
+        # 조건 무관)도 함께 남긴다. 'a' 가 운영 신호(A) 여부다. 너무 많은 날은 앞의 20종목만.
+        pending = [p['code'] for p in book['pending'] if p.get('signal_date') == today]
+        stage1 = [x['code'] for x in (feed or {}).get('signals', []) if x.get('signal_date') == today]
+        codes = list(dict.fromkeys(pending + stage1))[:20]
         if not codes or not self.raw_quote:
             return 0
         until = at_time(self.clock.now(), self.cfg.aftermarket_until)
@@ -199,7 +213,7 @@ class Day:
                     except Exception as e:
                         out = dict(error=type(e).__name__)
                     rows.append(dict(at=at, code=code, market=market, out=out))
-            record = dict(date=today, codes=codes, rows=rows)
+            record = dict(date=today, codes=codes, a=[c for c in codes if c in pending], rows=rows)
             local = self.state_dir / 'logs' / f'aftermarket-{today}.json'
             local.parent.mkdir(parents=True, exist_ok=True)
             local.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
@@ -228,6 +242,7 @@ class Day:
         feed = self.feed()
         if feed and feed['as_of'] < today and feed['as_of'] != book.get('feed_applied'):
             closes = {c: self.safe_price(c, 'prev_close') or p.get('last_close') or p['entry_price'] for c, p in book['positions'].items()}
+            closes.update(self.idle_close(book, 'prev_close'))
             self.apply_feed(book, feed, closes)
         save(book, self.book_path); self.publish(book)
         # 2) 장 시작
@@ -263,10 +278,11 @@ class Day:
             feed = self.feed()
             if feed and feed['as_of'] == today:
                 closes = {c: self.safe_price(c, 'price') or p['entry_price'] for c, p in book['positions'].items()}
+                closes.update(self.idle_close(book, 'price'))
                 self.apply_feed(book, feed, closes)
                 save(book, self.book_path); self.publish(book)
                 if self.cfg.aftermarket_record:
-                    self.watch_aftermarket(book, today)
+                    self.watch_aftermarket(book, today, feed)
                 break
             self.clock.sleep(300)
         save(book, self.book_path); self.publish(book)
