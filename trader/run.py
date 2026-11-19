@@ -49,6 +49,9 @@ class Config:
     watch_until: str = '15:20:00'
     feed_deadline: str = '21:30:00'
     stale_after: int = 5
+    aftermarket_record: bool = False      # 신호가 난 날 저녁 애프터마켓 시세 기록(조회 전용, 주문 없음)
+    aftermarket_minutes: int = 30
+    aftermarket_until: str = '19:55:00'
     settings: dict = field(default_factory=dict)
 
     @classmethod
@@ -125,6 +128,7 @@ class Day:
     s: Settings
     alerts: list = field(default_factory=list)
     quote_failures: int = 0
+    raw_quote: object = None   # (code, market) -> 시세 응답 원문(Output_0). 애프터마켓 기록 전용
 
     @property
     def book_path(self):
@@ -177,6 +181,38 @@ class Day:
         book['feed_applied'] = feed['as_of']
         log(book, 'feed', date=feed['as_of'], reason=f'신호 공급 반영 · 새 대기 신호 {len(added)}건')
 
+    def watch_aftermarket(self, book: dict, today: str) -> int:
+        """오늘 새로 생긴 대기 신호 종목의 애프터마켓(16:00~20:00) 시세를 일정 간격으로 남긴다. 주문은 하지 않는다.
+        '신호일 종가 매수'(2026-11-01 연구에서 통과)를 실제로 얼마에 살 수 있었는지 다음 날 시가와 비교하려는 기록이다."""
+        codes = [p['code'] for p in book['pending'] if p.get('signal_date') == today]
+        if not codes or not self.raw_quote:
+            return 0
+        until = at_time(self.clock.now(), self.cfg.aftermarket_until)
+        path = f'trading/aftermarket/{today}.json'
+        rows = []
+        while self.clock.now() <= until:
+            at = self.clock.now().isoformat(timespec='seconds')
+            for code in codes:
+                for market in ('KRX', 'UNT'):
+                    try:
+                        out = self.raw_quote(code, market)
+                    except Exception as e:
+                        out = dict(error=type(e).__name__)
+                    rows.append(dict(at=at, code=code, market=market, out=out))
+            record = dict(date=today, codes=codes, rows=rows)
+            local = self.state_dir / 'logs' / f'aftermarket-{today}.json'
+            local.parent.mkdir(parents=True, exist_ok=True)
+            local.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
+            if self.mailbox:
+                try:
+                    self.mailbox.put_json(path, record, f'trading: aftermarket {today} {at}')
+                except Exception as e:
+                    self.alerts.append(f'애프터마켓 기록 보내기 실패: {e}')
+            if (self.clock.now() + timedelta(minutes=self.cfg.aftermarket_minutes)) > until:
+                break
+            self.clock.sleep(self.cfg.aftermarket_minutes * 60)
+        return len(rows)
+
     def run(self) -> dict:
         now = self.clock.now()
         today = now.date().isoformat()
@@ -228,6 +264,9 @@ class Day:
             if feed and feed['as_of'] == today:
                 closes = {c: self.safe_price(c, 'price') or p['entry_price'] for c, p in book['positions'].items()}
                 self.apply_feed(book, feed, closes)
+                save(book, self.book_path); self.publish(book)
+                if self.cfg.aftermarket_record:
+                    self.watch_aftermarket(book, today)
                 break
             self.clock.sleep(300)
         save(book, self.book_path); self.publish(book)
@@ -247,7 +286,7 @@ def build(cfg: Config, state_dir: Path, clock: Clock):
     plug_mode = 'paper' if cfg.mode == 'shadow' else cfg.mode
     plug = PlugBroker(mode=plug_mode, account=cfg.account, account_type=cfg.account_type, base_url=get_base_url())
     broker = ShadowBroker(state_dir / 'shadow.json', cfg.initial_cash, plug.quote, s) if cfg.mode == 'shadow' else plug
-    return Day(cfg, state_dir, broker, mailbox, clock, s)
+    return Day(cfg, state_dir, broker, mailbox, clock, s, raw_quote=plug.quote_raw)
 
 
 def main():

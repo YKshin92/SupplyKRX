@@ -193,6 +193,21 @@ class PlugBroker:
         num = lambda k: float(o[k]) if o.get(k) not in (None, '', 0, '0') else None   # 장 시작 전 시가 0 은 '아직 없음'
         return Quote(code, num('stck_prpr'), num('stck_oprc'), num('stck_prdy_clpr'))  # 필드명 실제 응답으로 확인(2026-11-09): 현재가·시가·전일 종가
 
+    def quote_raw(self, code, market='KRX'):
+        """시세 응답 원문(Output_0 + 응답 코드). 애프터마켓 기록용 — 필드 이름을 아직 모르는 값(호가 등)까지 그대로 남긴다."""
+        res = None
+        for attempt in range(3):
+            try:
+                res = self._quote_call(self.PRICE, dict(iem_cd=code, market_cd=market))
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
+        out = dict((res or {}).get('Output_0') or {})
+        out['_rsp'] = f"{(res or {}).get('rsp_cd')} {(res or {}).get('rsp_msg')}"
+        return out
+
     def cash(self):
         raise NotImplementedError('잔고 응답 필드는 모의투자 키 발급 후 확인합니다.')
 

@@ -89,7 +89,7 @@ class Mailbox:
         return self.stop
 
 
-def run_days(data, *, initial=20_000_000, start='08:40', skip=(), stop_on=(), cfg_over=None, state=None):
+def run_days(data, *, initial=20_000_000, start='08:40', skip=(), stop_on=(), cfg_over=None, state=None, raw_quote=None):
     state = Path(state or tempfile.mkdtemp())
     cfg = Config(mode='dry-run', initial_cash=initial, daily_max_buy=1e12, **(cfg_over or {}))
     clock = FakeClock(datetime(2026, 3, 2, 8, 40, tzinfo=KST))
@@ -102,7 +102,7 @@ def run_days(data, *, initial=20_000_000, start='08:40', skip=(), stop_on=(), cf
         h, m = (int(x) for x in (start(k) if callable(start) else start).split(':'))
         clock.t = datetime.fromisoformat(day).replace(hour=h, minute=m, tzinfo=KST)
         box.stop = k in stop_on
-        results.append(Day(cfg, state, broker, box, clock, S).run())
+        results.append(Day(cfg, state, broker, box, clock, S, raw_quote=raw_quote).run())
     return load(state / 'book.json'), broker, box, results
 
 
@@ -175,6 +175,27 @@ class RunnerTests(unittest.TestCase):
         want = sorted((c['code'], data['sessions'][i]) for c in data['stocks'] for i, _ in (c.get('sells') or []))
         self.assertEqual(sorted((x['code'], x['date']) for x in feed['sells']), want)
         self.assertEqual(build_feed(no_sells)['sells'], [])
+
+    def test_aftermarket_record_is_read_only_and_off_by_default(self):
+        data = synthetic()
+        calls = []
+        def raw(code, market):
+            calls.append((code, market))
+            return dict(stck_prpr='1000', _rsp='00000 ok')
+        base_book, _, base_box, _ = run_days(data, raw_quote=raw)
+        self.assertEqual(calls, [], 'off by default')
+        self.assertFalse([p for p in base_box.files if p.startswith('trading/aftermarket/')])
+        book, _, box, _ = run_days(data, raw_quote=raw, cfg_over=dict(aftermarket_record=True))
+        self.assertEqual(keyed(book), keyed(base_book), 'recording never changes trades')
+        files = {p: v for p, v in box.files.items() if p.startswith('trading/aftermarket/')}
+        self.assertTrue(files)
+        for path, rec in files.items():
+            self.assertEqual(path, f"trading/aftermarket/{rec['date']}.json")
+            times = sorted({r['at'] for r in rec['rows']})
+            self.assertGreater(len(times), 1)
+            self.assertTrue(all('16:00' <= t[11:16] <= '19:55' for t in times))
+            self.assertEqual({r['market'] for r in rec['rows']}, {'KRX', 'UNT'})
+            self.assertEqual(len(rec['rows']), len(times) * len(rec['codes']) * 2)
 
     def test_config_validation(self):
         with tempfile.TemporaryDirectory() as d:
