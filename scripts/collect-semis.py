@@ -1,6 +1,6 @@
 """Fetch the full daily history of SOXX (iShares Semiconductor ETF) for the 시장 현황 '반도체 지수' view; no login or secrets.
 
-- Source: Yahoo Finance chart API, range=max, daily bars. `close` there is split-adjusted, not dividend-adjusted
+- Source: Yahoo Finance chart API, daily bars from 2000. `close` there is split-adjusted, not dividend-adjusted
   (the same basis as a TradingView price chart), so long-term levels match charts quoted by traders.
 - Only completed sessions are kept: a bar dated today in New York is dropped until 16:20 New York time.
 - Output: <root>/data/live/semis.json {schema_version, symbol, name, source, fetched_at, as_of, prices:[[date,o,h,l,c,v]...]}.
@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{}?range=max&interval=1d&includePrePost=false&events=split'
+# range=max silently falls back to monthly bars, so ask for the whole span explicitly with period1/period2.
+URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{}?period1=946684800&period2={}&interval=1d&includePrePost=false&events=split'
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64)'}
 NY = ZoneInfo('America/New_York')
 SYMBOL, NAME = 'SOXX', 'iShares Semiconductor ETF'
@@ -33,7 +34,7 @@ def get(url):
 
 
 def bars(symbol, now=None):
-    data = json.loads(get(URL.format(symbol)))['chart']['result'][0]
+    data = json.loads(get(URL.format(symbol, int(time.time()) + 86400)))['chart']['result'][0]
     q = data['indicators']['quote'][0]
     now = now or datetime.now(NY)
     today_open = now.strftime('%Y-%m-%d') if (now.hour, now.minute) < (16, 20) else None
