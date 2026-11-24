@@ -59,13 +59,13 @@ export default function SemiCycle(){
 
   <section className="semi-block" aria-label="SOXX 장기 차트">
    <h4>장기 흐름 <small>주봉 종가 · 로그 눈금 · 2001년~ · 회색 띠 = 작성자가 짚은 조정 구간</small></h4>
-   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={long} margin={{top:10,right:64,left:0,bottom:0}}>
+   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={long} margin={{top:10,right:104,left:0,bottom:0}}>
     <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
     <XAxis dataKey="date" tickFormatter={v=>String(v).slice(0,4)} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={36}/>
     <YAxis scale="log" domain={[1.5,longMax]} allowDataOverflow ticks={ticksIn(1.5,longMax)} width={44} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>`$${v}`}/>
     {episodes.map(({e,x})=>x&&wk(x.high.date)&&wk(x.trough.date)?<ReferenceArea key={e.name} x1={wk(x.high.date)} x2={wk(x.trough.date)} fill="var(--semi-episode)" strokeOpacity={0} label={{value:`${e.name.slice(0,4)} ${pct(x.drawdown,0)}`,position:'insideTop',fontSize:10,fill:'var(--muted)'}}/>:null)}
-    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:`${b.label} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
-    <ReferenceLine y={nextBox} stroke="var(--semi-box)" strokeDasharray="2 6" label={{value:`다음 박스 ≈$${Math.round(nextBox)}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>
+    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:`${b.label.replace(' 박스','')} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
+    <ReferenceLine y={nextBox} stroke="var(--semi-box)" strokeDasharray="2 6" label={{value:`다음 ≈$${Math.round(nextBox)}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>
     <ReferenceLine y={ext[0].price} stroke="var(--semi-target)" strokeDasharray="6 3" label={{value:`1.272 $${Math.round(ext[0].price)}`,position:'right',fontSize:10,fill:'var(--semi-target)'}}/>
     <ReferenceLine y={ext[1].price} stroke="var(--semi-target)" strokeDasharray="6 3" label={{value:`2.0 $${Math.round(ext[1].price)}`,position:'right',fontSize:10,fill:'var(--semi-target)'}}/>
     <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof long)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label} 주</strong><div>종가 {usd(r.close)}</div><div>전고점 대비 {pct(r.dd)}</div></div>;}}/>
@@ -113,7 +113,7 @@ export default function SemiCycle(){
    <ul className="semi-notes">
     <li>지금 사이클 레벨(0.382·0.5·0.618·1.272·2.0)은 작성자 수치와 1% 안에서 맞습니다. 작성자도 로그 눈금으로 그은 것으로 보입니다.</li>
     <li>과거 조정은 자료로 재면 작성자가 짚은 레벨보다 0.05~0.15 더 깊었습니다(예: 2020년 0.618 → 자료 {episodes[1].x?.depth.toFixed(2)??'—'}). 고점·저점을 어디로 잡느냐에 따라 값이 달라지므로 레벨은 ‘정확한 가격’이 아니라 ‘구간’으로 보는 것이 맞습니다.</li>
-    <li>확장 1.272·2.0 은 실제 고점과 대체로 ±10% 안이었지만, 사례가 4~5번뿐이고 레벨을 정한 뒤에 맞춰 본 것이라 통계 검증은 아닙니다.</li>
+    <li>확장 1.272·2.0 은 네 번 모두 실제 고점이 계산 레벨보다 3~8% 위에서 났습니다. 다만 사례가 4번뿐이고 레벨을 정한 뒤에 맞춰 본 것이라 통계 검증은 아닙니다.</li>
     <li>가격은 분할만 조정한 값(배당 미포함)으로, TradingView 같은 일반 가격 차트와 같은 기준입니다. 지금 사이클은 최근 3년 최고가와 그 전 18개월 최저가로 자동으로 잡으며, 새 고점이 나오면 레벨도 따라 바뀝니다.</li>
    </ul>
   </section>
