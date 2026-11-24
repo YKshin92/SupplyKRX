@@ -1,5 +1,7 @@
 // 시장 현황 실시간 시세 (반도체 지수 SOXX, 미국 지수·시가총액 상위 50). Signed-in users only (the proxy checks too).
-// Source: Finnhub /quote; the key lives only in the Vercel environment variable FINNHUB_API_KEY and is sent as a header.
+// Sources: Finnhub /quote for stocks and ETFs (key only in the Vercel environment variable FINNHUB_API_KEY, sent as a header);
+// Yahoo Finance chart API for indices (^GSPC, ^IXIC) — the free Finnhub plan does not quote indices, and the daily index
+// bars already come from Yahoo. Yahoo calls do not count against the Finnhub budget.
 // Free plan limits: 60 calls/minute and 30 calls/second. This server instance therefore
 //  - caches each symbol for 55 seconds (so every open tab together costs one call per symbol per minute),
 //  - spends at most BUDGET calls per rolling minute (the rest answer from the last value or 'budget'),
@@ -22,6 +24,16 @@ export function parseQuote(symbol,q,now=Date.now()){
  return {symbol,price:q.c,open:n(q.o),high:n(q.h),low:n(q.l),prev_close:n(q.pc),change:finite(q.d)?q.d:null,change_pct:finite(q.dp)?q.dp:null,
   time:new Date(q.t*1000).toISOString(),fetched_at:new Date(now).toISOString(),source:'Finnhub'};
 }
+/** Yahoo chart meta → the same quote shape. chartPreviousClose (range=1d) is the previous session's close. */
+export function parseYahoo(symbol,j,now=Date.now()){
+ const r=j?.chart?.result?.[0],m=r?.meta;
+ if(!m||!finite(m.regularMarketPrice)||m.regularMarketPrice<=0||!finite(m.regularMarketTime)||m.regularMarketTime<=0)return null;
+ const n=v=>finite(v)&&v>0?v:null,price=m.regularMarketPrice,prev=n(m.chartPreviousClose)??n(m.previousClose);
+ const open=r.indicators?.quote?.[0]?.open?.at?.(-1);
+ return {symbol,price,open:n(open),high:n(m.regularMarketDayHigh),low:n(m.regularMarketDayLow),prev_close:prev,change:prev?price-prev:null,change_pct:prev?(price/prev-1)*100:null,
+  time:new Date(m.regularMarketTime*1000).toISOString(),fetched_at:new Date(now).toISOString(),source:'Yahoo Finance'};
+}
+const YAHOO='https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1d&range=1d&includePrePost=false';
 /** Yahoo-style class shares (BRK-B) are BRK.B on Finnhub. */
 export const finnhubSymbol=s=>s.replace(/-/g,'.');
 class KeyRejected extends Error{}
@@ -31,6 +43,15 @@ export function createQuoteHandler(authorize=signedIn,{fetchImpl=fetch,env=proce
  async function one(symbol){
   const hit=state.cache.get(symbol);
   if(hit&&now()-hit.at<TTL)return {quote:hit.body};
+  if(symbol.startsWith('^')){
+   try{
+    const r=await fetchImpl(YAHOO.replace('{}',encodeURIComponent(symbol)),{headers:{'User-Agent':'Mozilla/5.0 (X11; Linux x86_64)'},signal:AbortSignal.timeout(8000)});
+    const body=r.ok?parseYahoo(symbol,await r.json().catch(()=>null),now()):null;
+    if(!body)return {quote:hit?.body??null,missing:r.ok?'empty':'upstream'};
+    state.cache.set(symbol,{at:now(),body});
+    return {quote:body};
+   }catch{return {quote:hit?.body??null,missing:'unreachable'};}
+  }
   const blocked=state.blocked.get(symbol);
   if(blocked&&now()-blocked<BLOCK)return {quote:hit?.body??null,missing:'no_access'};
   if(!spend())return {quote:hit?.body??null,missing:'budget'};

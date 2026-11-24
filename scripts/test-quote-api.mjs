@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createQuoteHandler,parseQuote} from '../api/quote.js';
+import {createQuoteHandler,parseQuote,parseYahoo} from '../api/quote.js';
 function response(){return {headers:{},code:0,body:null,setHeader(k,v){this.headers[k]=v;},status(c){this.code=c;return this;},json(v){this.body=v;return this;}};}
 const get=(symbol='SOXX')=>({method:'GET',headers:{},query:{symbol}});
 const ok=async()=>true;
@@ -42,19 +42,30 @@ const multi=(symbols)=>({method:'GET',headers:{},query:{symbols}});
 test('many symbols: grouped calls, BRK-B mapped, no-access remembered, budget respected',async()=>{
  const calls=[];let t=5_000_000;
  const fetchImpl=async(url)=>{calls.push(url);const s=new URL(url).searchParams.get('symbol');
-  if(s==='^GSPC')return new Response(JSON.stringify({error:'no access'}),{status:403});
+  if(s==='LOCKED')return new Response(JSON.stringify({error:'no access'}),{status:403});
   return new Response(JSON.stringify({...Q,c:s.length}),{status:200});};
  const waits=[];
  const h=createQuoteHandler(ok,{fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},now:()=>t,store:{cache:new Map(),calls:[],blocked:new Map()},wait:async ms=>{waits.push(ms);}});
- const syms=['^GSPC','BRK-B',...Array.from({length:48},(_,i)=>`S${i}`)];
+ const syms=['LOCKED','BRK-B',...Array.from({length:48},(_,i)=>`S${i}`)];
  let res=response();await h(multi(syms.join(',')),res);
  assert.equal(res.code,200);assert.equal(calls.length,50);assert.equal(waits.length,4);
  assert.ok(calls.some(u=>u.includes('symbol=BRK.B')));assert.equal(res.body.quotes['BRK-B'].price,5);
- assert.equal(res.body.missing['^GSPC'],'no_access');assert.equal(Object.keys(res.body.quotes).length,49);
+ assert.equal(res.body.missing.LOCKED,'no_access');assert.equal(Object.keys(res.body.quotes).length,49);
  // second minute: ^GSPC is not retried for an hour; 60 more symbols exceed the 55-call budget
  t+=60_000;calls.length=0;res=response();
  await h(multi(Array.from({length:60},(_,i)=>`N${i}`).join(',')),res);
  assert.equal(calls.length,55);assert.equal(Object.values(res.body.missing).filter(x=>x==='budget').length,5);
- t+=1_000;calls.length=0;res=response();await h(multi('^GSPC'),res);assert.equal(calls.length,0);assert.equal(res.body.missing['^GSPC'],'no_access');
+ t+=1_000;calls.length=0;res=response();await h(multi('LOCKED'),res);assert.equal(calls.length,0);assert.equal(res.body.missing.LOCKED,'no_access');
  res=response();await h(multi(Array.from({length:61},(_,i)=>`M${i}`).join(',')),res);assert.equal(res.code,400);
+});
+
+test('indices come from Yahoo without spending the Finnhub budget',async()=>{
+ const calls=[];const yahoo={chart:{result:[{meta:{regularMarketPrice:7300.5,regularMarketTime:1795545000,chartPreviousClose:7237.17,regularMarketDayHigh:7310,regularMarketDayLow:7250},indicators:{quote:[{open:[7240]}]}}]}};
+ const fetchImpl=async(url,options)=>{calls.push({url,options});return url.includes('yahoo')?new Response(JSON.stringify(yahoo)):new Response(JSON.stringify(Q));};
+ const h=createQuoteHandler(ok,{fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},store:{cache:new Map(),calls:[],blocked:new Map()},wait:async()=>{}});
+ const res=response();await h(multi('^GSPC,^IXIC,AAPL'),res);
+ const y=calls.filter(c=>c.url.includes('yahoo'));
+ assert.equal(y.length,2);assert.ok(y[0].url.includes('%5EGSPC'));assert.ok(!y[0].options.headers['X-Finnhub-Token']);
+ const g=res.body.quotes['^GSPC'];assert.equal(g.price,7300.5);assert.equal(g.open,7240);assert.equal(g.source,'Yahoo Finance');assert.ok(Math.abs(g.change_pct-(7300.5/7237.17-1)*100)<1e-9);
+ assert.equal(parseYahoo('^X',{chart:{result:[{meta:{regularMarketPrice:0,regularMarketTime:1}}]}}),null);
 });

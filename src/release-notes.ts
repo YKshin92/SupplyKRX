@@ -4,7 +4,7 @@ export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];
 export const RELEASES:Release[]=[
  {id:'2026-11-24-us-live',date:'2026-11-24',title:'시장 현황 · 미국: 실시간 현재가 · 등락률 · 장중 RSI(잠정)',
   targets:[{tab:'market',selector:'.market-overview',label:'시장 현황 · 미국'}],
-  changes:['미국 화면이 열려 있는 동안 1분마다 Finnhub 시세를 받아 시가총액 상위 50의 현재가와 등락률을 보여 줍니다(정규장 한국시간 23:30~06:00).','RSI도 장중에 움직입니다. 어제까지의 Wilder 평균에 오늘 현재가를 오늘 종가로 넣어 계산한 잠정값이며, 증권사 HTS의 장중 RSI와 같은 방식입니다. 장 마감 뒤 수집 때 같은 계산으로 확정됩니다. 표의 ‘전일’ 칸은 어제 확정값입니다.','S&P500·NASDAQ: 무료 키로 지수 시세를 받을 수 있으면 지수 현재가와 장중 RSI를, 받을 수 없으면 지수를 따라가는 ETF(SPY · ONEQ)의 장중 등락률을 함께 보여 줍니다. 지수 차트는 하루 한 번 수집한 일봉 그대로입니다.'],
+  changes:['미국 화면이 열려 있는 동안 1분마다 시세를 받아(종목 Finnhub · 지수 Yahoo) 시가총액 상위 50의 현재가와 등락률을 보여 줍니다(정규장 한국시간 23:30~06:00).','RSI도 장중에 움직입니다. 어제까지의 Wilder 평균에 오늘 현재가를 오늘 종가로 넣어 계산한 잠정값이며, 증권사 HTS의 장중 RSI와 같은 방식입니다. 장 마감 뒤 수집 때 같은 계산으로 확정됩니다. 표의 ‘전일’ 칸은 어제 확정값입니다.','S&P500·NASDAQ: 지수 현재가와 장중 RSI(잠정)를 Yahoo Finance 지수 시세로 보여 줍니다(일봉과 같은 출처). 지수 차트는 하루 한 번 수집한 일봉 그대로입니다.'],
   verified:'장중 RSI 계산 시험(다음 날 일괄 계산과 소수 5자리까지 일치) · 시세 서버 시험(분당 55회 상한, 묶음 호출, 지수 권한 없음 기억) 2026-11-24',limits:['Finnhub 무료 시세는 정규장만(장전·장후 없음)','시가총액 순위와 Cutler 참고값은 하루 한 번 값','Vercel 서버가 여러 대로 늘면 분당 한도를 잠깐 넘을 수 있음(직전 값 유지)']},
  {id:'2026-11-24-semis',date:'2026-11-24',title:'시장 현황: 반도체 지수(SOXX) 사이클 화면',
   targets:[{tab:'market',selector:'.semi-cycle',label:'시장 현황 · 반도체 지수'}],
