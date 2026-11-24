@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {ResponsiveContainer,ComposedChart,Line,Bar,XAxis,YAxis,Tooltip,CartesianGrid,ReferenceLine,ReferenceArea} from 'recharts';
-import {AUTHOR,EPISODES,EXTEND,EXTENSIONS,RETRACE,cycle,daily,depth,episode,extend,extensionCheck,retrace,validSemis,weekKey,weekly,zone,type Bar as Ohlc,type SemiData} from './semis';
+import {AUTHOR,EPISODES,EXTEND,EXTENSIONS,RETRACE,cycle,daily,depth,episode,extend,extensionCheck,retrace,validSemis,weekKey,weekly,withLive,zone,type Bar as Ohlc,type Live,type SemiData} from './semis';
 import './semis.css';
 
 const usd=(v:number|null|undefined,d=2)=>v==null?'—':`$${v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}`;
@@ -20,16 +20,46 @@ function LogCandle(props:unknown){
  return <g><line x1={x+width/2} x2={x+width/2} y1={y} y2={y+height} stroke={color}/><rect x={bx} y={top} width={w} height={body} fill={color} rx={1}/></g>;
 }
 
+const POLL=60_000;
+const kst=(iso:string)=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
+type LiveState={kind:'loading'|'on'|'off'|'error';message?:string};
+/** Polls /api/quote every minute while the page is visible; stops for good when the key is not configured. */
+function useLiveQuote(){
+ const [quote,setQuote]=useState<Live|null>(null),[state,setState]=useState<LiveState>({kind:'loading'});
+ useEffect(()=>{
+  let stop=false,timer:ReturnType<typeof setTimeout>|undefined;
+  const tick=async()=>{
+   if(stop)return;
+   if(document.visibilityState==='visible'){
+    try{
+     const r=await fetch('/api/quote?symbol=SOXX',{cache:'no-store',credentials:'same-origin'});
+     const body=await r.json().catch(()=>({}));
+     if(r.ok){setQuote(body as Live);setState({kind:'on'});}
+     else if(body?.error==='not_configured'){setState({kind:'off',message:body.message});return;}
+     else setState({kind:'error',message:body?.message??body?.error??`시세 응답 오류(${r.status})`});
+    }catch{setState({kind:'error',message:'시세 서버에 연결하지 못했습니다.'});}
+   }
+   if(!stop)timer=setTimeout(tick,POLL);
+  };
+  void tick();
+  const wake=()=>{if(document.visibilityState==='visible'){clearTimeout(timer);void tick();}};
+  document.addEventListener('visibilitychange',wake);
+  return ()=>{stop=true;clearTimeout(timer);document.removeEventListener('visibilitychange',wake);};
+ },[]);
+ return {quote,state};
+}
+
 export default function SemiCycle(){
  const [data,setData]=useState<SemiData|null>(null),[error,setError]=useState('');
+ const {quote,state}=useLiveQuote();
  useEffect(()=>{import('./data.ts').then(d=>d.json<unknown>('/data/live/semis/latest.json')).then(d=>{if(!validSemis(d))throw new Error('bad');setData(d);}).catch(()=>setError('반도체 지수(SOXX) 자료를 아직 불러올 수 없습니다. 다음 미국 자료 수집 뒤 표시됩니다.'));},[]);
  const view=useMemo(()=>{
   if(!data)return null;
-  const bars=daily(data),weeks=weekly(bars),c=cycle(bars);
+  const merged=withLive(daily(data),quote),bars=merged.bars,weeks=weekly(bars),c=cycle(bars);
   if(!c)return null;
   const byWeek=new Map(weeks.map(w=>[weekKey(w.date),w.date]));
   const wk=(date:string)=>byWeek.get(weekKey(date));
-  const L=c.low.price,H=c.high.price,last=c.last.price,prev=bars.at(-2)?.close??null;
+  const L=c.low.price,H=c.high.price,last=c.last.price,prev=merged.live&&quote?.prev_close?quote.prev_close:bars.at(-2)?.close??null;
   const fib=[0,...RETRACE,1].map(r=>({r,price:retrace(L,H,r)}));
   const ext=EXTEND.map(k=>({k,price:extend(L,H,k)}));
   const now=depth(L,H,last),deepest=c.lastLow?depth(L,H,c.lastLow.price):null;
@@ -39,9 +69,9 @@ export default function SemiCycle(){
   const extensions=EXTENSIONS.map(e=>({e,x:extensionCheck(bars,e)}));
   const from=new Date(c.low.date+'T00:00:00Z');from.setUTCMonth(from.getUTCMonth()-4);
   const recent=weeks.filter(w=>w.date>=from.toISOString().slice(0,10)).map(w=>({...w,range:[w.low,w.high] as [number,number]}));
-  return {c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,
+  return {isLive:merged.live,c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,
    bandTop:retrace(L,H,0.382),bandBottom:retrace(L,H,0.618),target:extend(L,H,1.272)};
- },[data]);
+ },[data,quote]);
  if(error)return <p className="notice">{error}</p>;
  if(!data)return <div className="chart-empty" role="status">반도체 지수 차트를 불러오는 중…</div>;
  if(!view)return <p className="notice">SOXX 사이클 고점·저점을 찾지 못했습니다.</p>;
@@ -50,12 +80,13 @@ export default function SemiCycle(){
  const nextBox=AUTHOR.boxes[2].price*AUTHOR.boxRatio;
  return <div className="semi-cycle">
   <div className="semi-cards">
-   <article><span>SOXX 종가</span><b>{usd(last)}</b><small className={prev&&last>=prev?'positive':'negative'}>{prev?pct(last/prev-1,2):''} · {c.last.date}</small></article>
+   <article className={view.isLive?'live':''}><span>{view.isLive?'SOXX 현재가':'SOXX 종가'}{view.isLive&&<em className="semi-live-dot" aria-label="실시간">실시간</em>}</span><b>{usd(last)}</b><small className={prev&&last>=prev?'positive':'negative'}>{prev?pct(last/prev-1,2):''} · {view.isLive&&quote?`${kst(quote.time)} 체결`:c.last.date}</small></article>
    <article><span>사이클 고점 대비</span><b>{pct(last/H-1)}</b><small>고점 {usd(H)} · {c.high.date}</small></article>
    <article><span>지금 위치(로그 되돌림)</span><b>{now.toFixed(3)}</b><small>{zone(now)}{deepest!=null&&` · 최저 ${usd(c.lastLow!.price)}(${c.lastLow!.date.slice(5)}) = ${deepest.toFixed(3)}`}</small></article>
    <article><span>다음 지지 {next?next.r:''}</span><b>{usd(next?.price)}</b><small>{next?`지금보다 ${pct(next.price/last-1)}`:'—'} · 작성자 {next?usd(AUTHOR.levels[String(next.r)]??null):'—'}</small></article>
    <article className="target"><span>반등 목표 1.272</span><b>{usd(view.target,0)}</b><small>지금보다 {pct(view.target/last-1,0)} · 작성자 $328</small></article>
   </div>
+  <p className={`semi-live-status ${state.kind}`} role="status">{state.kind==='on'&&quote?`실시간 시세 Finnhub · 마지막 체결 ${kst(quote.time)}(한국시간) · 1분마다 갱신 · 미국 정규장(한국시간 23:30~06:00, 서머타임 때 22:30~05:00) 밖에는 직전 정규장 종가`:state.kind==='off'?`실시간 시세 꺼짐 · ${state.message??''} 하루 한 번 수집한 종가로 보여 줍니다.`:state.kind==='error'?`실시간 시세를 받지 못했습니다(${state.message}). 수집한 종가로 보여 주고 1분 뒤 다시 시도합니다.`:'실시간 시세 확인 중…'}</p>
 
   <section className="semi-block" aria-label="SOXX 장기 차트">
    <h4>장기 흐름 <small>주봉 종가 · 로그 눈금 · 2001년~ · 회색 띠 = 작성자가 짚은 조정 구간</small></h4>

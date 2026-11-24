@@ -96,3 +96,17 @@ export function extensionCheck(bars:Bar[],e:(typeof EXTENSIONS)[number]){
 export function zone(d:number){
  if(d<0)return '고점 위';if(d<0.236)return '0.236 위';if(d<0.382)return '0.236 ~ 0.382';if(d<0.5)return '0.382 ~ 0.5';if(d<0.618)return '0.5 ~ 0.618';if(d<=1)return '0.618 아래';return '사이클 저점 아래';
 }
+
+/** /api/quote answer (Finnhub, relayed by the site server). */
+export type Live={symbol:string;price:number;open:number|null;high:number|null;low:number|null;prev_close:number|null;change:number|null;change_pct:number|null;time:string;fetched_at:string;source:string};
+/** New York calendar date of an ISO time. */
+export const nyDate=(iso:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso));
+/** Puts the live quote on top of the daily bars: today's bar is replaced or appended; an older quote is ignored. */
+export function withLive(bars:Bar[],live:Live|null):{bars:Bar[];live:boolean}{
+ const last=bars.at(-1);
+ if(!live||!last||!(live.price>0))return {bars,live:false};
+ const date=nyDate(live.time);
+ if(date<last.date)return {bars,live:false};
+ const bar={date,open:live.open??live.price,high:Math.max(live.high??live.price,live.price),low:Math.min(live.low??live.price,live.price),close:live.price};
+ return {bars:date===last.date?[...bars.slice(0,-1),bar]:[...bars,bar],live:true};
+}

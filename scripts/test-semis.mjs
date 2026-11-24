@@ -34,3 +34,14 @@ test('episode depth uses the windowed low, peak and trough',()=>{
  assert.equal(e.low.price,8);assert.equal(e.high.price,22);assert.equal(e.trough.price,16);
  assert.ok(Math.abs(e.depth-Math.log(22/16)/Math.log(22/8))<1e-12);
 });
+test('live quote replaces or appends the New York session bar and ignores stale quotes',async()=>{
+ const {withLive,nyDate}=await import('../src/semis.ts');
+ const bars=[{date:'2026-11-20',open:135,high:135,low:122,close:123.4},{date:'2026-11-23',open:142,high:142,low:136,close:140}];
+ const q=(time,price)=>({symbol:'SOXX',price,open:141,high:146,low:139,prev_close:140,change:null,change_pct:null,time,fetched_at:time,source:'Finnhub'});
+ assert.equal(nyDate('2026-11-24T20:00:00Z'),'2026-11-24');assert.equal(nyDate('2026-11-24T03:00:00Z'),'2026-11-23');
+ const a=withLive(bars,q('2026-11-24T15:00:00Z',147));
+ assert.equal(a.live,true);assert.equal(a.bars.length,3);assert.deepEqual(a.bars[2],{date:'2026-11-24',open:141,high:147,low:139,close:147});
+ const b=withLive(bars,q('2026-11-23T21:00:00Z',140.5));assert.equal(b.bars.length,2);assert.equal(b.bars[1].close,140.5);
+ const c=withLive(bars,q('2026-11-20T21:00:00Z',120));assert.equal(c.live,false);assert.equal(c.bars,bars);
+ assert.equal(withLive(bars,null).live,false);
+});
