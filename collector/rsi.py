@@ -36,12 +36,14 @@ def _value(gain, loss):
     return 100.0 if loss == 0 else 100 - 100 / (1 + gain / loss)
 
 
-def cutler_series(rows, sessions, period=PERIOD, require_volume=True):
+def cutler_series(rows, sessions, period=PERIOD, require_volume=True, state=None):
     """rows: date -> row with close (and volume/open/change_pct for stocks). One entry per session.
-    rsi = Wilder (main), cutler = Cutler SMA, since_reset = changes accumulated since the last restart."""
+    rsi = Wilder (main), cutler = Cutler SMA, since_reset = changes accumulated since the last restart.
+    state (optional dict) receives the Wilder averages after the last valid bar, so a live price can extend the
+    series by one provisional session exactly as the next daily run would (시장 현황 · 미국 장중 RSI)."""
     out = []
     changes = []  # last `period` changes since the last reset (for the seed and Cutler)
-    previous = None
+    previous = previous_day = None
     wg = wl = None  # Wilder running averages
     count = 0
     for day in sessions:
@@ -67,13 +69,17 @@ def cutler_series(rows, sessions, period=PERIOD, require_volume=True):
             elif count == period:
                 wg = sum(x for x in changes if x > 0) / period
                 wl = -sum(x for x in changes if x < 0) / period
-        previous = r
+        previous, previous_day = r, day
         if count < period:
             out.append(dict(date=day, close=r['close'], rsi=None, cutler=None, since_reset=count, reason=reason or 'warmup'))
             continue
         cutler = _value(sum(x for x in changes if x > 0) / period, -sum(x for x in changes if x < 0) / period)
         wilder = _value(wg, wl)
         out.append(dict(date=day, close=r['close'], rsi=wilder, cutler=cutler, since_reset=count, reason=None if wilder is not None else 'flat'))
+    if state is not None:
+        state.clear()
+        if wg is not None and previous is not None:
+            state.update(date=previous_day, close=previous['close'], avg_gain=round(wg, 8), avg_loss=round(wl, 8), period=period)
     return out
 
 
@@ -168,15 +174,18 @@ def us_rsi(us, chart_sessions=62, top=US_TOP, index_sessions=INDEX_CHART_SESSION
     indices = {}
     for name, v in us['indices'].items():
         prices = v.get('prices', {})
-        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=False)
-        indices[name] = dict(symbol=v.get('symbol'), summary=_rounded(summarize(full)), series=_series_ohlcv(full, prices, index_sessions))
+        w = {}
+        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=False, state=w)
+        indices[name] = dict(symbol=v.get('symbol'), summary=_rounded(summarize(full)), series=_series_ohlcv(full, prices, index_sessions), wilder=w or None)
     stocks = []
     for item in sorted(us.get('stocks', []), key=lambda x: x['rank'])[:top]:
         prices = item.get('prices', {})
         s, series = one(prices, True)
-        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=True)
+        w = {}
+        full = cutler_series(prices, [d for d in calendar if d >= min(prices)] if prices else [], require_volume=True, state=w)
         stocks.append(dict(rank=item['rank'], symbol=item['symbol'], name=item['name'], market_cap_usd=item.get('market_cap_usd'),
-                           close=series[-1]['close'] if series else None, last_date=series[-1]['date'] if series else None, series=_series_ohlcv(full, prices, chart_sessions), **s))
+                           close=series[-1]['close'] if series else None, last_date=series[-1]['date'] if series else None, series=_series_ohlcv(full, prices, chart_sessions),
+                           wilder=w or None, **s))
     return dict(as_of=calendar[-1] if calendar else None, collected_at=us.get('collected_at'), cap_date=us.get('cap_date'),
                 cap_source=us.get('cap_source'), price_source=us.get('price_source'), currency='USD',
                 price_basis='분할 조정 종가(배당 미조정)', indices=indices, top30=stocks)

@@ -1,3 +1,4 @@
+import type {Wilder} from './us-live.ts';
 /** Protected RSI(14) monitoring snapshot (main: Wilder, secondary: Cutler) produced at build time (collector/rsi.py). */
 export type RsiState='below30'|'neutral'|'above70'|null;
 export type RsiSummary={rsi:number|null;prev_rsi:number|null;state:RsiState;entry_today:boolean;below_streak:number;last_entry_date:string|null;reason:string|null;cutler?:number|null;since_reset?:number};
@@ -8,8 +9,8 @@ export type RsiIndex={summary:RsiSummary;series:RsiPoint[]};
 /** Wilder depends on its start: fewer than 60 changes since a restart is shown as not yet settled. */
 export const unsettled=(s:{since_reset?:number;rsi:number|null})=>s.rsi!=null&&(s.since_reset??0)<60;
 export type DomesticTop=RsiStock&{rank:number;market_cap:number;series:RsiPoint[]};
-export type UsTop=RsiSummary&{rank:number;symbol:string;name:string;market_cap_usd:number|null;close:number|null;last_date:string|null;series:RsiPoint[]};
-export type UsBlock={as_of:string|null;collected_at:string|null;cap_date:string|null;cap_source:string|null;price_source:string|null;currency:'USD';price_basis:string;indices:Record<string,RsiIndex&{symbol?:string}>;/** Top companies by market cap (50 since 2026-11-05; key kept). */top30:UsTop[]};
+export type UsTop=RsiSummary&{rank:number;symbol:string;name:string;market_cap_usd:number|null;close:number|null;last_date:string|null;series:RsiPoint[];/** Wilder averages after the last bar (2026-11-24~), for the live intraday RSI. */wilder?:Wilder|null};
+export type UsBlock={as_of:string|null;collected_at:string|null;cap_date:string|null;cap_source:string|null;price_source:string|null;currency:'USD';price_basis:string;indices:Record<string,RsiIndex&{symbol?:string;wilder?:Wilder|null}>;/** Top companies by market cap (50 since 2026-11-05; key kept). */top30:UsTop[]};
 export type RsiData={schema_version:1;as_of:string;rules:Record<string,string|number>;population:number;computed:number;below30:number;entries_today:number;missing:Record<string,number>;indices:Record<string,RsiIndex>;domestic_top30?:{cap_date:string|null;cap_source:string;items:DomesticTop[]}|null;us?:UsBlock|null;stocks:RsiStock[]};
 type Reader=<T>(path:string)=>Promise<T>;
 const json:Reader=path=>import('./data.ts').then(d=>d.json(path));

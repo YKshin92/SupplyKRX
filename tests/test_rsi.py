@@ -130,5 +130,22 @@ class RsiReferenceTests(unittest.TestCase):
             mi.parse([rows[0], ['20261104', 10, 9, 12, 11, 1, 1]], '2026-11-01', '2026-11-05')
 
 
+class WilderStateTests(unittest.TestCase):
+    def test_wilder_state_extends_the_series_by_one_session_exactly(self):
+        closes = [100, 102, 101, 104, 103, 99, 98, 101, 105, 104, 107, 106, 103, 108, 110, 109, 111, 107]
+        r, d = rows(closes)
+        state = {}
+        head = cutler_series({k: r[k] for k in d[:-1]}, d[:-1], state=state)
+        full = cutler_series(r, d)
+        self.assertEqual(state['date'], d[-2]); self.assertEqual(state['close'], closes[-2])
+        c = closes[-1] - state['close']
+        g = (state['avg_gain'] * 13 + max(c, 0)) / 14; l = (state['avg_loss'] * 13 + max(-c, 0)) / 14
+        self.assertAlmostEqual(100 - 100 / (1 + g / l), full[-1]['rsi'], places=5)
+        self.assertEqual(len(head), len(d) - 1)
+        short = {}
+        cutler_series(*rows([100, 101, 102]), state=short)
+        self.assertEqual(short, {})
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -59,3 +59,10 @@
 .rsi-top-table th.flow-col{background:var(--soft,#f4f7fb)}[data-theme=dark] .rsi-top-table th.flow-col{background:#1d2b40}
 @media(max-width:900px){.index-chart-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.index-chart-price{height:210px}.index-chart-rsi-line{height:130px}.index-chart-rsi{justify-content:flex-start;text-align:left}.market-region{margin-left:0}}
+/* 미국 실시간 (2026-11-24): live price, change and provisional intraday RSI */
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--muted)}.live-dot.on{background:var(--rsi-high-line)}
+.live-tag{font-style:normal;font-size:10px;font-weight:700;color:#fff;border-radius:999px;padding:1px 6px;background:var(--muted)}.live-tag.on{background:var(--rsi-high-line)}
+.live-price{white-space:nowrap;font-variant-numeric:tabular-nums}.live-price small{display:inline;margin-left:6px;font-size:11px;font-weight:600}.live-price small.positive{color:var(--up,#d23f4c)}.live-price small.negative{color:var(--down,#2f6fd0)}
+.live-provisional{display:inline!important;margin-left:4px;font-size:10px!important;color:var(--muted)}
+.index-chart-head small.live-proxy{display:block;margin-top:2px}.live-proxy b.positive{color:var(--up,#d23f4c)}.live-proxy b.negative{color:var(--down,#2f6fd0)}
+.us-live-status{font-size:11px;color:var(--muted);margin:4px 0 0}.us-live-status.on::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rsi-high-line);margin-right:6px;vertical-align:1px}.us-live-status.error{color:var(--rsi-high-line)}

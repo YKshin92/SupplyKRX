@@ -11,7 +11,7 @@ test('signed-out requests and other symbols never reach Finnhub',async()=>{
  const no=createQuoteHandler(async(req,res)=>{res.status(401).json({error:'로그인이 필요합니다.'});return false;},{fetchImpl:f.fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},store:new Map()});
  let res=response();await no(get(),res);assert.equal(res.code,401);
  const h=createQuoteHandler(ok,{fetchImpl:f.fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},store:new Map()});
- res=response();await h(get('AAPL'),res);assert.equal(res.code,400);
+ res=response();await h(get('aapl;rm'),res);assert.equal(res.code,400);
  res=response();await h({...get(),method:'POST'},res);assert.equal(res.code,405);
  assert.equal(f.calls.length,0);
 });
@@ -20,20 +20,41 @@ test('missing key is reported without a call',async()=>{
  await createQuoteHandler(ok,{fetchImpl:f.fetchImpl,env:{},store:new Map()})(get(),res);
  assert.equal(res.code,503);assert.equal(res.body.error,'not_configured');assert.equal(f.calls.length,0);
 });
-test('key goes in a header, the answer is parsed and cached for 15 seconds',async()=>{
+test('key goes in a header, the answer is parsed and cached for 55 seconds',async()=>{
  const f=finnhub(Q);let t=1_000_000;const h=createQuoteHandler(ok,{fetchImpl:f.fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},now:()=>t,store:new Map()});
  let res=response();await h(get('soxx'),res);
  assert.equal(res.code,200);assert.equal(res.body.price,147.1);assert.equal(res.body.prev_close,140.2);assert.equal(res.body.time,new Date(Q.t*1000).toISOString());
  assert.ok(!f.calls[0].url.includes('token='));assert.equal(f.calls[0].options.headers['X-Finnhub-Token'],'test-placeholder');
  assert.ok(!JSON.stringify(res.body).includes('test-placeholder'));
- t+=10_000;res=response();await h(get(),res);assert.equal(f.calls.length,1);
+ t+=50_000;res=response();await h(get(),res);assert.equal(f.calls.length,1);
  t+=10_000;res=response();await h(get(),res);assert.equal(f.calls.length,2);
 });
 test('rejected key, rate limit and empty quotes become clear errors',async()=>{
- for(const [body,status,code,error] of [[{},401,502,'key_rejected'],[{},429,503,'rate_limited'],[{c:0,d:null,dp:null,h:0,l:0,o:0,pc:0,t:0},200,502,'empty']]){
+ for(const [body,status,code,error] of [[{},401,502,'key_rejected'],[{},429,503,'rate_limited'],[{error:'no access'},403,502,'no_access'],[{c:0,d:null,dp:null,h:0,l:0,o:0,pc:0,t:0},200,502,'empty']]){
   const f=finnhub(body,status),res=response();
   await createQuoteHandler(ok,{fetchImpl:f.fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},store:new Map()})(get(),res);
   assert.equal(res.code,code);assert.equal(res.body.error,error);
  }
  assert.equal(parseQuote('SOXX',null),null);
+});
+
+const multi=(symbols)=>({method:'GET',headers:{},query:{symbols}});
+test('many symbols: grouped calls, BRK-B mapped, no-access remembered, budget respected',async()=>{
+ const calls=[];let t=5_000_000;
+ const fetchImpl=async(url)=>{calls.push(url);const s=new URL(url).searchParams.get('symbol');
+  if(s==='^GSPC')return new Response(JSON.stringify({error:'no access'}),{status:403});
+  return new Response(JSON.stringify({...Q,c:s.length}),{status:200});};
+ const waits=[];
+ const h=createQuoteHandler(ok,{fetchImpl,env:{FINNHUB_API_KEY:'test-placeholder'},now:()=>t,store:{cache:new Map(),calls:[],blocked:new Map()},wait:async ms=>{waits.push(ms);}});
+ const syms=['^GSPC','BRK-B',...Array.from({length:48},(_,i)=>`S${i}`)];
+ let res=response();await h(multi(syms.join(',')),res);
+ assert.equal(res.code,200);assert.equal(calls.length,50);assert.equal(waits.length,4);
+ assert.ok(calls.some(u=>u.includes('symbol=BRK.B')));assert.equal(res.body.quotes['BRK-B'].price,5);
+ assert.equal(res.body.missing['^GSPC'],'no_access');assert.equal(Object.keys(res.body.quotes).length,49);
+ // second minute: ^GSPC is not retried for an hour; 60 more symbols exceed the 55-call budget
+ t+=60_000;calls.length=0;res=response();
+ await h(multi(Array.from({length:60},(_,i)=>`N${i}`).join(',')),res);
+ assert.equal(calls.length,55);assert.equal(Object.values(res.body.missing).filter(x=>x==='budget').length,5);
+ t+=1_000;calls.length=0;res=response();await h(multi('^GSPC'),res);assert.equal(calls.length,0);assert.equal(res.body.missing['^GSPC'],'no_access');
+ res=response();await h(multi(Array.from({length:61},(_,i)=>`M${i}`).join(',')),res);assert.equal(res.code,400);
 });
