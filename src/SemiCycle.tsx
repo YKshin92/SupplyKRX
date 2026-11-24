@@ -78,15 +78,17 @@ export default function SemiCycle(){
  const {c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk}=view;
  const longMax=Math.max(1200,ext[1].price*1.2),recentLo=Math.min(retrace(L,H,0.618),...recent.map(r=>r.low))*0.88,recentHi=view.target*1.12;
  const nextBox=AUTHOR.boxes[2].price*AUTHOR.boxRatio;
+ // A quote with no trade for 15 minutes is the last regular-session close (market closed), not a live price.
+ const fresh=!!quote&&Date.parse(quote.fetched_at)-Date.parse(quote.time)<15*60_000;
  return <div className="semi-cycle">
   <div className="semi-cards">
-   <article className={view.isLive?'live':''}><span>{view.isLive?'SOXX 현재가':'SOXX 종가'}{view.isLive&&<em className="semi-live-dot" aria-label="실시간">실시간</em>}</span><b>{usd(last)}</b><small className={prev&&last>=prev?'positive':'negative'}>{prev?pct(last/prev-1,2):''} · {view.isLive&&quote?`${kst(quote.time)} 체결`:c.last.date}</small></article>
+   <article className={view.isLive?'live':''}><span>{view.isLive&&fresh?'SOXX 현재가':'SOXX 종가'}{view.isLive&&(fresh?<em className="semi-live-dot" aria-label="실시간">실시간</em>:<em className="semi-live-dot closed">장 마감</em>)}</span><b>{usd(last)}</b><small className={prev&&last>=prev?'positive':'negative'}>{prev?pct(last/prev-1,2):''} · {view.isLive&&quote?`${kst(quote.time)} 체결`:c.last.date}</small></article>
    <article><span>사이클 고점 대비</span><b>{pct(last/H-1)}</b><small>고점 {usd(H)} · {c.high.date}</small></article>
    <article><span>지금 위치(로그 되돌림)</span><b>{now.toFixed(3)}</b><small>{zone(now)}{deepest!=null&&` · 최저 ${usd(c.lastLow!.price)}(${c.lastLow!.date.slice(5)}) = ${deepest.toFixed(3)}`}</small></article>
    <article><span>다음 지지 {next?next.r:''}</span><b>{usd(next?.price)}</b><small>{next?`지금보다 ${pct(next.price/last-1)}`:'—'} · 작성자 {next?usd(AUTHOR.levels[String(next.r)]??null):'—'}</small></article>
    <article className="target"><span>반등 목표 1.272</span><b>{usd(view.target,0)}</b><small>지금보다 {pct(view.target/last-1,0)} · 작성자 $328</small></article>
   </div>
-  <p className={`semi-live-status ${state.kind}`} role="status">{state.kind==='on'&&quote?`실시간 시세 Finnhub · 마지막 체결 ${kst(quote.time)}(한국시간) · 1분마다 갱신 · 미국 정규장(한국시간 23:30~06:00, 서머타임 때 22:30~05:00) 밖에는 직전 정규장 종가`:state.kind==='off'?`실시간 시세 꺼짐 · ${state.message??''} 하루 한 번 수집한 종가로 보여 줍니다.`:state.kind==='error'?`실시간 시세를 받지 못했습니다(${state.message}). 수집한 종가로 보여 주고 1분 뒤 다시 시도합니다.`:'실시간 시세 확인 중…'}</p>
+  <p className={`semi-live-status ${state.kind}`} role="status">{state.kind==='on'&&quote?`${fresh?'실시간 시세':'미국 장 마감 · 직전 정규장 종가'} Finnhub · 마지막 체결 ${kst(quote.time)}(한국시간) · 1분마다 갱신 · 미국 정규장(한국시간 23:30~06:00, 서머타임 때 22:30~05:00) 밖에는 직전 정규장 종가`:state.kind==='off'?`실시간 시세 꺼짐 · ${state.message??''} 하루 한 번 수집한 종가로 보여 줍니다.`:state.kind==='error'?`실시간 시세를 받지 못했습니다(${state.message}). 수집한 종가로 보여 주고 1분 뒤 다시 시도합니다.`:'실시간 시세 확인 중…'}</p>
 
   <section className="semi-block" aria-label="SOXX 장기 차트">
    <h4>장기 흐름 <small>주봉 종가 · 로그 눈금 · 2001년~ · 회색 띠 = 작성자가 짚은 조정 구간</small></h4>

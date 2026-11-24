@@ -33,3 +33,4 @@
 .semi-cards article.live{border-color:var(--semi-fib)}
 .semi-live-dot{font-style:normal;font-size:10px;font-weight:700;color:#fff;background:var(--semi-up);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .semi-live-status{font-size:11px;color:var(--muted);margin:-4px 0 0}.semi-live-status.on::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--semi-up);margin-right:6px;vertical-align:1px}.semi-live-status.error{color:var(--semi-target)}
+.semi-live-dot.closed{background:var(--muted)}
