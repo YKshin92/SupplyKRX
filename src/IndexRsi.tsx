@@ -1,4 +1,4 @@
-import {Fragment,useEffect,useMemo,useState,type ReactNode} from 'react';
+import {Fragment,Suspense,lazy,useEffect,useMemo,useState,type ReactNode} from 'react';
 import {ResponsiveContainer,ComposedChart,Bar,XAxis,YAxis,Tooltip,CartesianGrid} from 'recharts';
 import {Candle} from './ChartPrimitives';
 import VolumeChart from './VolumeChart';
@@ -11,7 +11,8 @@ import {priceChange,percentLabel} from './price-change';
 import {STAT_INVESTORS,type InvestorDatasets} from './MarketFlow';
 import './rsi.css';
 
-export type Region='kr'|'us';
+export type Region='kr'|'us'|'semi';
+const SemiCycle=lazy(()=>import('./SemiCycle'));
 const fmt=(v:number|null|undefined,d=1)=>v==null?'—':v.toFixed(d);
 const krCap=(v:number)=>v>=1e12?`${(v/1e12).toFixed(1)}조`:`${Math.round(v/1e8).toLocaleString('ko-KR')}억`;
 const usCap=(v:number|null)=>v==null?'—':v>=1e12?`$${(v/1e12).toFixed(2)}T`:`$${(v/1e9).toFixed(0)}B`;
@@ -87,7 +88,11 @@ export default function IndexRsi({region,onRegion,flow,dataset,loaded}:{region:R
   const source=key==='연기금 등'?dataset:loaded.others[key];
   return {key,label,stocks:source?new Map(source.stocks.map(s=>[s.code,s])):null,status:key==='연기금 등'?'':loaded.statuses[key]??''};
  }),[dataset,loaded]);
- const toggle=<div className="rsi-region market-region" role="group" aria-label="시장 선택"><button type="button" aria-pressed={region==='kr'} onClick={()=>onRegion('kr')}>국내</button><button type="button" aria-pressed={region==='us'} onClick={()=>onRegion('us')}>미국</button></div>;
+ const toggle=<div className="rsi-region market-region" role="group" aria-label="시장 선택"><button type="button" aria-pressed={region==='kr'} onClick={()=>onRegion('kr')}>국내</button><button type="button" aria-pressed={region==='us'} onClick={()=>onRegion('us')}>미국</button><button type="button" aria-pressed={region==='semi'} onClick={()=>onRegion('semi')}>반도체 지수</button></div>;
+ if(region==='semi')return <div className="market-overview"><section className="index-rsi" aria-label="반도체 지수">
+  <div className="rsi-title"><h3>반도체 지수 SOXX <small>사이클 · 로그 피보나치 · 양봉업자 전략 요약과 자료 검증</small></h3>{toggle}</div>
+  <Suspense fallback={<div className="chart-empty" role="status">반도체 지수 차트를 불러오는 중…</div>}><SemiCycle/></Suspense>
+ </section></div>;
  if(error)return <>{toggle}<p className="notice">{error}</p>{region==='kr'&&flow}</>;
  if(!data)return <>{toggle}<div className="chart-empty rsi-loading" role="status">지수 차트를 불러오는 중…</div>{region==='kr'&&flow}</>;
  const us=data.us,top=data.domestic_top30;

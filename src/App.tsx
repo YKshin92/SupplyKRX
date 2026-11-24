@@ -62,7 +62,7 @@ export default function App({canCollect=false,accountControls}:{canCollect?:bool
  const [screen,setScreen]=useState(emptyScreen),[applied,setApplied]=useState(emptyScreen);
  const [flowOpen,setFlowOpen]=useState(true),[statInvestor,setStatInvestor]=useState<StatInvestor>('연기금 등');
  const [workspaceTab,setWorkspaceTab]=useState<'market'|'explore'|'cases'|'simulation'|'candidates'|'trading'>('market');
- const [marketRegion,setMarketRegion]=useState<'kr'|'us'>('kr');
+ const [marketRegion,setMarketRegion]=useState<'kr'|'us'|'semi'>('kr');
  const [discoveryView,setDiscoveryView]=useState<'pension'|'ranks'|'rsi'|'highs'>('pension');
  const [seenReleases,setSeenReleases]=useState(()=>readSeenReleases());
  const recent=unseenTabs(seenReleases);

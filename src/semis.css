@@ -1,0 +1,32 @@
+/* 시장 현황 · 반도체 지수 (2026-11-24): SOXX long-term log chart, current-cycle log Fibonacci, author scenario and data checks */
+:root{--semi-line:#2969c7;--semi-up:#cd4e60;--semi-down:#4284d8;--semi-fib:#2f6fd0;--semi-band:#4284d81f;--semi-target:#c0503a;--semi-box:#8a97a8;--semi-episode:#8a97a822}
+[data-theme=dark]{--semi-line:#7db1ff;--semi-up:#ff8997;--semi-down:#7db1ff;--semi-fib:#8fbcff;--semi-band:#7db1ff26;--semi-target:#ff9d7e;--semi-box:#8ea0b8;--semi-episode:#8ea0b82e}
+.semi-cycle{display:flex;flex-direction:column;gap:14px;margin-top:12px;min-width:0}
+.semi-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.semi-cards article{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0}
+.semi-cards span{display:block;font-size:11px;color:var(--muted)}
+.semi-cards b{display:block;font-size:21px;font-family:Arial,sans-serif;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.semi-cards small{font-size:11px;color:var(--muted)}.semi-cards small.positive{color:var(--up,#d23f4c)}.semi-cards small.negative{color:var(--down,#2f6fd0)}
+.semi-cards article.target b{color:var(--semi-target)}
+.semi-block{border-top:1px solid var(--border);padding-top:12px;min-width:0}
+.semi-block h4{margin:0 0 6px;font-size:14px}.semi-block h4 small{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
+.semi-chart-long{height:340px}.semi-chart-cycle{height:360px}
+.semi-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:11px;color:var(--muted);margin:6px 0 0}
+.semi-legend i{display:inline-block;width:16px;height:0;border-top:2px solid}.semi-legend i.line{border-color:var(--semi-line)}.semi-legend i.box{border-top:2px dashed var(--semi-box)}.semi-legend i.target{border-top:2px dashed var(--semi-target)}.semi-legend i.episode{height:10px;border:0;background:var(--semi-episode);border-radius:2px}
+.semi-table-scroll{overflow-x:auto;margin-top:10px}
+.semi-table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.semi-table th{font-size:11px;color:var(--muted);font-weight:500;text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.semi-table td{padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}.semi-table td small{display:block;font-size:10px;color:var(--muted)}
+.semi-table tr.reached td:first-child{color:var(--semi-fib);font-weight:700}.semi-table tr.ext td:first-child{color:var(--semi-target);font-weight:700}
+.semi-table td.negative{color:var(--down,#2f6fd0)}
+.semi-roadmap{list-style:none;padding:0;margin:8px 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;counter-reset:step}
+.semi-roadmap li{border:1px solid var(--border);border-radius:8px;padding:10px 12px;position:relative;counter-increment:step;min-width:0}
+.semi-roadmap li::before{content:counter(step);position:absolute;top:8px;right:10px;font-size:11px;color:var(--muted)}
+.semi-roadmap li.now{border-color:var(--semi-fib);background:var(--semi-band)}
+.semi-roadmap b{display:block;font-size:13px}.semi-roadmap span{display:block;font-size:12px;font-weight:600;margin:2px 0 4px}.semi-roadmap small{font-size:11px;color:var(--muted);line-height:1.45}
+.semi-rules{margin-top:10px;font-size:12px}.semi-rules strong{font-size:12px}
+.semi-rules ul{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-wrap:wrap;gap:6px}
+.semi-rules li{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:3px 10px}.semi-rules li span{color:var(--muted)}
+.semi-notes{margin:10px 0 0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.55}
+@media(max-width:1000px){.semi-cards{grid-template-columns:repeat(3,minmax(0,1fr))}.semi-roadmap{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.semi-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.semi-roadmap{grid-template-columns:1fr}.semi-chart-long{height:280px}.semi-chart-cycle{height:300px}}

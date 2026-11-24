@@ -41,6 +41,12 @@ for months in (1,2,3):
             manifest=publish_investor(selected,args.target/'periods'/f'{months}m'/suffix,'live',view_calendar,investor,len(sessions))
             print(f"{months}m {investor}: {manifest['days']} sessions, {manifest['row_count']} rows.")
 
+# 시장 현황 · 반도체 지수(SOXX 사이클 화면) 참고 자료: 신호·점수·시뮬레이션에는 쓰지 않는다.
+semis_path=args.root/'data/live/semis.json'
+if semis_path.exists():
+    (args.target/'semis').mkdir(parents=True,exist_ok=True)
+    (args.target/'semis'/'latest.json').write_text(semis_path.read_text(encoding='utf-8'),encoding='utf-8')
+    print('SOXX: published semis/latest.json. Private/local only.')
 from collector.rsi import publish_rsi
 index_path=args.root/'data/live/simulation-indices.json'
 us_path=args.root/'data/live/us-market.json'
