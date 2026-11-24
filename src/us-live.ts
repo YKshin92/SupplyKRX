@@ -4,7 +4,7 @@
 import {nyDate,type Live} from './semis.ts';
 export type Wilder={date:string;close:number;avg_gain:number;avg_loss:number;period?:number};
 export type MultiQuote={quotes:Record<string,Live>;missing:Record<string,string>;fetched_at:string};
-export type LiveView={date:string;price:number;change_pct:number|null;rsi:number|null;state:'below30'|'neutral'|'above70'|null;entry:boolean;fresh:boolean;time:string};
+export type LiveView={date:string;price:number;high:number|null;low:number|null;change_pct:number|null;rsi:number|null;state:'below30'|'neutral'|'above70'|null;entry:boolean;fresh:boolean;time:string};
 /** Index → ETF that tracks it, used only for the live % line when the free key cannot quote the index itself. */
 export const INDEX_PROXY:Record<string,string>={'^GSPC':'SPY','^IXIC':'ONEQ'};
 export const LOW=30,HIGH=70,STALE=15*60_000;
@@ -25,7 +25,7 @@ export function liveView(q:Live|undefined,w:Wilder|null|undefined,lastDate:strin
  if(date<=base)return null;
  const rsi=liveRsi(w,q.price);
  const ref=q.prev_close??w?.close??null;
- return {date,price:q.price,change_pct:q.change_pct??(ref?(q.price/ref-1)*100:null),rsi,
+ return {date,price:q.price,high:q.high,low:q.low,change_pct:q.change_pct??(ref?(q.price/ref-1)*100:null),rsi,
   state:rsi==null?null:rsi<LOW?'below30':rsi>=HIGH?'above70':'neutral',
   entry:rsi!=null&&storedRsi!=null&&storedRsi>=LOW&&rsi<LOW,fresh:isFresh(q),time:q.time};
 }

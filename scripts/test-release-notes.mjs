@@ -10,7 +10,7 @@ test('release history is ordered, unique and points at real screens',()=>{
 test('NEW lasts seven calendar days and ignores superseded releases',()=>{
  assert.equal(isRecent('2026-10-29','2026-10-29'),true);assert.equal(isRecent('2026-10-29','2026-11-04'),true);
  assert.equal(isRecent('2026-10-29','2026-11-05'),false);assert.equal(isRecent('2026-10-29','2026-10-28'),false);
- assert.ok(recentTabs('2026-10-30').has('simulation'));assert.equal(recentTabs('2026-12-01').size,0);
+ assert.ok(recentTabs('2026-10-30').has('simulation'));assert.equal(recentTabs('2099-01-01').size,0);
  assert.ok(recentSelectors('2026-10-30').has('.corporate-reconciliation'));
  const superseded=RELEASES.find(r=>r.superseded);assert.ok(superseded);
 });

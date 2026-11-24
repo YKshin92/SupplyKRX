@@ -7,6 +7,8 @@ import RsiChart,{zoneEntries} from './RsiChart';
 import RsiSpark from './RsiSpark';
 import {readRsi,stateLabel,reasonLabel,unsettled,type RsiData,type RsiIndex,type RsiSummary,type RsiPoint} from './rsi-data';
 import {INDEX_PROXY,liveView,type LiveView,type MultiQuote} from './us-live';
+import {STOCH,stochastic,stochEvents,stochZone,type StochPoint} from './stochastic';
+import StochChart from './StochChart';
 import type {Live} from './semis';
 import {type Dataset,type Stock,integer,sign} from './data';
 import {priceChange,percentLabel} from './price-change';
@@ -23,6 +25,25 @@ const pct=(v:number|null)=>v==null?'':`${v>0?'+':v<0?'−':''}${Math.abs(v).toFi
 /** Table cell amount: +1,234억 / −0.4억 / +1.25조. */
 const flowAmount=(n:number|null|undefined)=>{if(n==null)return '—';const a=Math.abs(n),s=n>0?'+':n<0?'−':'';return a>=1e12?`${s}${(a/1e12).toFixed(2)}조`:`${s}${(a<1e9?(a/1e8).toFixed(1):Math.round(a/1e8).toLocaleString('ko-KR'))}억`;};
 
+const n1=(v:number|null|undefined)=>v==null?'—':v.toFixed(1);
+const stochLabel=(k:number|null)=>{const z=stochZone(k);return z==='low'?'20 미만 · 침체':z==='high'?'80 초과 · 과열':z==='mid'?'20~80':'—';};
+/** 스토캐스틱 슬로우(5,3,3) panel under RSI: latest %K/%D (and the provisional intraday value when live), chart, zone entries and the last cross. */
+function StochPanel({points,live,sync}:{points:StochPoint[];live:StochPoint|null;sync:string}){
+ const last=[...points].reverse().find(p=>p.k!=null)??null,prev=points.length>1?points[points.length-2]:null;
+ const e=stochEvents(points);
+ const chips=(days:string[],cls:string)=>days.length?days.map(d=><span key={d} className={`rsi-chip ${cls}`}>{d.slice(5)}</span>):<span className="rsi-muted">없음</span>;
+ const shown=live&&live.k!=null?live:last;
+ return <>
+  <h5 className="stoch-title">스토캐스틱 슬로우({STOCH.n},{STOCH.k},{STOCH.d}) <small>%K 실선 · %D 점선 · 20 미만 파랑 · 80 초과 빨강</small>
+   <span className={`stoch-now ${stochZone(shown?.k??null)??''}`}>{live&&live.k!=null&&<em className="live-provisional">장중 잠정</em>}%K <b>{n1(shown?.k)}</b> · %D <b>{n1(shown?.d)}</b> <i>{stochLabel(shown?.k??null)}</i>{live&&live.k!=null&&<small> · 전일 확정 %K {n1(last?.k)}</small>}{!live&&prev?.k!=null&&<small> · 전일 %K {n1(prev.k)}</small>}</span></h5>
+  <div className="index-chart-stoch-line"><StochChart points={points} syncId={sync} yWidth={Y}/></div>
+  <div className="rsi-zone-dates">
+   <div><b className="low">20 미만 진입일</b>{chips(e.low,'low')}<small>구간 내 {e.lowDays}일</small></div>
+   <div><b className="high">80 초과 진입일</b>{chips(e.high,'high')}<small>구간 내 {e.highDays}일</small></div>
+   <div><b>최근 교차</b>{e.cross?<span className={`rsi-chip ${e.cross.kind==='golden'?'high':'low'}`}>{e.cross.date.slice(5)} {e.cross.kind==='golden'?'%K 상향 돌파(골든)':'%K 하향 이탈(데드)'} · %K {e.cross.k.toFixed(1)}</span>:<span className="rsi-muted">없음</span>}</div>
+  </div>
+ </>;
+}
 function ZoneDates({series}:{series:RsiPoint[]}){
  const z=zoneEntries(series);
  const chips=(days:string[],cls:string)=>days.length?days.map(d=><span key={d} className={`rsi-chip ${cls}`}>{d.slice(5)}</span>):<span className="rsi-muted">없음</span>;
@@ -75,6 +96,9 @@ function useUsLive(enabled:boolean,symbols:string[]):UsLive{
 function IndexChart({name,x,live,proxy}:{name:string;x?:RsiIndex;live?:LiveView|null;proxy?:{symbol:string;quote:Live}|null}){
  const series=x?.series??[];
  const data=useMemo(()=>series.map((r,i)=>({...r,wick:r.low!=null&&r.high!=null?[r.low,r.high]:null,previousClose:series[i-1]?.close??null})),[series]);
+ const stoch=useMemo(()=>stochastic(series),[series]);
+ /* Intraday (US): today's live high/low/price as a provisional bar, the same way the intraday RSI uses today's price. */
+ const liveStoch=useMemo(()=>live&&live.high!=null&&live.low!=null?stochastic([...series,{date:live.date,high:Math.max(live.high,live.price),low:Math.min(live.low,live.price),close:live.price}]).at(-1)??null:null,[series,live]);
  if(!x)return <article className="index-chart-card"><strong>{name}</strong><p className="notice">지수 자료 없음</p></article>;
  const s=x.summary,last=series.at(-1),prev=series.at(-2);
  const change=last?.close!=null&&prev?.close?(last.close/prev.close-1)*100:null;
@@ -100,6 +124,7 @@ function IndexChart({name,x,live,proxy}:{name:string;x?:RsiIndex;live?:LiveView|
   <h5>RSI(14) <small>Wilder · 30 미만 파랑 · 70 이상 빨강</small></h5>
   <div className="index-chart-rsi-line"><RsiChart series={series} syncId={sync} yWidth={Y}/></div>
   <ZoneDates series={series}/>
+  <StochPanel points={stoch} live={liveStoch} sync={sync}/>
  </article>;
 }
 

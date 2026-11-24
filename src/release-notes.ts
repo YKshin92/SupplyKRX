@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-25-stochastic',date:'2026-11-25',title:'시장 현황: 지수 차트에 스토캐스틱 슬로우(5,3,3)',
+  targets:[{tab:'market',selector:'.index-chart-stoch-line',label:'시장 현황 · 지수 차트'}],
+  changes:['국내(KOSPI·KOSDAQ)와 미국(S&P500·NASDAQ) 지수 차트의 RSI 아래에 스토캐스틱 슬로우(5,3,3)를 더했습니다. %K는 실선, %D는 점선이며 20 미만은 파랑, 80 초과는 빨강 구간으로 RSI 차트와 같은 모양입니다.','계산: Fast %K = (종가 − 5일 최저가) ÷ (5일 최고가 − 5일 최저가) × 100, Slow %K = Fast %K의 3일 평균, %D = Slow %K의 3일 평균. 지수 일봉의 고가·저가·종가로 계산하고, 값이 비는 날은 채우지 않습니다.','차트 아래에 20 미만·80 초과 진입일과 최근 %K·%D 교차(골든·데드)를 표시합니다. 미국 지수는 장중에 오늘 고가·저가·현재가를 넣은 잠정 값도 함께 보여 줍니다.'],
+  verified:'손 계산과 대조한 시험(소수 9자리 일치) · 화면 확인 2026-11-25',limits:['차트 맨 앞 8거래일은 계산에 필요한 기간이라 값이 없음','증권사 HTS 일부는 %K를 비율 합으로 계산해 소수점 차이가 날 수 있음']},
  {id:'2026-11-24-us-live',date:'2026-11-24',title:'시장 현황 · 미국: 실시간 현재가 · 등락률 · 장중 RSI(잠정)',
   targets:[{tab:'market',selector:'.market-overview',label:'시장 현황 · 미국'}],
   changes:['미국 화면이 열려 있는 동안 1분마다 시세를 받아(종목 Finnhub · 지수 Yahoo) 시가총액 상위 50의 현재가와 등락률을 보여 줍니다(정규장 한국시간 23:30~06:00).','RSI도 장중에 움직입니다. 어제까지의 Wilder 평균에 오늘 현재가를 오늘 종가로 넣어 계산한 잠정값이며, 증권사 HTS의 장중 RSI와 같은 방식입니다. 장 마감 뒤 수집 때 같은 계산으로 확정됩니다. 표의 ‘전일’ 칸은 어제 확정값입니다.','S&P500·NASDAQ: 지수 현재가와 장중 RSI(잠정)를 Yahoo Finance 지수 시세로 보여 줍니다(일봉과 같은 출처). 지수 차트는 하루 한 번 수집한 일봉 그대로입니다.'],
