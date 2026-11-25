@@ -45,3 +45,19 @@ test('live quote replaces or appends the New York session bar and ignores stale 
  const c=withLive(bars,q('2026-11-20T21:00:00Z',120));assert.equal(c.live,false);assert.equal(c.bars,bars);
  assert.equal(withLive(bars,null).live,false);
 });
+test('convergence line, breakout and double top are found from bars',async()=>{
+ const {convergence,doubleTop,windowRange}=await import('../src/semis.ts');
+ const wk=(date,high,close)=>({date,open:close,high,low:close*0.9,close});
+ const weeks=[wk('2001-08-06',9,8)];
+ for(let y=2002;y<=2010;y++)weeks.push(wk(`${y}-06-03`,5,4));
+ weeks.push(wk('2011-02-14',7,6.5));
+ for(let m=3;m<=12;m++)weeks.push(wk(`2011-${String(m).padStart(2,'0')}-07`,5,4.5));
+ weeks.push(wk('2012-06-04',6,5),wk('2013-05-06',7.5,7.2),wk('2013-06-03',8,7.8));
+ const c=convergence(weeks);
+ assert.equal(c.from.price,9);assert.equal(c.mid.price,7);assert.equal(c.breakout.date,'2013-05-06');assert.ok(c.to.price<7);
+ const bars=[['2026-06-22',218,210,215],['2026-07-29',170,155,160],['2026-10-02',199,190,195],['2026-10-20',180,160,165],['2026-11-05',150,131,140]].map(([date,high,low,close])=>({date,open:close,high,low,close}));
+ const d=doubleTop(bars,{date:'2026-06-22',price:218});
+ assert.equal(d.second.date,'2026-10-02');assert.equal(d.neck.price,155);assert.deepEqual(d.broken,{date:'2026-11-05',price:140});
+ assert.equal(doubleTop(bars.slice(0,1),{date:'2026-06-22',price:218}),null);
+ assert.deepEqual(windowRange(bars,'2026-07-01','2026-10-31'),{low:155,high:199});
+});

@@ -110,3 +110,51 @@ export function withLive(bars:Bar[],live:Live|null):{bars:Bar[];live:boolean}{
  const bar={date,open:live.open??live.price,high:Math.max(live.high??live.price,live.price),low:Math.min(live.low??live.price,live.price),close:live.price};
  return {bars:date===last.date?[...bars.slice(0,-1),bar]:[...bars,bar],live:true};
 }
+
+/* ── 교재의 차트 패턴(추세선 · W · 쌍봉)을 자료에서 다시 찾기 (2026-11-25) ── */
+const logAt=(a:{i:number;p:number},b:{i:number;p:number},i:number)=>Math.exp(Math.log(a.p)+(Math.log(b.p)-Math.log(a.p))*(i-a.i)/(b.i-a.i));
+/** 수렴: the line through the 2001 high and the 2011 high on weekly bars (log scale), and the first weekly close above it. */
+export function convergence(weeks:Bar[]){
+ const pick=(from:string,to:string)=>{let best=-1;weeks.forEach((w,i)=>{if(w.date>=from&&w.date<=to&&(best<0||w.high>weeks[best].high))best=i;});return best;};
+ const i1=pick('2001-01-01','2002-12-31'),i2=pick('2011-01-01','2011-12-31');
+ if(i1<0||i2<=i1)return null;
+ const a={i:i1,p:weeks[i1].high},b={i:i2,p:weeks[i2].high};
+ let k=-1;for(let i=i2+8;i<weeks.length;i++)if(weeks[i].close>logAt(a,b,i)){k=i;break;}
+ if(k<0)return null;
+ const end=Math.min(weeks.length-1,k+78);
+ return {from:{date:weeks[i1].date,price:a.p},mid:{date:weeks[i2].date,price:b.p},to:{date:weeks[end].date,price:logAt(a,b,end)},breakout:{date:weeks[k].date,price:weeks[k].close}};
+}
+/** 쌍봉: second peak = highest high at least 30 days after the cycle high; neckline = lowest low between the peaks;
+ *  broken = first daily close under the neckline after the second peak. */
+export function doubleTop(bars:Bar[],high:Point){
+ const after=add(high.date,1);
+ const second=extreme(bars,after,'9999-12-31','high');if(!second)return null;
+ const neck=extreme(bars,high.date,second.date,'low');if(!neck||neck.date<=high.date||neck.date>=second.date)return null;
+ const broken=bars.find(b=>b.date>second.date&&b.close<neck.price);
+ return {first:high,second,neck,broken:broken?{date:broken.date,price:broken.close}:null};
+}
+/** The trader's W(쌍바닥) markings, as date windows; the box height comes from the data. */
+export const W_PATTERNS=[{name:'W 2018~2019',from:'2018-03-01',to:'2019-12-31'},{name:'W 2022~2023',from:'2021-12-01',to:'2023-06-30'}] as const;
+export function windowRange(bars:Bar[],from:string,to:string){const lo=extreme(bars,from,to,'low'),hi=extreme(bars,from,to,'high');return lo&&hi?{low:lo.price,high:hi.price}:null;}
+
+/** 교재의 사이클별 배경 설명과 용어 풀이를 요약한 것 (작성자 견해). */
+export const STORY={
+ cycles:[
+  {period:'2013~2018',title:'모바일',box:'수렴 돌파 → 1단 박스 17.9달러',points:['스마트폰 보급: 삼성·애플 양강에 중국 업체가 가세','통신이 3G에서 4G(LTE)로 교체','PC 중심이던 수요에 모바일이라는 새 수요처가 열림'],end:'2018년 고점 뒤 조정은 0.236에서 마무리 — 수요(Q)는 버티고 가격(P)만 꺾였기 때문'},
+  {period:'2020~2022',title:'언택트',box:'17.9달러 지지 → 2단 박스 55.1달러',points:['제로금리·양적완화로 유동성이 풀림','비대면 확산으로 노트북·태블릿 수요 급증','클라우드 사용이 늘며 데이터센터 투자 확대'],end:'물가 급등에 연준이 빅스텝·자이언트스텝으로 금리를 올리며 자산시장 전체가 하락, 0.5에서 마무리'},
+  {period:'2023~2026',title:'생성형 AI',box:'W 완성 → 3단 박스 170달러(오버슈팅)',points:['2023년 GPT 등장','GPU·HBM 수요 폭증','2025~26년 장기 공급계약이 나오며 “반도체는 사이클이 아니다”라는 말까지 등장'],end:'많이 오른 만큼 많이 빠지는 과정 — 쌍봉을 만들고 넥라인이 무너지며 급락'},
+  {period:'2029~',title:'피지컬 AI(작성자 전망)',box:'다음 박스 500달러 이상 · 확장 2 약 970달러',points:['AI 사이클은 끝나지 않았다는 것이 작성자 생각','반등장(~2028) 뒤 급락을 한 번 거친 다음 시작','“급하게 오르면 급하게 빠지고, 급하게 빠지면 또 급하게 오른다”'],end:'먼 이야기이므로 참고만'},
+ ],
+ why1272:['1.272는 전고점을 살짝 넘는 가격대입니다. 이 자리를 뚫고 올라가면 진짜 상승장일 가능성이 커지고, 못 뚫으면 전고점 돌파가 가짜로 끝나며 큰 하락이 나오는 패턴이 있었다는 것이 작성자 설명입니다.','그래서 W 모양으로 꽤 크게 오른 구간도 ‘상승장’이 아니라 ‘반등장’이라고 부릅니다.'],
+ why328:['328달러에 닿으면 전고점을 넘었다는 심리 때문에 따라 사는 사람이 많아집니다.','하지만 작성자는 그 자리를 반등장이 끝나는 1.272로 보고, 전량 매도 자리로 봅니다.','그 뒤 급락이 한 차례 오고, 거기서 잘 산 사람이 2029년부터의 사이클을 노릴 수 있다는 구상입니다.'],
+ now:['2018년과 달리 이번에는 0.236이 깨졌고, 11월 셋째 주 금요일에 0.382에 닿았습니다.','반도체 가격(P)은 살짝 꺾이기 시작했지만 수요(Q)는 탄탄해 0.382를 지킬 수 있다고 봤는데, 나스닥 전체가 무너지는 변수가 생겼다는 것이 작성자 판단입니다.','그래서 0.5(약 103달러)를 가장 유력한 저점으로, 블랙스완(예: 네오클라우드 업체 부실로 연쇄 청산)이 터지면 0.618까지 열어 둡니다.','진짜 저점은 맞힐 수 없으니 0.382 · 0.5 · 0.618이 올 때마다 3분할로 접근하자는 제안입니다.'],
+ glossary:[
+  ['반등장','하락 뒤 크게 오르지만 전고점 부근에서 다시 꺾이는 구간. 교재에서는 W자 상승을 이렇게 부름'],['상승장','전고점을 확실히 넘어 몇 년간 이어지는 장기 상승 구간'],
+  ['수렴','고점은 낮아지고 저점은 높아지며 가격 폭이 좁아지는 구간. 돌파한 방향으로 큰 움직임이 자주 나옴'],['박스 목표치','수렴 구간의 높이만큼을 돌파 지점 위에 더해 목표가를 잡는 방법'],
+  ['피보나치 되돌림','직전 상승폭의 0.236 · 0.382 · 0.5 · 0.618 자리에서 조정이 멈추는지 보는 방법. 숫자가 클수록 깊은 조정'],['1.272(피보나치 확장)','직전 상승폭의 1.272배 자리. 전고점을 살짝 넘는 가격대'],
+  ['P · Q','P는 반도체 가격, Q는 수요·판매량. 둘 중 무엇이 꺾이느냐로 조정 깊이를 가늠'],['W 패턴(쌍바닥)','비슷한 저점을 두 번 찍고 올라가는 모양. 바닥을 다졌다는 신호로 봄'],
+  ['쌍봉 · 넥라인','비슷한 고점을 두 번 찍는 모양. 두 고점 사이 저점을 이은 선(넥라인)이 무너지면 하락 신호'],['로그 차트','가격의 변화율을 같은 간격으로 보여 주는 차트. 장기 차트에 씀'],
+  ['HBM','고대역폭 메모리. AI용 GPU 옆에 붙는 고성능 D램'],['양적긴축','중앙은행이 금리를 올리고 시중 돈을 거둬들이는 정책'],['빅스텝 · 자이언트스텝','기준금리를 한 번에 0.5%p · 0.75%p 올리는 것'],
+  ['블랙스완','예측하기 어렵지만 일어나면 충격이 큰 사건'],['네오클라우드','엔비디아 GPU를 대량으로 들여와 AI 연산을 빌려주는 신생 클라우드 업체'],['추세 추종','오르는 방향을 따라 사고 내리는 방향을 따라 파는 매매 방식'],
+ ] as [string,string][],
+};

@@ -1,6 +1,6 @@
 /* 시장 현황 · 반도체 지수 (2026-11-24): SOXX long-term log chart, current-cycle log Fibonacci, author scenario and data checks */
-:root{--semi-line:#2969c7;--semi-up:#cd4e60;--semi-down:#4284d8;--semi-fib:#2f6fd0;--semi-band:#4284d81f;--semi-target:#c0503a;--semi-box:#8a97a8;--semi-episode:#8a97a822}
-[data-theme=dark]{--semi-line:#7db1ff;--semi-up:#ff8997;--semi-down:#7db1ff;--semi-fib:#8fbcff;--semi-band:#7db1ff26;--semi-target:#ff9d7e;--semi-box:#8ea0b8;--semi-episode:#8ea0b82e}
+:root{--semi-line:#2969c7;--semi-up:#cd4e60;--semi-down:#4284d8;--semi-fib:#2f6fd0;--semi-band:#4284d81f;--semi-target:#c0503a;--semi-box:#8a97a8;--semi-episode:#8a97a822;--semi-trend:#c98a1b;--semi-w:#c98a1b14;--semi-w-line:#a8700f}
+[data-theme=dark]{--semi-line:#7db1ff;--semi-up:#ff8997;--semi-down:#7db1ff;--semi-fib:#8fbcff;--semi-band:#7db1ff26;--semi-target:#ff9d7e;--semi-box:#8ea0b8;--semi-episode:#8ea0b82e;--semi-trend:#f2b544;--semi-w:#f2b54420;--semi-w-line:#f2b544}
 .semi-cycle{display:flex;flex-direction:column;gap:14px;margin-top:12px;min-width:0}
 .semi-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .semi-cards article{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0}
@@ -34,3 +34,18 @@
 .semi-live-dot{font-style:normal;font-size:10px;font-weight:700;color:#fff;background:var(--semi-up);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .semi-live-status{font-size:11px;color:var(--muted);margin:-4px 0 0}.semi-live-status.on::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--semi-up);margin-right:6px;vertical-align:1px}.semi-live-status.error{color:var(--semi-target)}
 .semi-live-dot.closed{background:var(--muted)}
+/* 교재 전체 반영 (2026-11-25): 추세선 · W · 쌍봉, 사이클별 배경, 용어 풀이 */
+.semi-legend i.trend{border-color:var(--semi-trend)}.semi-legend i.target.solid{border-top-style:solid}
+.semi-legend i.w{height:10px;border:1px dashed var(--semi-w-line);background:var(--semi-w);border-radius:2px}
+.semi-legend i.dot{width:8px;height:8px;border:0;border-radius:50%}.semi-legend i.dot.fib{background:var(--semi-fib)}.semi-legend i.dot.target{background:var(--semi-target)}.semi-legend i.dot.up{background:var(--semi-up)}
+.semi-story{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.semi-story article{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0}
+.semi-story span{display:block;font-size:11px;color:var(--muted)}.semi-story b{display:block;font-size:14px;margin:2px 0}.semi-story em{display:block;font-style:normal;font-size:11px;color:var(--semi-fib);font-weight:600}
+.semi-story ul{margin:6px 0;padding-left:16px;font-size:12px;line-height:1.5}.semi-story small{display:block;font-size:11px;color:var(--muted);line-height:1.45}
+.semi-explain{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px;margin-top:12px;font-size:12px}.semi-explain strong{display:block;font-size:12px;margin-top:4px}
+.semi-explain ul{margin:4px 0 8px;padding-left:16px;line-height:1.55;color:var(--muted)}
+.semi-glossary{margin-top:8px;font-size:12px}.semi-glossary summary{cursor:pointer;color:var(--muted)}
+.semi-glossary dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;margin:8px 0 0}.semi-glossary dl div{display:flex;gap:8px;min-width:0}
+.semi-glossary dt{flex:0 0 118px;font-weight:600}.semi-glossary dd{margin:0;color:var(--muted);line-height:1.45}
+@media(max-width:1000px){.semi-story{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.semi-story,.semi-explain,.semi-glossary dl{grid-template-columns:1fr}}

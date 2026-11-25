@@ -2,6 +2,10 @@
 export type ReleaseTarget={tab:'market'|'explore'|'cases'|'simulation'|'signals'|'candidates';discovery?:'pension'|'ranks'|'rsi'|'highs';selector?:string;label:string};
 export type Release={id:string;date:string;title:string;targets:ReleaseTarget[];changes:string[];verified:string;limits?:string[];superseded?:string};
 export const RELEASES:Release[]=[
+ {id:'2026-11-25-semis-full',date:'2026-11-25',title:'반도체 지수: 교재 내용 전체 반영(추세선 · W 패턴 · 쌍봉 · 사이클 배경 · 용어)',
+  targets:[{tab:'market',selector:'.semi-cycle',label:'시장 현황 · 반도체 지수'}],
+  changes:['장기 차트에 2001·2011년 고점을 이은 추세선(수렴)과 2013년 돌파 지점을 그렸습니다.','‘반복되는 패턴’ 차트를 더했습니다. W 패턴 두 번(2018~19 · 2022~23), 2020년 코로나 저점의 17.9달러 지지, 1.272에서 끝난 반등(2020 · 2024), 2026년 쌍봉과 넥라인 붕괴를 자료에서 다시 찾아 표시합니다.','교재가 인용한 수치(+200% · +90% · +182% · +346% · −44% · 반등 폭 200%)를 같은 구간의 자료 값과 나란히 봅니다.','사이클별 배경(모바일 · 언택트 · 생성형 AI · 피지컬 AI), 지금 조정을 보는 시각, 1.272와 328달러의 의미, 용어 풀이를 요약해 넣었습니다.'],
+  verified:'추세선 · 쌍봉 찾기 시험 · 화면 확인 2026-11-25',limits:['작성자 견해 요약이며 투자 권유가 아님','W 구간은 작성자 표시를 날짜 구간으로 옮긴 것이라 그림과 정확히 같지 않음']},
  {id:'2026-11-25-stochastic',date:'2026-11-25',title:'시장 현황: 지수 차트에 스토캐스틱 슬로우(5,3,3)',
   targets:[{tab:'market',selector:'.index-chart-stoch-line',label:'시장 현황 · 지수 차트'}],
   changes:['국내(KOSPI·KOSDAQ)와 미국(S&P500·NASDAQ) 지수 차트의 RSI 아래에 스토캐스틱 슬로우(5,3,3)를 더했습니다. %K는 실선, %D는 점선이며 20 미만은 파랑, 80 초과는 빨강 구간으로 RSI 차트와 같은 모양입니다.','계산: Fast %K = (종가 − 5일 최저가) ÷ (5일 최고가 − 5일 최저가) × 100, Slow %K = Fast %K의 3일 평균, %D = Slow %K의 3일 평균. 지수 일봉의 고가·저가·종가로 계산하고, 값이 비는 날은 채우지 않습니다.','차트 아래에 20 미만·80 초과 진입일과 최근 %K·%D 교차(골든·데드)를 표시합니다. 미국 지수는 장중에 오늘 고가·저가·현재가를 넣은 잠정 값도 함께 보여 줍니다.'],
