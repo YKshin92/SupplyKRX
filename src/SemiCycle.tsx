@@ -21,6 +21,12 @@ function LogCandle(props:unknown){
 }
 
 const POLL=60_000;
+/** Phone width: charts drop the long labels and the wide right gutter. */
+function useNarrow(){
+ const [narrow,setNarrow]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:600px)').matches);
+ useEffect(()=>{const m=window.matchMedia('(max-width:600px)'),f=()=>setNarrow(m.matches);m.addEventListener('change',f);return ()=>m.removeEventListener('change',f);},[]);
+ return narrow;
+}
 const kst=(iso:string)=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(iso));
 type LiveState={kind:'loading'|'on'|'off'|'error';message?:string};
 /** Polls /api/quote every minute while the page is visible; stops for good when the key is not configured. */
@@ -51,7 +57,7 @@ function useLiveQuote(){
 
 export default function SemiCycle(){
  const [data,setData]=useState<SemiData|null>(null),[error,setError]=useState('');
- const {quote,state}=useLiveQuote();
+ const {quote,state}=useLiveQuote(),narrow=useNarrow();
  useEffect(()=>{import('./data.ts').then(d=>d.json<unknown>('/data/live/semis/latest.json')).then(d=>{if(!validSemis(d))throw new Error('bad');setData(d);}).catch(()=>setError('반도체 지수(SOXX) 자료를 아직 불러올 수 없습니다. 다음 미국 자료 수집 뒤 표시됩니다.'));},[]);
  const view=useMemo(()=>{
   if(!data)return null;
@@ -106,39 +112,39 @@ export default function SemiCycle(){
 
   <section className="semi-block" aria-label="SOXX 장기 차트">
    <h4>장기 흐름 <small>주봉 종가 · 로그 눈금 · 2001년~ · 회색 띠 = 작성자가 짚은 조정 구간</small></h4>
-   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={long} margin={{top:10,right:104,left:0,bottom:0}}>
+   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={long} margin={{top:10,right:narrow?64:104,left:0,bottom:0}}>
     <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
     <XAxis dataKey="date" tickFormatter={v=>String(v).slice(0,4)} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={36}/>
     <YAxis scale="log" domain={[1.5,longMax]} allowDataOverflow ticks={ticksIn(1.5,longMax)} width={44} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>`$${v}`}/>
-    {episodes.map(({e,x})=>x&&wk(x.high.date)&&wk(x.trough.date)?<ReferenceArea key={e.name} x1={wk(x.high.date)} x2={wk(x.trough.date)} fill="var(--semi-episode)" strokeOpacity={0} label={{value:`${e.name.slice(0,4)} ${pct(x.drawdown,0)}`,position:'insideTop',fontSize:10,fill:'var(--muted)'}}/>:null)}
-    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:`${b.label.replace(' 박스','')} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
+    {episodes.map(({e,x},i)=>x&&wk(x.high.date)&&wk(x.trough.date)?<ReferenceArea key={e.name} x1={wk(x.high.date)} x2={wk(x.trough.date)} fill="var(--semi-episode)" strokeOpacity={0} label={narrow?undefined:{value:`${e.name.slice(0,4)} ${pct(x.drawdown,0)}`,position:'insideTop',offset:i%2?18:4,fontSize:10,fill:'var(--muted)'}}/>:null)}
+    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:narrow?`$${b.price}`:`${b.label.replace(' 박스','')} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
     <ReferenceLine y={nextBox} stroke="var(--semi-box)" strokeDasharray="2 6" label={{value:`다음 ≈$${Math.round(nextBox)}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>
     <ReferenceLine y={ext[0].price} stroke="var(--semi-target)" strokeDasharray="6 3" label={{value:`1.272 $${Math.round(ext[0].price)}`,position:'right',fontSize:10,fill:'var(--semi-target)'}}/>
     <ReferenceLine y={ext[1].price} stroke="var(--semi-target)" strokeDasharray="6 3" label={{value:`2.0 $${Math.round(ext[1].price)}`,position:'right',fontSize:10,fill:'var(--semi-target)'}}/>
     {conv&&<ReferenceLine segment={[{x:conv.from.date,y:conv.from.price},{x:conv.to.date,y:conv.to.price}]} stroke="var(--semi-trend)" strokeWidth={1.4} ifOverflow="hidden"/>}
     <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof long)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label} 주</strong><div>종가 {usd(r.close)}</div><div>전고점 대비 {pct(r.dd)}</div></div>;}}/>
     <Line dataKey="close" name="주봉 종가" stroke="var(--semi-line)" strokeWidth={1.6} dot={false} isAnimationActive={false}/>
-    {conv&&<ReferenceDot x={conv.breakout.date} y={conv.breakout.price} r={4} fill="var(--semi-trend)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(`${conv.breakout.date.slice(0,4)} 수렴 돌파`,'bottom')}/>}
+    {conv&&<ReferenceDot x={conv.breakout.date} y={conv.breakout.price} r={4} fill="var(--semi-trend)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(narrow?'돌파':`${conv.breakout.date.slice(0,4)} 수렴 돌파`,'bottom')}/>}
    </ComposedChart></ResponsiveContainer></div>
-   <p className="semi-legend"><i className="line"/>SOXX 주봉 종가 <i className="trend"/>2001·2011 고점 추세선(수렴){conv?` · ${conv.breakout.date.slice(0,7)} 돌파`:''} <i className="box"/>작성자 박스 목표(각 단 약 ×{AUTHOR.boxRatio.toFixed(2)}) <i className="target"/>지금 사이클({c.low.date.slice(0,7)} 저점 → {c.high.date.slice(0,7)} 고점) 확장 1.272 · 2.0 <i className="episode"/>조정 구간</p>
+   <p className="semi-legend"><span><i className="line"/>SOXX 주봉 종가</span><span><i className="trend"/>2001·2011 고점 추세선(수렴){conv?` · ${conv.breakout.date.slice(0,7)} 돌파`:''}</span><span><i className="box"/>작성자 박스 목표(각 단 약 ×{AUTHOR.boxRatio.toFixed(2)})</span><span><i className="target"/>지금 사이클({c.low.date.slice(0,7)} 저점 → {c.high.date.slice(0,7)} 고점) 확장 1.272 · 2.0</span><span><i className="episode"/>조정 구간{narrow?` ${episodes.map(({e,x})=>x?`${e.name.slice(2,4)}년 ${pct(x.drawdown,0)}`:'').filter(Boolean).join(' · ')}`:''}</span></p>
   </section>
 
   <section className="semi-block" aria-label="반복되는 패턴">
    <h4>반복되는 패턴 <small>주봉 종가 · 로그 눈금 · 2016년~ · W(쌍바닥) · 1.272에서 막힌 반등 · 쌍봉과 넥라인 — 작성자가 짚은 자리를 자료에서 다시 찾아 표시</small></h4>
-   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pattern} margin={{top:18,right:104,left:0,bottom:0}}>
+   <div className="semi-chart-long"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={pattern} margin={{top:18,right:narrow?64:104,left:0,bottom:0}}>
     <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
     <XAxis dataKey="date" tickFormatter={v=>String(v).slice(0,4)} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={36}/>
     <YAxis scale="log" domain={[7,300]} allowDataOverflow ticks={ticksIn(7,300,true)} width={44} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>`$${v}`}/>
-    {ws.map(({w,range})=>range&&wk(w.from)&&wk(w.to)?<ReferenceArea key={w.name} x1={wk(w.from)} x2={wk(w.to)} y1={range.low*0.96} y2={range.high*1.04} fill="var(--semi-w)" stroke="var(--semi-w-line)" strokeDasharray="4 3" label={{value:w.name,position:'insideTopLeft',fontSize:10,fill:'var(--semi-w-line)'}}/>:null)}
-    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:`${b.label.replace(' 박스','')} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
+    {ws.map(({w,range})=>range&&wk(w.from)&&wk(w.to)?<ReferenceArea key={w.name} x1={wk(w.from)} x2={wk(w.to)} y1={range.low*0.96} y2={range.high*1.04} fill="var(--semi-w)" stroke="var(--semi-w-line)" strokeDasharray="4 3" label={{value:narrow?'W':w.name,position:'insideTopLeft',fontSize:10,fill:'var(--semi-w-line)'}}/>:null)}
+    {AUTHOR.boxes.map(b=><ReferenceLine key={b.label} y={b.price} stroke="var(--semi-box)" strokeDasharray="4 4" label={{value:narrow?`$${b.price}`:`${b.label.replace(' 박스','')} $${b.price}`,position:'right',fontSize:10,fill:'var(--muted)'}}/>)}
     {top?.broken&&wk(top.first.date)&&<ReferenceLine segment={[{x:wk(top.first.date)!,y:top.neck.price},{x:pattern.at(-1)!.date,y:top.neck.price}]} stroke="var(--semi-target)" strokeWidth={1.4} ifOverflow="hidden"/>}
     <Tooltip content={({active,payload,label})=>{const r=payload?.[0]?.payload as (typeof long)[number]|undefined;if(!active||!r)return null;return <div className="chart-tip"><strong>{label} 주</strong><div>종가 {usd(r.close)}</div><div>전고점 대비 {pct(r.dd)}</div></div>;}}/>
     <Line dataKey="close" name="주봉 종가" stroke="var(--semi-line)" strokeWidth={1.6} dot={false} isAnimationActive={false}/>
-    {episodes[1].x&&wk(episodes[1].x.trough.date)&&<ReferenceDot x={wk(episodes[1].x.trough.date)} y={episodes[1].x.trough.price} r={4} fill="var(--semi-fib)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(`17.9 지지 ${usd(episodes[1].x.trough.price,1)}`,'bottom')}/>}
-    {[episodes[1].x,episodes[3].x].map((x,i)=>x&&wk(x.high.date)?<ReferenceDot key={i} x={wk(x.high.date)} y={x.high.price} r={4} fill="var(--semi-target)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(`1.272에서 반등 끝 ${usd(x.high.price,0)}`,'top')}/>:null)}
+    {episodes[1].x&&wk(episodes[1].x.trough.date)&&<ReferenceDot x={wk(episodes[1].x.trough.date)} y={episodes[1].x.trough.price} r={4} fill="var(--semi-fib)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(narrow?'지지':`17.9 지지 ${usd(episodes[1].x.trough.price,1)}`,'bottom')}/>}
+    {[episodes[1].x,episodes[3].x].map((x,i)=>x&&wk(x.high.date)?<ReferenceDot key={i} x={wk(x.high.date)} y={x.high.price} r={4} fill="var(--semi-target)" stroke="var(--surface,#fff)" strokeWidth={2} label={dotLabel(narrow?'1.272':`1.272에서 반등 끝 ${usd(x.high.price,0)}`,'top')}/>:null)}
     {top?.broken&&[top.first,top.second].map((t,i)=>wk(t.date)?<ReferenceDot key={`t${i}`} x={wk(t.date)} y={t.price} r={4} fill="var(--semi-up)" stroke="var(--surface,#fff)" strokeWidth={2} label={i===0?dotLabel('쌍봉','top'):undefined}/>:null)}
    </ComposedChart></ResponsiveContainer></div>
-   <p className="semi-legend"><i className="w"/>W 패턴(작성자 표시 구간) <i className="dot fib"/>2020 코로나 저점(1단 박스 지지) <i className="dot target"/>1.272에서 끝난 반등(2020 · 2024) {top?.broken&&<><i className="dot up"/>쌍봉 {top.first.date.slice(2,7)} {usd(top.first.price,0)} · {top.second.date.slice(2,7)} {usd(top.second.price,0)} <i className="target solid"/>넥라인 {usd(top.neck.price,0)} — {top.broken.date} 종가로 붕괴</>}</p>
+   <p className="semi-legend"><span><i className="w"/>W 패턴(작성자 표시 구간)</span><span><i className="dot fib"/>2020 코로나 저점 {usd(episodes[1].x?.trough.price,1)}(1단 박스 17.9 지지)</span><span><i className="dot target"/>1.272에서 끝난 반등(2020 {usd(episodes[1].x?.high.price,0)} · 2024 {usd(episodes[3].x?.high.price,0)})</span>{top?.broken&&<><span><i className="dot up"/>쌍봉 {top.first.date.slice(2,7)} {usd(top.first.price,0)} · {top.second.date.slice(2,7)} {usd(top.second.price,0)}</span><span><i className="target solid"/>넥라인 {usd(top.neck.price,0)} — {top.broken.date} 종가로 붕괴</span></>}</p>
    <div className="semi-table-scroll"><table className="semi-table">
     <thead><tr><th>교재가 인용한 수치</th><th>작성자</th><th>자료 계산</th></tr></thead>
     <tbody>{stats.map(x=><tr key={x.name}><td>{x.name}</td><td>{x.author}</td><td><b>{pct(x.value,0)}</b></td></tr>)}</tbody>
@@ -147,7 +153,7 @@ export default function SemiCycle(){
 
   <section className="semi-block" aria-label="지금 사이클 되돌림">
    <h4>지금 사이클 되돌림 <small>주봉 · 로그 눈금 · 저점 {usd(L)}({c.low.date}) → 고점 {usd(H)}({c.high.date}) · 파란 띠 = 0.382~0.618 분할 매수 구간(작성자)</small></h4>
-   <div className="semi-chart-cycle"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={recent} margin={{top:10,right:96,left:0,bottom:0}}>
+   <div className="semi-chart-cycle"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={recent} margin={{top:10,right:narrow?74:96,left:0,bottom:0}}>
     <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 5"/>
     <XAxis dataKey="date" tickFormatter={v=>String(v).slice(2,7).replace('-','.')} tick={{fontSize:11,fill:'var(--muted)'}} minTickGap={28}/>
     <YAxis scale="log" domain={[recentLo,recentHi]} allowDataOverflow ticks={ticksIn(recentLo,recentHi,true)} width={44} tick={{fontSize:11,fill:'var(--muted)'}} tickFormatter={v=>`$${v}`}/>
@@ -158,9 +164,9 @@ export default function SemiCycle(){
     <Bar dataKey="range" name="주봉" shape={<LogCandle/>} isAnimationActive={false}/>
    </ComposedChart></ResponsiveContainer></div>
    <div className="semi-table-scroll"><table className="semi-table">
-    <thead><tr><th>되돌림</th><th>자료 계산</th><th>작성자</th><th>지금 종가 대비</th><th>작성자 해석</th></tr></thead>
-    <tbody>{fib.filter(f=>f.r>0&&f.r<1).map(f=><tr key={f.r} className={deepest!=null&&deepest>=f.r?'reached':''}><td>{f.r}</td><td>{usd(f.price)}</td><td>{AUTHOR.levels[String(f.r)]?usd(AUTHOR.levels[String(f.r)]):'—'}</td><td>{pct(f.price/last-1)}</td><td>{f.r===0.236?'이미 깨짐':f.r===0.382?'11월 셋째 주에 닿음 · 1차 매수':f.r===0.5?'가장 유력한 저점 · 2차 매수':'블랙스완 때 · 3차 매수'}</td></tr>)}
-    {ext.map(x=><tr key={x.k} className="ext"><td>확장 {x.k}</td><td>{usd(x.price,0)}</td><td>{usd(AUTHOR.levels[x.k===2?'2':'1.272'],0)}</td><td>{pct(x.price/last-1,0)}</td><td>{x.k===2?'2029~ 상승장 목표(900달러대)':'반등장 끝 · 전량 매도 자리'}</td></tr>)}</tbody>
+    <thead><tr><th>되돌림</th><th>자료 계산</th><th>작성자</th><th>지금 가격 대비</th><th>지금 상태(자료)</th><th>작성자 해석</th></tr></thead>
+    <tbody>{fib.filter(f=>f.r>0&&f.r<1).map(f=><tr key={f.r} className={deepest!=null&&deepest>=f.r?'reached':''}><td>{f.r}</td><td>{usd(f.price)}</td><td>{AUTHOR.levels[String(f.r)]?usd(AUTHOR.levels[String(f.r)]):'—'}</td><td>{pct(f.price/last-1)}</td><td>{last<f.price?'지금 가격이 아래(이탈)':deepest!=null&&deepest>=f.r&&c.lastLow?`${c.lastLow.date.slice(5)} 저가 ${usd(c.lastLow.price,1)}로 닿음`:'아직 닿지 않음'}</td><td>{f.r===0.236?'2018년에는 여기서 멈춤':f.r===0.382?'1차 매수':f.r===0.5?'가장 유력한 저점 · 2차 매수':'블랙스완 때 · 3차 매수'}</td></tr>)}
+    {ext.map(x=><tr key={x.k} className="ext"><td>확장 {x.k}</td><td>{usd(x.price,0)}</td><td>{usd(AUTHOR.levels[x.k===2?'2':'1.272'],0)}</td><td>{pct(x.price/last-1,0)}</td><td>{last>=x.price?'도달':'아직 닿지 않음'}</td><td>{x.k===2?'2029~ 상승장 목표(900달러대)':'반등장 끝 · 전량 매도 자리'}</td></tr>)}</tbody>
    </table></div>
   </section>
 
@@ -175,7 +181,7 @@ export default function SemiCycle(){
    <h4>사이클을 이끈 배경 <small>교재 요약 · 박스 한 단은 로그 차트에서 약 200%(×{AUTHOR.boxRatio.toFixed(2)})</small></h4>
    <div className="semi-story">{STORY.cycles.map(x=><article key={x.period}><span>{x.period}</span><b>{x.title}</b><em>{x.box}</em><ul>{x.points.map(p=><li key={p}>{p}</li>)}</ul><small>{x.end}</small></article>)}</div>
    <div className="semi-explain">
-    <div><strong>지금 조정을 보는 작성자의 시각</strong><ul>{STORY.now.map(x=><li key={x}>{x}</li>)}</ul></div>
+    <div><strong>지금 조정을 보는 작성자의 시각({AUTHOR.date} 기준)</strong><ul>{STORY.now.map(x=><li key={x}>{x}</li>)}</ul></div>
     <div><strong>1.272가 왜 중요한가</strong><ul>{STORY.why1272.map(x=><li key={x}>{x}</li>)}</ul><strong>328달러를 기억해야 하는 이유</strong><ul>{STORY.why328.map(x=><li key={x}>{x}</li>)}</ul></div>
    </div>
    <details className="semi-glossary"><summary>용어 풀이 {STORY.glossary.length}개</summary><dl>{STORY.glossary.map(([t,d])=><div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}</dl></details>
