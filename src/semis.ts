@@ -49,6 +49,8 @@ export const depth=(low:number,high:number,price:number)=>Math.log(high/price)/M
 /** The trader's own numbers (2026-11-23 material), shown as quoted next to the recomputed ones. */
 export const AUTHOR={
  date:'2026-11-23',source:'양봉업자 투자특강 교재 · 11월 4주차',
+ /** The cycle the material is about; its quoted levels are shown only while the page is on this cycle. */
+ cycle:{low:'2025-04-07',high:'2026-06-22'},
  boxes:[{label:'1단 박스',price:17.9,note:'2013 수렴 돌파 → 2017~18 달성'},{label:'2단 박스',price:55.1,note:'2020 17.9달러 지지 → 2021 대세 상승 종료'},{label:'3단 박스',price:170,note:'2023~ 생성형 AI → 오버슈팅 뒤 쌍봉·넥라인 붕괴'}],
  boxRatio:55.1/17.9,
  levels:{'0.382':123.5,'0.5':103.54,'0.618':86.81,'1.272':328,'2':970} as Record<string,number>,
@@ -158,3 +160,66 @@ export const STORY={
   ['블랙스완','예측하기 어렵지만 일어나면 충격이 큰 사건'],['네오클라우드','엔비디아 GPU를 대량으로 들여와 AI 연산을 빌려주는 신생 클라우드 업체'],['추세 추종','오르는 방향을 따라 사고 내리는 방향을 따라 파는 매매 방식'],
  ] as [string,string][],
 };
+
+/* ── 사이클 단계 자동 판정 (2026-11-25) ──
+ * 교재의 과거 설명은 같은 순서를 되풀이한다: 기준 상승(저점 L → 고점 H) → ① 조정 → ② 반등장(1.272 부근에서 끝) →
+ * ③ 급락 한 차례 → ④ 상승장(확장 2 부근에서 끝) → 그 급락 저점과 새 고점이 다음 사이클의 L · H.
+ * 교재가 더 나오지 않으므로 이 순서를 규칙으로 옮겨 2016년부터 일봉 종가로 다시 돌린다(확정 종가만, 장중 시세 제외).
+ *  · 꺾임 확인: 종가가 구간 최고가보다 20% 이상 아래(DROP).
+ *  · 돌아섬 확인: 저점 뒤 20거래일(AGE)이 지나고, 종가가 하락폭의 절반(로그 중간값 = √(고점×저점)) 이상 회복.
+ *  · 반등이 전고점을 못 넘고 꺾이거나, 확인 뒤 저점을 다시 깨면 이전 단계로 되돌린다.
+ * 20% · 20거래일은 교재에 없는 값이다. 20~25% · 10~20거래일에서는 교재와 같은 세 사이클(2016→18, 2020→22, 2025→26)이 나오고
+ * 30%에서는 2018년 조정(−27%)을 놓친다. 사례가 세 사이클뿐이라 통계 검증은 아니다. */
+export const STAGE={drop:0.2,age:20} as const;
+export type Phase='correction'|'rebound'|'crash'|'bull';
+export type StageEvent={date:string;kind:'rebound'|'crash'|'bull'|'top'|'rebound_failed'|'bull_failed';price:number;ref?:Point};
+export type StageState={low:Point;high:Point;phase:Phase;trough:Point;troughAge:number;peak:Point|null;reboundPeak:Point|null;crashLow:Point|null;crashAge:number;
+ failedPeak:number|null;confirm:number|null;events:StageEvent[];since:number};
+export function stages(bars:Bar[],drop:number=STAGE.drop,age:number=STAGE.age):StageState|null{
+ const seedL=extreme(bars,'2016-01-01','2016-06-30','low'),seedH=extreme(bars,'2018-01-01','2018-06-30','high');
+ if(!seedL||!seedH)return null;
+ let low=seedL,high=seedH,phase:Phase='correction';
+ let trough:Point={...seedH},ti=bars.findIndex(b=>b.date===seedH.date);
+ let peak:Point|null=null,rebound:Point|null=null,crash:Point|null=null,ci=0,failed:number|null=null,since=0;
+ const events:StageEvent[]=[];
+ const start=ti+1;
+ for(let i=start;i<bars.length;i++){
+  const b=bars[i];
+  if(phase==='correction'){
+   if(b.low<trough.price){trough={date:b.date,price:b.low};ti=i;failed=null;}
+   const level=Math.max(Math.sqrt(high.price*trough.price),failed??0);
+   if(trough.price<high.price*(1-drop)&&i-ti>=age&&b.close>=level){phase='rebound';peak={date:b.date,price:b.high};events.push({date:b.date,kind:'rebound',price:b.close,ref:trough});}
+  }else if(phase==='rebound'){
+   if(b.high>peak!.price)peak={date:b.date,price:b.high};
+   if(b.close<trough.price){phase='correction';failed=null;trough={date:b.date,price:b.low};ti=i;events.push({date:b.date,kind:'rebound_failed',price:b.close});}
+   else if(b.close<=peak!.price*(1-drop)){
+    if(peak!.price>=high.price){rebound=peak;phase='crash';crash={date:b.date,price:b.low};ci=i;events.push({date:b.date,kind:'crash',price:b.close,ref:rebound!});}
+    else{phase='correction';failed=peak!.price;events.push({date:b.date,kind:'rebound_failed',price:b.close,ref:peak!});}
+   }
+  }else if(phase==='crash'){
+   if(b.low<crash!.price){crash={date:b.date,price:b.low};ci=i;}
+   if(i-ci>=age&&b.close>=Math.sqrt(rebound!.price*crash!.price)){phase='bull';peak={date:b.date,price:b.high};events.push({date:b.date,kind:'bull',price:b.close,ref:crash!});}
+  }else{
+   if(b.high>peak!.price)peak={date:b.date,price:b.high};
+   if(b.close<crash!.price){phase='crash';crash={date:b.date,price:b.low};ci=i;events.push({date:b.date,kind:'bull_failed',price:b.close});}
+   else if(b.close<=peak!.price*(1-drop)){
+    if(peak!.price>rebound!.price){
+     events.push({date:b.date,kind:'top',price:b.close,ref:peak!});
+     low=crash!;high=peak!;phase='correction';failed=null;since=events.length;
+     const hi=bars.findIndex(x=>x.date===high.date);ti=hi;trough={date:b.date,price:b.low};
+     for(let j=hi+1;j<=i;j++)if(bars[j].low<=trough.price){trough={date:bars[j].date,price:bars[j].low};ti=j;}
+     rebound=null;crash=null;peak=null;
+    }else{phase='crash';events.push({date:b.date,kind:'bull_failed',price:b.close,ref:peak!});}
+   }
+  }
+ }
+ const n=bars.length-1;
+ const confirm=phase==='correction'?Math.max(Math.sqrt(high.price*trough.price),failed??0):phase==='crash'?Math.sqrt(rebound!.price*crash!.price):null;
+ return {low,high,phase,trough,troughAge:n-ti,peak,reboundPeak:rebound,crashLow:crash,crashAge:crash?n-ci:0,failedPeak:failed,confirm,events,since};
+}
+/** Cycle view from fixed anchors (the stage machine's L · H), with the lowest low since the high. */
+export function cycleFrom(bars:Bar[],low:Point,high:Point){
+ const last=bars.at(-1);if(!last)return null;
+ const after=extreme(bars,high.date,last.date,'low');
+ return {low,high,lastLow:after&&after.date>high.date?after:null,last:{date:last.date,price:last.close}};
+}

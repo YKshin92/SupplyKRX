@@ -61,3 +61,26 @@ test('convergence line, breakout and double top are found from bars',async()=>{
  assert.equal(doubleTop(bars.slice(0,1),{date:'2026-06-22',price:218}),null);
  assert.deepEqual(windowRange(bars,'2026-07-01','2026-10-31'),{low:155,high:199});
 });
+test('stage machine walks correction → rebound → crash → bull → new cycle, and steps back on failure',async()=>{
+ const {stages}=await import('../src/semis.ts');
+ const bars=[];let day=new Date('2016-01-04T00:00:00Z');
+ const push=(price,n=1)=>{for(let k=0;k<n;k++){while([0,6].includes(day.getUTCDay()))day.setUTCDate(day.getUTCDate()+1);bars.push({date:day.toISOString().slice(0,10),open:price,high:price,low:price,close:price});day.setUTCDate(day.getUTCDate()+1);}};
+ const until=d=>{while(day.toISOString().slice(0,10)<d)push(bars.at(-1).price??bars.at(-1).close);};
+ push(10,5);                       // 2016 seed low 10
+ until('2018-06-25');push(20,3);   // 2018 seed high 20 (last bars of the seed window)
+ push(15,1);push(15,25);           // −25%: correction low 15, aged
+ assert.equal(stages(bars).phase,'correction');assert.ok(Math.abs(stages(bars).confirm-Math.sqrt(300))<1e-9);
+ push(18,2);                       // ≥ √(20×15)=17.3 → rebound
+ let s=stages(bars);assert.equal(s.phase,'rebound');assert.equal(s.events.at(-1).kind,'rebound');
+ push(26,3);push(20,1);            // peak 26 ≥ 20, then −23% → crash
+ s=stages(bars);assert.equal(s.phase,'crash');assert.equal(s.reboundPeak.price,26);
+ push(16,25);push(21,2);           // crash low 16 aged, ≥ √(26×16)=20.4 → bull
+ s=stages(bars);assert.equal(s.phase,'bull');assert.equal(s.low.price,10);
+ push(40,3);push(31,1);            // peak 40 > 26, −22.5% → top: new cycle 16 → 40
+ s=stages(bars);assert.equal(s.phase,'correction');assert.equal(s.low.price,16);assert.equal(s.high.price,40);assert.equal(s.trough.price,31);
+ assert.deepEqual(s.events.map(e=>e.kind),['rebound','crash','bull','top']);assert.equal(s.since,4);
+ push(30,25);push(36,2);push(29,1);// rebound confirmed (≥34.6) then new low → back to correction
+ s=stages(bars);assert.equal(s.phase,'correction');assert.equal(s.events.at(-1).kind,'rebound_failed');assert.equal(s.trough.price,29);
+ push(29,25);push(38,3);push(30,1);// rebound peak 38 < 40, −21% → failed below the high; needs a close above 38 next time
+ s=stages(bars);assert.equal(s.phase,'correction');assert.equal(s.failedPeak,38);assert.equal(s.confirm,38);
+});

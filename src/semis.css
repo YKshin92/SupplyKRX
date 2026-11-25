@@ -50,3 +50,8 @@
 @media(max-width:1000px){.semi-story{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.semi-story,.semi-explain,.semi-glossary dl{grid-template-columns:1fr}}
 .semi-legend span{display:inline-flex;align-items:center;gap:5px}
+/* 사이클 단계 자동 판정 (2026-11-25) */
+.semi-roadmap b em{font-style:normal;font-size:10px;font-weight:700;color:#fff;background:var(--semi-fib);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.semi-roadmap b em.done{background:var(--muted)}.semi-roadmap li.done{opacity:.75}
+.semi-stage-now{font-size:12px;margin:10px 0 0;color:var(--muted)}.semi-stage-now b{color:var(--text,inherit)}
+.semi-table tr.failed td{color:var(--muted)}

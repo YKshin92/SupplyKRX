@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {ResponsiveContainer,ComposedChart,Line,Bar,XAxis,YAxis,Tooltip,CartesianGrid,ReferenceLine,ReferenceArea,ReferenceDot} from 'recharts';
-import {AUTHOR,EPISODES,EXTEND,EXTENSIONS,RETRACE,STORY,W_PATTERNS,convergence,doubleTop,windowRange,cycle,daily,depth,episode,extend,extensionCheck,retrace,validSemis,weekKey,weekly,withLive,zone,type Bar as Ohlc,type Live,type SemiData} from './semis';
+import {AUTHOR,EPISODES,EXTEND,EXTENSIONS,RETRACE,STAGE,STORY,W_PATTERNS,convergence,cycleFrom,doubleTop,stages,windowRange,cycle,daily,depth,episode,extend,extensionCheck,retrace,validSemis,weekKey,weekly,withLive,zone,type Bar as Ohlc,type Phase,type StageEvent,type StageState,type Live,type SemiData} from './semis';
 import './semis.css';
 
 const usd=(v:number|null|undefined,d=2)=>v==null?'—':`$${v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}`;
@@ -55,13 +55,64 @@ function useLiveQuote(){
  return {quote,state};
 }
 
+const PHASES:Phase[]=['correction','rebound','crash','bull'];
+const STEP=['조정(하락장)','반등장','급락 한 차례','상승장'];
+const NEXT_KIND=['rebound','crash','bull','top'] as const;
+const session=(n:number)=>`${n}거래일`;
+/** 사이클 단계 자동 판정: the four steps of the course material, driven by the rule in semis.ts (confirmed daily closes). */
+function StagePanel({st,match,L,H}:{st:StageState;match:boolean;L:number;H:number}){
+ const at=PHASES.indexOf(st.phase),mine=st.events.slice(st.since);
+ const half=Math.round(STAGE.drop*100);
+ const done=(i:number)=>[...mine].reverse().find(e=>e.kind===NEXT_KIND[i]);
+ const t=st.trough,deep=depth(L,H,t.price);
+ const aging=st.troughAge<STAGE.age;
+ const detail=[
+  at===0?`저점 ${usd(t.price)}(${t.date}) · 고점 대비 ${pct(t.price/H-1)} · 되돌림 ${deep.toFixed(3)} · 저점 뒤 ${session(st.troughAge)}`:`저점 ${usd(t.price)}(${t.date}) · 되돌림 ${deep.toFixed(3)}`,
+  at===1&&st.peak?`구간 최고가 ${usd(st.peak.price)}(${st.peak.date}) · 목표 1.272 = ${usd(extend(L,H,1.272),0)}`:`목표 1.272 = ${usd(extend(L,H,1.272),0)} · 전고점 ${usd(H,0)}을 살짝 넘는 자리`,
+  at===2&&st.crashLow?`급락 저점 ${usd(st.crashLow.price)}(${st.crashLow.date}) · 저점 뒤 ${session(st.crashAge)}`:'반등장이 1.272 부근에서 끝난 뒤의 큰 하락(2020 코로나 · 2025년)',
+  at===3&&st.peak?`구간 최고가 ${usd(st.peak.price)}(${st.peak.date}) · 목표 확장 2 = ${usd(extend(L,H,2),0)}`:`목표 확장 2 = ${usd(extend(L,H,2),0)}`,
+ ];
+ const rule=[
+  `저점 뒤 ${STAGE.age}거래일이 지나고 종가가 하락폭의 절반 이상 회복하면 반등장으로`,
+  `종가가 구간 최고가보다 ${half}% 이상 내려가면 급락으로(전고점을 못 넘고 꺾이면 조정으로 되돌림)`,
+  `저점 뒤 ${STAGE.age}거래일이 지나고 종가가 하락폭의 절반 이상 회복하면 상승장으로`,
+  `종가가 구간 최고가보다 ${half}% 이상 내려가면 사이클 종료 → 급락 저점과 새 고점으로 다음 사이클`,
+ ];
+ const now=at===0?(st.trough.price>H*(1-STAGE.drop)?`고점 대비 하락이 아직 ${half}% 미만입니다.`:aging?`하락 진행 중 — 최저가를 ${session(st.troughAge)} 전에 새로 썼습니다(${STAGE.age}거래일 동안 안 깨져야 저점 후보).`:`저점 다지기 — 최저가가 ${session(st.troughAge)}째 깨지지 않았습니다.`)
+  :at===1?'반등장 — 1.272 부근이 반등이 끝나는 자리입니다.':at===2?(st.crashAge<STAGE.age?'급락 진행 중입니다.':'급락 뒤 저점 다지기입니다.'):'상승장 — 확장 2 부근이 목표입니다.';
+ const need=st.confirm!=null?`다음 단계 조건: 종가 ${usd(st.confirm)} 이상${st.failedPeak&&st.confirm===st.failedPeak?'(지난 반등 실패 고점)':'(하락폭 절반 회복)'}${(at===0?st.troughAge:st.crashAge)<STAGE.age?` + 저점 뒤 ${STAGE.age}거래일(지금 ${session(at===0?st.troughAge:st.crashAge)})`:''}`
+  :st.peak?`다음 단계 조건: 종가 ${usd(st.peak.price*(1-STAGE.drop))} 이하(구간 최고가 ${usd(st.peak.price)}의 −${half}%)`:'';
+ const label=(e:StageEvent)=>e.kind==='rebound'?'반등장 진입 확인':e.kind==='crash'?'반등 끝 · 급락 확인':e.kind==='bull'?'상승장 진입 확인':e.kind==='top'?'상승장 끝 · 새 사이클 시작':e.kind==='rebound_failed'?(e.ref?'반등 실패(전고점을 못 넘고 꺾임) → 조정으로':'반등 실패(저점 경신) → 조정으로'):e.ref?'상승 실패(반등 고점을 못 넘고 꺾임) → 급락으로':'상승 실패(급락 저점 경신) → 급락으로';
+ const basis=(e:StageEvent)=>!e.ref?'—':`${e.kind==='rebound'||e.kind==='bull'?'저점':'고점'} ${usd(e.ref.price)}(${e.ref.date}) 대비 ${pct(e.price/e.ref.price-1,0)}`;
+ return <section className="semi-block semi-stage" aria-label="사이클 단계">
+  <h4>지금 단계 <small>교재가 설명한 사이클 순서(조정 → 반등장 → 급락 → 상승장)를 규칙으로 옮겨 매일 확정 종가로 자동 판정 · 장중 시세는 쓰지 않음</small></h4>
+  <ol className="semi-roadmap">{STEP.map((name,i)=>{const d=i<at?done(i):undefined;return <li key={name} className={i===at?'now':i<at?'done':''}>
+   <b>{name}{i===at&&<em>지금</em>}{i<at&&<em className="done">지남{d?` · ${d.date}`:''}</em>}</b><span>{detail[i]}</span>
+   <small>{rule[i]}{match?` · 교재: ${AUTHOR.scenario[i].when==='지금'?'':AUTHOR.scenario[i].when+' '}${AUTHOR.scenario[i].price}`:''}</small></li>;})}</ol>
+  <p className="semi-stage-now"><b>{now}</b> {need}</p>
+  <details className="semi-glossary"><summary>같은 규칙을 2016년부터 돌린 기록 {st.events.length}건 · 사이클 기준 {usd(L)}({st.low.date}) → {usd(H)}({st.high.date})</summary>
+   <div className="semi-table-scroll"><table className="semi-table">
+    <thead><tr><th>확인일</th><th>판정</th><th>확인 종가</th><th>기준</th></tr></thead>
+    <tbody>{st.events.map((e,i)=><tr key={i} className={e.kind.endsWith('failed')?'failed':''}><td>{e.date}</td><td>{label(e)}</td><td>{usd(e.price)}</td><td>{basis(e)}</td></tr>)}</tbody>
+   </table></div>
+   <ul className="semi-notes">
+    <li>이 규칙은 교재가 짚은 세 사이클(2016→2018, 2020→2022, 2025→2026 저점·고점)을 그대로 찾아냅니다. 확인 {st.events.filter(e=>!e.kind.endsWith('failed')).length}번 가운데 {st.events.filter(e=>e.kind.endsWith('failed')).length}번은 나중에 되돌려졌습니다.</li>
+    <li>확인은 늦습니다. 저점·고점을 맞히는 신호가 아니라 지나간 뒤에 확인하는 표시입니다(예: 2022-10 저점은 2023-01에 확인).</li>
+    <li>−{half}% · {STAGE.age}거래일은 교재에 없는 값으로, 20~25% · 10~20거래일 범위에서 같은 결과가 나오는 것을 확인하고 정했습니다. 사례가 세 사이클뿐이라 통계 검증은 아니며, 이 사이트의 매매 신호·자동매매에는 쓰지 않습니다.</li>
+   </ul>
+  </details>
+ </section>;
+}
+
 export default function SemiCycle(){
  const [data,setData]=useState<SemiData|null>(null),[error,setError]=useState('');
  const {quote,state}=useLiveQuote(),narrow=useNarrow();
  useEffect(()=>{import('./data.ts').then(d=>d.json<unknown>('/data/live/semis/latest.json')).then(d=>{if(!validSemis(d))throw new Error('bad');setData(d);}).catch(()=>setError('반도체 지수(SOXX) 자료를 아직 불러올 수 없습니다. 다음 미국 자료 수집 뒤 표시됩니다.'));},[]);
  const view=useMemo(()=>{
   if(!data)return null;
-  const merged=withLive(daily(data),quote),bars=merged.bars,weeks=weekly(bars),c=cycle(bars);
+  const confirmed=daily(data),merged=withLive(confirmed,quote),bars=merged.bars,weeks=weekly(bars);
+  /* Anchors and stage come from confirmed daily closes only; the live quote moves the price, not the stage. */
+  const st=stages(confirmed),c=st?cycleFrom(bars,st.low,st.high):cycle(bars);
   if(!c)return null;
   const byWeek=new Map(weeks.map(w=>[weekKey(w.date),w.date]));
   const wk=(date:string)=>byWeek.get(weekKey(date));
@@ -88,13 +139,15 @@ export default function SemiCycle(){
    {name:'고점 대비 하락(조정 중 최저가 기준)',author:'약 −44%',value:c.lastLow?c.lastLow.price/H-1:null},
    {name:'0.5 저점에서 1.272까지 반등 폭',author:'약 +200%',value:extend(L,H,1.272)/retrace(L,H,0.5)-1},
   ];
-  return {conv,top,ws,pattern,stats,isLive:merged.live,c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,
+  const match=c.low.date===AUTHOR.cycle.low&&c.high.date===AUTHOR.cycle.high;
+  return {st,match,conv,top,ws,pattern,stats,isLive:merged.live,c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,
    bandTop:retrace(L,H,0.382),bandBottom:retrace(L,H,0.618),target:extend(L,H,1.272)};
  },[data,quote]);
  if(error)return <p className="notice">{error}</p>;
  if(!data)return <div className="chart-empty" role="status">반도체 지수 차트를 불러오는 중…</div>;
  if(!view)return <p className="notice">SOXX 사이클 고점·저점을 찾지 못했습니다.</p>;
- const {c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,conv,top,ws,pattern,stats}=view;
+ const {c,L,H,last,prev,fib,ext,now,deepest,next,long,episodes,extensions,recent,wk,conv,top,ws,pattern,stats,st,match}=view;
+ const quoted=(k:string)=>match?AUTHOR.levels[k]??null:null;
  const dotLabel=(value:string,position:'top'|'bottom'|'left'|'right'='top')=>({value,position,fontSize:10,fill:'var(--text,currentColor)'});
  const longMax=Math.max(1200,ext[1].price*1.2),recentLo=Math.min(retrace(L,H,0.618),...recent.map(r=>r.low))*0.88,recentHi=view.target*1.12;
  const nextBox=AUTHOR.boxes[2].price*AUTHOR.boxRatio;
@@ -105,10 +158,13 @@ export default function SemiCycle(){
    <article className={view.isLive?'live':''}><span>{view.isLive&&fresh?'SOXX 현재가':'SOXX 종가'}{view.isLive&&(fresh?<em className="semi-live-dot" aria-label="실시간">실시간</em>:<em className="semi-live-dot closed">장 마감</em>)}</span><b>{usd(last)}</b><small className={prev&&last>=prev?'positive':'negative'}>{prev?pct(last/prev-1,2):''} · {view.isLive&&quote?`${kst(quote.time)} 체결`:c.last.date}</small></article>
    <article><span>사이클 고점 대비</span><b>{pct(last/H-1)}</b><small>고점 {usd(H)} · {c.high.date}</small></article>
    <article><span>지금 위치(로그 되돌림)</span><b>{now.toFixed(3)}</b><small>{zone(now)}{deepest!=null&&` · 최저 ${usd(c.lastLow!.price)}(${c.lastLow!.date.slice(5)}) = ${deepest.toFixed(3)}`}</small></article>
-   <article><span>다음 지지 {next?next.r:''}</span><b>{usd(next?.price)}</b><small>{next?`지금보다 ${pct(next.price/last-1)}`:'—'} · 작성자 {next?usd(AUTHOR.levels[String(next.r)]??null):'—'}</small></article>
-   <article className="target"><span>반등 목표 1.272</span><b>{usd(view.target,0)}</b><small>지금보다 {pct(view.target/last-1,0)} · 작성자 $328</small></article>
+   <article><span>다음 지지 {next?next.r:''}</span><b>{usd(next?.price)}</b><small>{next?`지금보다 ${pct(next.price/last-1)}`:'—'} {match&&next&&quoted(String(next.r))!=null?` · 작성자 ${usd(quoted(String(next.r)))}`:''}</small></article>
+   <article className="target"><span>반등 목표 1.272</span><b>{usd(view.target,0)}</b><small>지금보다 {pct(view.target/last-1,0)}{match?' · 작성자 $328':''}</small></article>
   </div>
   <p className={`semi-live-status ${state.kind}`} role="status">{state.kind==='on'&&quote?`${fresh?'실시간 시세':'미국 장 마감 · 직전 정규장 종가'} Finnhub · 마지막 체결 ${kst(quote.time)}(한국시간) · 1분마다 갱신 · 미국 정규장(한국시간 23:30~06:00, 서머타임 때 22:30~05:00) 밖에는 직전 정규장 종가`:state.kind==='off'?`실시간 시세 꺼짐 · ${state.message??''} 하루 한 번 수집한 종가로 보여 줍니다.`:state.kind==='error'?`실시간 시세를 받지 못했습니다(${state.message}). 수집한 종가로 보여 주고 1분 뒤 다시 시도합니다.`:'실시간 시세 확인 중…'}</p>
+
+  {st&&<StagePanel st={st} match={match} L={L} H={H}/>}
+  {!match&&<p className="notice">교재({AUTHOR.date})가 다룬 사이클({AUTHOR.cycle.low} 저점 → {AUTHOR.cycle.high} 고점)이 끝나 새 사이클 기준으로 계산합니다. 아래 ‘작성자’ 수치와 교재 요약 글은 지난 사이클 내용입니다.</p>}
 
   <section className="semi-block" aria-label="SOXX 장기 차트">
    <h4>장기 흐름 <small>주봉 종가 · 로그 눈금 · 2001년~ · 회색 띠 = 작성자가 짚은 조정 구간</small></h4>
@@ -165,21 +221,16 @@ export default function SemiCycle(){
    </ComposedChart></ResponsiveContainer></div>
    <div className="semi-table-scroll"><table className="semi-table">
     <thead><tr><th>되돌림</th><th>자료 계산</th><th>작성자</th><th>지금 가격 대비</th><th>지금 상태(자료)</th><th>작성자 해석</th></tr></thead>
-    <tbody>{fib.filter(f=>f.r>0&&f.r<1).map(f=><tr key={f.r} className={deepest!=null&&deepest>=f.r?'reached':''}><td>{f.r}</td><td>{usd(f.price)}</td><td>{AUTHOR.levels[String(f.r)]?usd(AUTHOR.levels[String(f.r)]):'—'}</td><td>{pct(f.price/last-1)}</td><td>{last<f.price?'지금 가격이 아래(이탈)':deepest!=null&&deepest>=f.r&&c.lastLow?`${c.lastLow.date.slice(5)} 저가 ${usd(c.lastLow.price,1)}로 닿음`:'아직 닿지 않음'}</td><td>{f.r===0.236?'2018년에는 여기서 멈춤':f.r===0.382?'1차 매수':f.r===0.5?'가장 유력한 저점 · 2차 매수':'블랙스완 때 · 3차 매수'}</td></tr>)}
-    {ext.map(x=><tr key={x.k} className="ext"><td>확장 {x.k}</td><td>{usd(x.price,0)}</td><td>{usd(AUTHOR.levels[x.k===2?'2':'1.272'],0)}</td><td>{pct(x.price/last-1,0)}</td><td>{last>=x.price?'도달':'아직 닿지 않음'}</td><td>{x.k===2?'2029~ 상승장 목표(900달러대)':'반등장 끝 · 전량 매도 자리'}</td></tr>)}</tbody>
+    <tbody>{fib.filter(f=>f.r>0&&f.r<1).map(f=><tr key={f.r} className={deepest!=null&&deepest>=f.r?'reached':''}><td>{f.r}</td><td>{usd(f.price)}</td><td>{usd(quoted(String(f.r)))}</td><td>{pct(f.price/last-1)}</td><td>{last<f.price?'지금 가격이 아래(이탈)':deepest!=null&&deepest>=f.r&&c.lastLow?`${c.lastLow.date.slice(5)} 저가 ${usd(c.lastLow.price,1)}로 닿음`:'아직 닿지 않음'}</td><td>{f.r===0.236?'2018년에는 여기서 멈춤':f.r===0.382?'1차 매수':f.r===0.5?'가장 유력한 저점 · 2차 매수':'블랙스완 때 · 3차 매수'}</td></tr>)}
+    {ext.map(x=><tr key={x.k} className="ext"><td>확장 {x.k}</td><td>{usd(x.price,0)}</td><td>{usd(quoted(x.k===2?'2':'1.272'),0)}</td><td>{pct(x.price/last-1,0)}</td><td>{last>=x.price?'도달':'아직 닿지 않음'}</td><td>{x.k===2?'2029~ 상승장 목표(900달러대)':'반등장 끝 · 전량 매도 자리'}</td></tr>)}</tbody>
    </table></div>
-  </section>
-
-  <section className="semi-block" aria-label="작성자 시나리오">
-   <h4>작성자 시나리오 <small>{AUTHOR.source} · 작성자 견해 요약이며 이 사이트의 예측·투자 권유가 아닙니다</small></h4>
-   <ol className="semi-roadmap">{AUTHOR.scenario.map((s,i)=><li key={s.step} className={i===0?'now':''}><b>{s.step}</b><span>{s.when} · {s.price}</span><small>{s.note}</small></li>)}</ol>
-   <div className="semi-rules"><strong>조정이 멈추는 자리(작성자의 P·Q 규칙)</strong>
-    <ul>{AUTHOR.rules.map(r=><li key={r.when}><span>{r.when}</span><b>{r.range}</b></li>)}</ul></div>
   </section>
 
   <section className="semi-block" aria-label="사이클별 배경">
    <h4>사이클을 이끈 배경 <small>교재 요약 · 박스 한 단은 로그 차트에서 약 200%(×{AUTHOR.boxRatio.toFixed(2)})</small></h4>
    <div className="semi-story">{STORY.cycles.map(x=><article key={x.period}><span>{x.period}</span><b>{x.title}</b><em>{x.box}</em><ul>{x.points.map(p=><li key={p}>{p}</li>)}</ul><small>{x.end}</small></article>)}</div>
+   <div className="semi-rules"><strong>조정이 멈추는 자리(작성자의 P·Q 규칙)</strong>
+    <ul>{AUTHOR.rules.map(r=><li key={r.when}><span>{r.when}</span><b>{r.range}</b></li>)}</ul></div>
    <div className="semi-explain">
     <div><strong>지금 조정을 보는 작성자의 시각({AUTHOR.date} 기준)</strong><ul>{STORY.now.map(x=><li key={x}>{x}</li>)}</ul></div>
     <div><strong>1.272가 왜 중요한가</strong><ul>{STORY.why1272.map(x=><li key={x}>{x}</li>)}</ul><strong>328달러를 기억해야 하는 이유</strong><ul>{STORY.why328.map(x=><li key={x}>{x}</li>)}</ul></div>
